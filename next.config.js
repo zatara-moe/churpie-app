@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: { serverActions: { allowedOrigins: ['churpie.me', 'localhost:3000'] } },
+  experimental: {
+    serverComponentsExternalPackages: ['@anthropic-ai/sdk'],
+  },
+  // Don't attempt to statically render API routes
+  output: undefined,
 }
+
 module.exports = nextConfig
