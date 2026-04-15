@@ -561,21 +561,19 @@ function CompiledScreen({ recipientName, clipCount, go }) {
 // ─── BOTTOM NAV ───────────────────────────────────────────────────
 function BottomNav({ screen, go, session }) {
   const tabs = [
-    { id:'home', label:'Home', icon:<svg width="20" height="20" viewBox="0 0 22 22" fill="none"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg> },
-    { id:'create1', label:'Create', icon:<svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.3"/><path d="M11 7v8M7 11h8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg> },
-    ...(session ? [{ id:'dashboard', label:'Cards', icon:<svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="12" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="3" y="12" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="12" y="12" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.3"/></svg> }] : []),
+    { id:'home', label:'Home', icon:(active) => <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><path d="M3 9.5L11 3l8 6.5V19a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth={active?1.8:1.3} fill={active?ROSE:'none'} fillOpacity={active?0.12:0} strokeLinejoin="round"/></svg> },
+    { id:'create1', label:'Create', icon:(active) => <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth={active?1.8:1.3}/><path d="M11 7v8M7 11h8" stroke="currentColor" strokeWidth={active?1.8:1.3} strokeLinecap="round"/></svg> },
+    ...(session ? [{ id:'dashboard', label:'Cards', icon:(active) => <svg width="20" height="20" viewBox="0 0 22 22" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={active?1.8:1.3}/><rect x="12" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={active?1.8:1.3}/><rect x="3" y="12" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={active?1.8:1.3}/><rect x="12" y="12" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth={active?1.8:1.3}/></svg> }] : []),
   ]
-  const active = screen.startsWith('card:') ? 'dashboard' : screen
+  const activeId = screen.startsWith('card:') ? 'dashboard' : screen.startsWith('create') ? 'create1' : screen
   return (
-    <div style={{ maxWidth:390, margin:'8px auto 0', background:'rgba(250,248,245,0.97)', display:'flex', borderTop:'0.5px solid rgba(26,13,15,0.08)', borderRadius:'0 0 36px 36px', boxShadow:'0 8px 24px rgba(26,13,15,0.06)' }}>
+    <div style={{ maxWidth:390, margin:'8px auto 0', background:'#FAF8F5', display:'flex', alignItems:'center', justifyContent:'space-around', borderTop:'0.5px solid rgba(26,13,15,0.07)', borderRadius:'0 0 36px 36px', padding:'8px 16px 12px' }}>
       {tabs.map(({ id, label, icon }) => {
-        const isActive = active === id
+        const isActive = activeId === id
         return (
-          <div key={id} onClick={() => go(id)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor:'pointer', padding:'12px 8px 10px', position:'relative', transition:'color 0.15s', color: isActive ? ROSE : '#aaa' }}>
-            {/* Active indicator pill */}
-            {isActive && <div style={{ position:'absolute', top:0, left:'50%', transform:'translateX(-50%)', width:24, height:2.5, borderRadius:2, background:ROSE }}/>}
-            {icon}
-            <span style={{ fontSize:10, fontWeight: isActive ? 600 : 400, letterSpacing:'0.1px' }}>{label}</span>
+          <div key={id} onClick={() => go(id)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4, cursor:'pointer', padding:'6px 20px', borderRadius:12, background: isActive ? ROSE_PALE : 'transparent', transition:'all 0.15s', color: isActive ? ROSE : '#aaa', minWidth:72 }}>
+            {icon(isActive)}
+            <span style={{ fontSize:11, fontWeight: isActive ? 600 : 400, letterSpacing:'0.1px', whiteSpace:'nowrap' }}>{label}</span>
           </div>
         )
       })}
