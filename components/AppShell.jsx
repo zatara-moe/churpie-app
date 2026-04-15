@@ -99,21 +99,25 @@ function HomeScreen({ go, session, onSignOut }) {
     </div>
     <div style={s.scroll}>
       {/* Hero card */}
-      <div style={{ background:'linear-gradient(135deg, #FBEAF0 0%, #F4D0DC 100%)', borderRadius:20, padding:'24px 20px', textAlign:'center', marginBottom:18 }}>
-        <div style={{ width:56, height:56, borderRadius:16, background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', boxShadow:'0 4px 16px rgba(194,59,107,0.15)' }}>
-          <Heart size={28}/>
+      <div style={{ background:'linear-gradient(160deg, #FBEAF0 0%, #F2D4DE 100%)', borderRadius:20, padding:'26px 22px 22px', marginBottom:18, position:'relative', overflow:'hidden' }}>
+        <div style={{ position:'absolute', right:-16, top:-16, opacity:0.07, pointerEvents:'none' }}>
+          <Heart size={110}/>
         </div>
-        <div style={{ fontSize:18, fontWeight:500, color:INK, marginBottom:6, letterSpacing:'-0.3px' }}>
-          Someone needs to hear from everyone who loves them.
+        <div style={{ width:44, height:44, borderRadius:13, background:'#fff', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14, boxShadow:'0 2px 12px rgba(194,59,107,0.12)' }}>
+          <Heart size={22}/>
         </div>
-        <div style={{ fontSize:13, color:INK_SOFT, lineHeight:1.55, marginBottom:16 }}>
-          Everyone records fifteen seconds. We weave it into one video they can replay whenever the world feels heavy.
+        <div style={{ fontSize:19, fontWeight:500, color:INK, marginBottom:10, letterSpacing:'-0.4px', lineHeight:1.25 }}>
+          Someone you love needs to hear<br/>from everyone who loves them.
+        </div>
+        <div style={{ fontSize:13, color:INK_SOFT, lineHeight:1.7, marginBottom:18 }}>
+          Everyone records fifteen seconds.<br/>
+          We weave it into one video they can replay<br/>whenever the world feels heavy.
         </div>
         <button style={s.btnP} onClick={() => session ? go('create1') : window.location.href='/login'}>
           Make their video
         </button>
-        <div style={{ fontSize:12, color:INK_SOFT, opacity:0.6, fontStyle:'italic' }}>
-          Something this powerful should be free. So it is.
+        <div style={{ fontSize:11, color:INK_SOFT, opacity:0.55, fontStyle:'italic', textAlign:'center', marginTop:2 }}>
+          Free. Always.
         </div>
       </div>
 
