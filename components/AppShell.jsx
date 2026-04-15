@@ -154,19 +154,54 @@ function Create1({ go, card, setCard }) {
     <Stepper steps={['Intention','Blessing','Delivery','Share']} current={0}/>
     <div style={s.scroll}>
       <div style={{ fontSize:16, fontWeight:500, color:INK, marginBottom:3 }}>What is this for?</div>
-      <div style={{ fontSize:13, color:INK_SOFT, marginBottom:16, lineHeight:1.5 }}>This sets the mood for everyone who records.</div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-        {themes.map(t => (
-          <div key={t.id} onClick={() => setSel(t.id)} style={{ borderRadius:14, padding:'16px 12px', textAlign:'center',
-            border:`${sel===t.id ? 2 : 1}px solid ${sel===t.id ? ROSE : 'rgba(26,13,15,0.1)'}`,
-            background: sel===t.id ? ROSE_PALE : 'rgba(26,13,15,0.02)', cursor:'pointer', transition:'all 0.15s' }}>
-            <div style={{ fontSize:24, marginBottom:6 }}>{t.icon}</div>
-            <div style={{ fontSize:12, fontWeight:500, color: sel===t.id ? ROSE_DEEP : INK, marginBottom:2 }}>{t.name}</div>
-            <div style={{ fontSize:11, color:INK_SOFT }}>{t.sub}</div>
-          </div>
-        ))}
+      <div style={{ fontSize:13, color:INK_SOFT, marginBottom:18, lineHeight:1.5 }}>Sets the tone for everyone who records.</div>
+
+      {/* Theme list — horizontal rows instead of emoji grid */}
+      <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:24 }}>
+        {themes.map(t => {
+          const active = sel === t.id
+          return (
+            <div key={t.id} onClick={() => setSel(t.id)} style={{
+              borderRadius:14, padding:'14px 16px',
+              border:`1.5px solid ${active ? ROSE : 'rgba(26,13,15,0.08)'}`,
+              background: active ? ROSE_PALE : '#fff',
+              cursor:'pointer', transition:'all 0.15s',
+              display:'flex', alignItems:'center', gap:14,
+            }}>
+              {/* Colour dot instead of emoji */}
+              <div style={{
+                width:36, height:36, borderRadius:10, flexShrink:0,
+                background: active ? ROSE : 'rgba(26,13,15,0.06)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                transition:'background 0.15s',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  {t.id==='getwell'   && <path d="M8 13s-5-3-5-7a5 5 0 0110 0c0 4-5 7-5 7z" fill={active?'#fff':ROSE} opacity={active?1:0.5}/>}
+                  {t.id==='birthday'  && <><path d="M4 8h8v5H4z" stroke={active?'#fff':ROSE} strokeWidth="1.2" fill="none" opacity={active?1:0.7}/><path d="M8 3v3M5 5l1.5 1.5M11 5l-1.5 1.5" stroke={active?'#fff':ROSE} strokeWidth="1.2" strokeLinecap="round"/></>}
+                  {t.id==='veteran'   && <path d="M8 2l1.5 3 3.5.5-2.5 2.5.5 3.5L8 10l-3 1.5.5-3.5L3 5.5l3.5-.5z" stroke={active?'#fff':ROSE} strokeWidth="1.1" fill="none" opacity={active?1:0.7}/>}
+                  {t.id==='support'   && <path d="M8 13s-5-3-5-7a5 5 0 0110 0c0 4-5 7-5 7z" fill={active?'#fff':ROSE} opacity={active?1:0.5}/>}
+                  {t.id==='graduation'&& <><path d="M8 4l6 3-6 3-6-3z" stroke={active?'#fff':ROSE} strokeWidth="1.1" fill="none"/><path d="M4 8v3" stroke={active?'#fff':ROSE} strokeWidth="1.1" strokeLinecap="round"/></>}
+                  {t.id==='justbecause'&&<><circle cx="8" cy="8" r="5" stroke={active?'#fff':ROSE} strokeWidth="1.1" fill="none"/><path d="M6 8h4M8 6v4" stroke={active?'#fff':ROSE} strokeWidth="1.1" strokeLinecap="round"/></>}
+                </svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:500, color: active ? ROSE_DEEP : INK, marginBottom:1 }}>{t.name}</div>
+                <div style={{ fontSize:12, color:INK_SOFT }}>{t.sub}</div>
+              </div>
+              {/* Check */}
+              {active && (
+                <div style={{ width:20, height:20, borderRadius:'50%', background:ROSE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2 2 4-4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
-      <button style={s.btnP} onClick={() => { setCard({ ...card, theme:sel }); go('create2') }}>Continue</button>
+
+      <button style={s.btnP} onClick={() => { setCard({ ...card, theme:sel }); go('create2') }}>
+        Continue →
+      </button>
     </div>
   </div>
 }
