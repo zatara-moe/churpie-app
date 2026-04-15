@@ -110,8 +110,7 @@ function HomeScreen({ go, session, onSignOut }) {
           Someone you love needs to hear<br/>from everyone who loves them.
         </div>
         <div style={{ fontSize:13, color:INK_SOFT, lineHeight:1.7, marginBottom:18 }}>
-          Everyone records fifteen seconds.<br/>
-          We weave it into one video they can replay<br/>whenever the world feels heavy.
+          Everyone records fifteen seconds. We weave it into one video — something they can press play on whenever they need it.
         </div>
         <button style={s.btnP} onClick={() => session ? go('create1') : window.location.href='/login'}>
           Make their video
@@ -127,9 +126,9 @@ function HomeScreen({ go, session, onSignOut }) {
       <div style={{ marginTop:4 }}>
         <div style={s.tag}>How it works</div>
         {[
-          ['Choose your intention','Choose who it\'s for and write a note guiding what people should say.'],
-          ['Share a link — everyone offers their voice','Anyone opens the link and records fifteen seconds. No app, no account.'],
-          ['We weave it together and deliver it','One video, soft music, captions. Something they can press play on whenever they need it.'],
+          ['Choose your intention','Who it\'s for and what you\'d love people to say.'],
+          ['Share a link — everyone records','One link. Opens on any phone. Fifteen seconds to record.'],
+          ['We deliver it','One video, soft music, captions — sent directly to them.'],
         ].map(([title, sub], i) => (
           <div key={i} style={{ display:'flex', gap:12, marginBottom:14, alignItems:'flex-start' }}>
             <div style={{ width:26, height:26, borderRadius:'50%', background:ROSE_PALE, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:11, fontWeight:500, color:ROSE_DEEP, marginTop:2 }}>{i+1}</div>
