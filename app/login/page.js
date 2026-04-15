@@ -1,6 +1,9 @@
-// app/login/page.js
-export const dynamic = 'force-dynamic'
 'use client'
+
+export const dynamic = 'force-dynamic'
+
+// app/login/page.js
+
 import { useState, Suspense } from 'react'
 import { createBrowserClient } from '../../lib/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
