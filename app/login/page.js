@@ -1,78 +1,29 @@
+// app/page.js
+// Home page — detects if user is signed in, shows the right entry point
 'use client'
+import { useEffect, useState } from 'react'
+import { createBrowserClient } from '../lib/supabase'
+import AppShell from '../components/AppShell'
 
-export const dynamic = 'force-dynamic'
-
-// app/login/page.js
-
-import { useState, Suspense } from 'react'
-import { createBrowserClient } from '../../lib/supabase'
-import { useRouter, useSearchParams } from 'next/navigation'
-
-const ROSE = '#C23B6B'
-const INK = '#0d0d0d'
-
-function LoginContent() {
-  const [loading, setLoading] = useState(null)
+export default function HomePage() {
+  const [session, setSession] = useState(undefined) // undefined = loading
   const supabase = createBrowserClient()
-  const router = useRouter()
-  const params = useSearchParams()
-  const next = params.get('next') || '/dashboard'
 
-  const signIn = async (provider) => {
-    setLoading(provider)
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    })
-    if (error) { setLoading(null); alert(error.message) }
-  }
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => setSession(session))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, s) => setSession(s))
+    return () => subscription.unsubscribe()
+  }, [])
 
+  if (session === undefined) return <LoadingScreen />
+  return <AppShell session={session} />
+}
+
+function LoadingScreen() {
   return (
-    <div style={{ minHeight: '100vh', background: '#f0ebe6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}>
-      <div style={{ width: '100%', maxWidth: 380, background: '#FAF8F5', borderRadius: 24, padding: '40px 28px', border: '0.5px solid rgba(0,0,0,0.08)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 28, fontWeight: 400, letterSpacing: -0.8, marginBottom: 6 }}>
-            churpie<span style={{ color: ROSE }}>.</span>
-          </div>
-          <div style={{ fontSize: 14, color: '#888' }}>Sign in to create a card</div>
-        </div>
-        <button onClick={() => signIn('apple')} disabled={loading === 'apple'}
-          style={{ width: '100%', padding: '14px 0', borderRadius: 14, marginBottom: 12, background: INK, color: '#fff', fontSize: 15, fontWeight: 500, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: loading === 'apple' ? 0.7 : 1 }}>
-          <AppleLogo />
-          {loading === 'apple' ? 'Signing in...' : 'Sign in with Apple'}
-        </button>
-        <button onClick={() => signIn('google')} disabled={loading === 'google'}
-          style={{ width: '100%', padding: '14px 0', borderRadius: 14, marginBottom: 24, background: '#fff', color: '#1a1a1a', fontSize: 15, fontWeight: 500, border: '0.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: loading === 'google' ? 0.7 : 1 }}>
-          <GoogleLogo />
-          {loading === 'google' ? 'Signing in...' : 'Continue with Google'}
-        </button>
-        <div style={{ fontSize: 12, color: '#aaa', textAlign: 'center', lineHeight: 1.6 }}>
-          No password needed. We never see your login credentials.<br />
-          <span style={{ color: '#999' }}>Contributors don't need to sign in.</span>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0ebe6' }}>
+      <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #C23B6B', borderTopColor: 'transparent', animation: 'spin 0.7s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div style={{ minHeight: '100vh', background: '#f0ebe6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ fontSize: 22, fontWeight: 400, letterSpacing: -0.8, color: '#1a0d0f' }}>churpie<span style={{ color: ROSE }}>.</span></div>
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
-  )
-}
-
-function AppleLogo() {
-  return <svg width="16" height="18" viewBox="0 0 16 18" fill="none"><path d="M13.2 9.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.2-2.9.9-3.7.9-.7 0-1.9-.9-3.1-.8-1.6.1-3 .9-3.8 2.4C-.3 9.5.6 14 2.3 16.5c.8 1.2 1.8 2.6 3.1 2.5 1.3-.1 1.8-.8 3.3-.8 1.5 0 1.9.8 3.2.8 1.3 0 2.2-1.2 3-2.5.9-1.4 1.3-2.7 1.3-2.8-.1-.1-2-.8-2-3.1zM10.9 2.9c.7-.8 1.1-2 1-3.1-1 0-2.1.6-2.8 1.5-.6.7-1.1 1.9-1 3 1.1.1 2.1-.5 2.8-1.4z" fill="white"/></svg>
-}
-
-function GoogleLogo() {
-  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.5 8.2c0-.6-.1-1.1-.2-1.7H8v3.1h4.2c-.2 1-.7 1.8-1.5 2.4v2h2.5c1.4-1.3 2.3-3.3 2.3-5.8z" fill="#4285F4"/><path d="M8 16c2.1 0 3.9-.7 5.2-1.9l-2.5-2c-.7.5-1.7.7-2.7.7-2.1 0-3.8-1.4-4.4-3.3H1v2.1C2.3 14.1 5 16 8 16z" fill="#34A853"/><path d="M3.6 9.5c-.2-.5-.3-1-.3-1.5s.1-1 .3-1.5V4.4H1C.4 5.5 0 6.7 0 8s.4 2.5 1 3.6l2.6-2.1z" fill="#FBBC05"/><path d="M8 3.2c1.2 0 2.2.4 3 1.2L13.6 2C12.2.7 10.3 0 8 0 5 0 2.3 1.9 1 4.4l2.6 2.1C4.2 4.6 5.9 3.2 8 3.2z" fill="#EA4335"/></svg>
 }
