@@ -257,7 +257,7 @@ function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) 
   return (
     <>
       <article style={cardBox}>
-        <div style={cardFrom}>&mdash; for {recipientName.toLowerCase()}</div>
+        <div style={cardFrom}>&mdash; for {recipientName}</div>
 
         <h1 style={cardHeadline}>
           you&rsquo;re one of<br />
@@ -365,7 +365,7 @@ function RecordScreen({ firstName, recSecs, recOn, countdown, videoRef, onStart,
     <article style={cardBox}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <button onClick={onBack} style={ghostBtnSmall}>&larr; Back</button>
-        <span style={{ fontSize: 12, color: INK_FADED }}>for {firstName.toLowerCase()}</span>
+        <span style={{ fontSize: 12, color: INK_FADED }}>for {firstName}</span>
         <div style={{ width: 60 }} />
       </div>
 
