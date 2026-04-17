@@ -273,7 +273,7 @@ const navBar = { maxWidth: 720, margin: '0 auto', padding: '24px 24px 12px', dis
 const logo = { fontFamily: "'Permanent Marker', cursive", fontSize: 22, color: INK, textDecoration: 'none' }
 const backLink = { fontSize: 11, color: INK_FADED, textDecoration: 'none', letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700 }
 const main = { maxWidth: 720, margin: '0 auto', padding: 24 }
-const title = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.1, letterSpacing: '-0.5px', textTransform: 'lowercase', marginBottom: 8, fontWeight: 400 }
+const title = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.1, letterSpacing: '-0.5px', marginBottom: 8, fontWeight: 400 }
 const subtitle = { fontSize: 13, color: INK_FADED, marginBottom: 28, letterSpacing: 0.3 }
 const statusBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '16px 20px', marginBottom: 24, borderRadius: 2 }
 
