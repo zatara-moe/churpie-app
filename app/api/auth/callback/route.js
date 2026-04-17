@@ -16,5 +16,8 @@ export async function GET(request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
 
-  return NextResponse.redirect(`${origin}${next}`)
+  // Use a 303 redirect to force the browser to issue a fresh GET
+  // with the new session cookie attached. This avoids a race where
+  // middleware checks the session before the cookie is written.
+  return NextResponse.redirect(`${origin}${next}`, { status: 303 })
 }
