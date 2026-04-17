@@ -166,15 +166,8 @@ export default function CardDetailClient({ card: initialCard }) {
           </section>
         )}
 
-        {card.status === 'compiling' && (
-          <section style={{ ...sendBanner, background: PAPER_AGED, borderColor: PAPER_DARK }}>
-            <div style={{ ...sendLabel, color: INK_FADED }}>Working on it</div>
-            <div style={sendTitle}>putting it together…</div>
-            <div style={sendBody}>
-              The clips are being stitched. This usually takes 2–3 minutes.
-              We&rsquo;ll update automatically when it&rsquo;s ready.
-            </div>
-          </section>
+      {card.status === 'compiling' && (
+          <CompileStepper />
         )}
 
         {card.status === 'compiled' && (
@@ -266,6 +259,105 @@ export default function CardDetailClient({ card: initialCard }) {
   )
 }
 
+// ─── CompileStepper ─────────────────────────────────────────────
+// Simulated 4-step progress for the compiling state.
+
+function CompileStepper() {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    const start = Date.now()
+    const tick = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => clearInterval(tick)
+  }, [])
+
+  const steps = [
+    { label: 'Downloading clips', sub: 'Pulling everyone together' },
+    { label: 'Stitching them together', sub: 'One after another' },
+    { label: 'Adding music', sub: 'Gentle underneath' },
+    { label: 'Finalizing', sub: 'Polishing and wrapping up' },
+  ]
+
+  const currentStep = Math.min(Math.floor(elapsed / 20), steps.length - 1)
+
+  return (
+    <section style={{ ...sendBanner, background: PAPER_AGED, borderColor: PAPER_DARK }}>
+      <div style={{ ...sendLabel, color: INK_FADED }}>Working on it</div>
+      <div style={sendTitle}>putting it together…</div>
+      <div style={{ ...sendBody, marginBottom: 22 }}>
+        Usually takes 1–3 minutes. No need to wait here — we&rsquo;ll update
+        automatically when it&rsquo;s ready.
+      </div>
+
+      <div style={stepperList}>
+        {steps.map((step, i) => {
+          const state = i < currentStep ? 'done' : i === currentStep ? 'active' : 'pending'
+          return (
+            <div key={i} style={stepperRow}>
+              <StepperDot state={state} number={i + 1} />
+              <div style={{ flex: 1 }}>
+                <div style={{
+                  fontSize: 13,
+                  fontWeight: state === 'pending' ? 400 : 700,
+                  color: state === 'pending' ? INK_GHOST : INK,
+                }}>
+                  {step.label}
+                </div>
+                <div style={{
+                  fontSize: 11,
+                  color: INK_GHOST,
+                  fontStyle: state === 'active' ? 'italic' : 'normal',
+                  marginTop: 2,
+                }}>
+                  {state === 'done' ? 'Done' : state === 'active' ? 'Working on it now…' : step.sub}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function StepperDot({ state, number }) {
+  if (state === 'done') {
+    return (
+      <div style={{ ...dotBase, background: PINK, color: '#fff', border: 'none' }}>
+        ✓
+      </div>
+    )
+  }
+  if (state === 'active') {
+    return (
+      <>
+        <style>{`
+          @keyframes churpiePulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.6; }
+          }
+        `}</style>
+        <div style={{
+          ...dotBase,
+          background: PINK,
+          color: '#fff',
+          border: 'none',
+          animation: 'churpiePulse 1.4s ease-in-out infinite',
+        }}>
+          •
+        </div>
+      </>
+    )
+  }
+  return (
+    <div style={{ ...dotBase, background: '#fff', color: INK_GHOST, border: `1px solid ${PAPER_DARK}` }}>
+      {number}
+    </div>
+  )
+}
+
 // ─── Styles ─────────────────────────────────────────────────────
 const wrap = { minHeight: '100vh', background: PAPER, fontFamily: "'Courier Prime', 'Courier New', monospace", color: INK, paddingBottom: 80 }
 const stripe = { height: 4, background: `repeating-linear-gradient(90deg, ${PINK} 0 12px, ${CYAN} 12px 24px)` }
@@ -300,3 +392,8 @@ const modalCard = { background: '#fff', border: `1px solid ${PAPER_DARK}`, paddi
 const modalTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, marginBottom: 12, lineHeight: 1.2, textTransform: 'lowercase', fontWeight: 400 }
 const modalBody = { fontSize: 13, color: INK_FADED, lineHeight: 1.7, marginBottom: 22 }
 const modalCancel = { width: '100%', padding: '12px', background: 'transparent', border: `1px solid ${PAPER_DARK}`, color: INK_FADED, fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer' }
+
+
+const stepperList = { display: 'flex', flexDirection: 'column', gap: 14 }
+const stepperRow = { display: 'flex', alignItems: 'center', gap: 14 }
+const dotBase = { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }
