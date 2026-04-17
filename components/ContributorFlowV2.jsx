@@ -501,7 +501,7 @@ const mainCol = { maxWidth: 520, margin: '0 auto', padding: '0 20px' }
 
 const cardBox = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '28px 22px 24px', marginBottom: 24, boxShadow: `3px 3px 0 ${PAPER_AGED}, 6px 6px 0 ${PAPER_DARK}` }
 const cardFrom = { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, marginBottom: 14 }
-const cardHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 7vw, 34px)', lineHeight: 1.08, letterSpacing: '-0.5px', color: INK, marginBottom: 6, fontWeight: 400, textTransform: 'lowercase' }
+const cardHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 7vw, 34px)', lineHeight: 1.08, letterSpacing: '-0.5px', color: INK, marginBottom: 6, fontWeight: 400 }
 const cardSub = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, lineHeight: 1.3, color: INK_FADED, fontStyle: 'italic', marginBottom: 22, textTransform: 'lowercase', fontWeight: 400 }
 
 const organizerNote = { background: PINK_PALE, border: `1px solid rgba(212, 38, 106, 0.3)`, padding: '16px 18px', marginBottom: 22, borderRadius: 2 }
