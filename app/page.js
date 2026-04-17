@@ -24,7 +24,6 @@ export default async function RootPage() {
     redirect('/dashboard')
   }
 
-  // Not signed in — show a simple bridge page
   return (
     <div style={{
       minHeight: '100vh',
@@ -81,7 +80,7 @@ export default async function RootPage() {
             Sign in to start a card, or learn more about what churpie is at{' '}
             <a href="https://churpie.me" style={{ color: PINK }}>churpie.me</a>.
           </p>
-          <a
+          
             href="/login"
             style={{
               display: 'inline-block',
