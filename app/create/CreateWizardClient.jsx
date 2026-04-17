@@ -395,7 +395,7 @@ const backLink = { fontSize: 11, color: INK_FADED, textDecoration: 'none', lette
 const main = { maxWidth: 640, margin: '0 auto', padding: 24 }
 
 const stepIndicator = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: PINK, fontWeight: 700, marginBottom: 16 }
-const stepTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.1, letterSpacing: '-0.5px', textTransform: 'lowercase', marginBottom: 12, fontWeight: 400 }
+const stepTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 5vw, 40px)', lineHeight: 1.1, letterSpacing: '-0.5px', marginBottom: 12, fontWeight: 400 }
 const stepSub = { fontSize: 14, color: INK_FADED, lineHeight: 1.6, marginBottom: 32, maxWidth: 520 }
 const stepNav = { display: 'flex', justifyContent: 'space-between', marginTop: 32, gap: 12, flexWrap: 'wrap' }
 
