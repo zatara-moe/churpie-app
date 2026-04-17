@@ -120,7 +120,7 @@ function ArrivalScreen({ firstName, clipCount, contributors, onStart, hasVideo }
       <div style={arrivalLogo}>churpie<span style={{ color: PINK }}>.</span></div>
 
       <div style={{ fontFamily: "'Caveat', cursive", fontSize: 24, fontWeight: 600, color: CYAN, transform: 'rotate(-0.5deg)', display: 'inline-block', marginBottom: 14 }}>
-        for {firstName.toLowerCase()}
+        for {firstName}
       </div>
 
       <h1 style={arrivalTitle}>
