@@ -99,7 +99,7 @@ export default function DashboardClient({ initialCards, firstName, userEmail }) 
         </nav>
 
         <main style={main}>
-          <h1 style={greeting}>hi, {firstName.toLowerCase()}.</h1>
+          <h1 style={greeting}>hi, {firstName}.</h1>
           <div style={subgreeting}>here&rsquo;s where your cards are.</div>
 
           {urgent && (
