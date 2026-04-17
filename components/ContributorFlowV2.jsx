@@ -41,6 +41,7 @@ export default function ContributorFlowV2({ card }) {
   const chunksRef = useRef([])
   const blobRef = useRef(null)
   const durationRef = useRef(0)
+  const startTimeRef = useRef(0)
 
   const firstName = card.recipient_name.split(' ')[0]
 
@@ -85,12 +86,15 @@ export default function ContributorFlowV2({ card }) {
     mr.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: getSupportedMimeType() })
       blobRef.current = blob
-      durationRef.current = recSecs || 15
+      const elapsedMs = Date.now() - (startTimeRef.current || Date.now())
+      const elapsedSecs = Math.round(elapsedMs / 1000)
+      durationRef.current = Math.max(1, Math.min(15, elapsedSecs))
       setPreviewUrl(URL.createObjectURL(blob))
       go('preview')
     }
     mediaRef.current = mr
     mr.start(250)
+    startTimeRef.current = Date.now()
     setRecOn(true)
     setRecSecs(0)
 
@@ -165,7 +169,7 @@ export default function ContributorFlowV2({ card }) {
       await fetch(`/api/clips/${clipId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ durationSeconds: durationRef.current || 15 }),
+        body: JSON.stringify({ durationSeconds: durationRef.current || 1 }),
       })
 
       releaseStream()
