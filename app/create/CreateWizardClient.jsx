@@ -347,7 +347,7 @@ export default function CreateWizardClient() {
           <section>
             <div style={successLabel}>Your card&rsquo;s ready</div>
             <h1 style={{ ...stepTitle, textAlign: 'center' }}>
-              now rally everyone<br />who loves {form.recipientName.toLowerCase()}.
+              now rally everyone<br />who loves {form.recipientName}.
             </h1>
             <p style={{ ...stepSub, textAlign: 'center' }}>
               One link. Anyone can open it. No account needed.
