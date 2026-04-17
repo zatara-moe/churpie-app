@@ -181,7 +181,7 @@ export default function CardDetailClient({ card: initialCard }) {
           <section style={sendBanner}>
             <div style={{ ...sendLabel, color: GREEN }}>Ready to deliver</div>
             <div style={sendTitle}>
-              this is what {card.recipient_name.toLowerCase()} will see.
+              this is what {card.recipient_name} will see.
             </div>
             <div style={sendBody}>
               Watch it all the way through first. When it feels right, send it.
@@ -197,7 +197,7 @@ export default function CardDetailClient({ card: initialCard }) {
           <section style={{ ...sendBanner, background: PINK_PALE, borderColor: PINK }}>
             <div style={{ ...sendLabel, color: PINK }}>Already sent</div>
             <div style={sendTitle}>
-              this one&rsquo;s with {card.recipient_name.toLowerCase()}.
+              this one&rsquo;s with {card.recipient_name}.
             </div>
             <div style={sendBody}>
               {card.watch_count > 0
