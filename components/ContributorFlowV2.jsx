@@ -25,7 +25,7 @@ function getSupportedMimeType() {
 }
 
 export default function ContributorFlowV2({ card }) {
-  const [screen, setScreen] = useState('landing') // landing | permission | record | preview | sent
+  const [screen, setScreen] = useState('landing')
   const [name, setName] = useState('')
   const [recSecs, setRecSecs] = useState(0)
   const [recOn, setRecOn] = useState(false)
@@ -46,7 +46,6 @@ export default function ContributorFlowV2({ card }) {
 
   const go = (s) => { setError(null); setScreen(s) }
 
-  // Attach stream to video element once we reach the record screen
   useEffect(() => {
     if (screen === 'record' && streamRef.current && videoRef.current) {
       videoRef.current.srcObject = streamRef.current
@@ -74,7 +73,6 @@ export default function ContributorFlowV2({ card }) {
       return
     }
 
-    // 3-2-1 countdown
     for (const n of [3, 2, 1]) {
       setCountdown(n)
       await new Promise(r => setTimeout(r, 900))
@@ -88,7 +86,6 @@ export default function ContributorFlowV2({ card }) {
       const blob = new Blob(chunksRef.current, { type: getSupportedMimeType() })
       blobRef.current = blob
       durationRef.current = recSecs || 15
-      // Keep stream live for retry; only release when leaving the flow
       setPreviewUrl(URL.createObjectURL(blob))
       go('preview')
     }
@@ -137,7 +134,6 @@ export default function ContributorFlowV2({ card }) {
   }
 
   useEffect(() => {
-    // Release the stream when component unmounts
     return releaseStream
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -147,7 +143,6 @@ export default function ContributorFlowV2({ card }) {
     setUploading(true)
     setError(null)
     try {
-      // Step 1: get signed upload URL (also pre-creates the clip row)
       const urlRes = await fetch('/api/clips/upload-url', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,7 +155,6 @@ export default function ContributorFlowV2({ card }) {
       const { uploadUrl, clipId } = await urlRes.json()
       if (!uploadUrl) throw new Error('Could not get upload URL')
 
-      // Step 2: PUT blob to R2
       const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: blobRef.current,
@@ -168,7 +162,6 @@ export default function ContributorFlowV2({ card }) {
       })
       if (!putRes.ok) throw new Error(`Upload failed (status ${putRes.status})`)
 
-      // Step 3: confirm (triggers async transcription)
       await fetch(`/api/clips/${clipId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,16 +235,18 @@ export default function ContributorFlowV2({ card }) {
         )}
 
         {screen === 'sent' && (
-          <SentScreen firstName={firstName} recipientName={card.recipient_name} />
+          <SentScreen
+            firstName={firstName}
+            recipientName={card.recipient_name}
+            contributorName={name}
+            durationSeconds={durationRef.current}
+            cardSlug={card.slug}
+          />
         )}
       </main>
     </div>
   )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// SCREENS
-// ═══════════════════════════════════════════════════════════════
 
 function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) {
   return (
@@ -454,30 +449,111 @@ function PreviewScreen({ firstName, previewUrl, name, setName, uploading, error,
   )
 }
 
-function SentScreen({ firstName, recipientName }) {
-  return (
-    <article style={{ ...cardBox, textAlign: 'center' }}>
-      <h2 style={{ ...cardHeadline, fontSize: 32, marginBottom: 12 }}>
-        thank you.
-      </h2>
-      <p style={{ fontSize: 15, color: INK_FADED, lineHeight: 1.7, marginBottom: 24, maxWidth: 360, margin: '0 auto 24px' }}>
-        Your 15 seconds is in. {firstName} is going to feel it.
-      </p>
+function SentScreen({ firstName, recipientName, contributorName, durationSeconds, cardSlug }) {
+  const [shareCopied, setShareCopied] = useState(false)
+  const now = new Date()
+  const timeStamp = now.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).toLowerCase()
 
-      <div style={{ fontFamily: "'Caveat', cursive", fontSize: 22, color: CYAN, fontWeight: 600, transform: 'rotate(-0.5deg)', display: 'inline-block', marginBottom: 24 }}>
-        want to make one for someone?
+  const mm = Math.floor((durationSeconds || 0) / 60).toString().padStart(2, '0')
+  const ss = ((durationSeconds || 0) % 60).toString().padStart(2, '0')
+  const durationStr = `${mm}:${ss}`
+
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/c/${cardSlug}`
+    : ''
+
+  const shareLink = async () => {
+    if (!shareUrl) return
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Record 15 seconds for ${firstName}`,
+          url: shareUrl,
+        })
+      } else {
+        await navigator.clipboard.writeText(shareUrl)
+        setShareCopied(true)
+        setTimeout(() => setShareCopied(false), 2500)
+      }
+    } catch {
+    }
+  }
+
+  return (
+    <article style={ticketCard}>
+      <div style={ticketTop}>
+        <div style={ticketTopRow}>
+          <div>
+            <div style={ticketLabel}>Clip received</div>
+            <div style={ticketValue}>{timeStamp}</div>
+          </div>
+          <div style={sentStamp}>SENT</div>
+        </div>
+
+        <h2 style={ticketHeadline}>thank you.</h2>
+        <p style={ticketBody}>That took something. We don&rsquo;t take it for granted.</p>
+        <p style={ticketBodyItalic}>{firstName} is going to feel it.</p>
       </div>
 
-      <a href="https://churpie.me" style={ghostBtn}>
-        What is churpie?
-      </a>
+      <div style={ticketMeta}>
+        <div style={ticketMetaCol}>
+          <div style={ticketLabel}>Duration</div>
+          <div style={ticketValueBold}>{durationStr}</div>
+        </div>
+        {contributorName && contributorName.trim() ? (
+          <div style={ticketMetaCol}>
+            <div style={ticketLabel}>From</div>
+            <div style={ticketValueBold}>{contributorName}</div>
+          </div>
+        ) : null}
+        <div style={{ ...ticketMetaCol, textAlign: 'right' }}>
+          <div style={ticketLabel}>For</div>
+          <div style={ticketValueBold}>{firstName}</div>
+        </div>
+      </div>
+
+      <div style={ticketActions}>
+        <div style={ticketActionsTitle}>now what?</div>
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          <button onClick={shareLink} style={ticketActionRow}>
+            <div>
+              <div style={ticketActionTitle}>
+                {shareCopied ? 'Link copied' : 'Share the link'}
+              </div>
+              <div style={ticketActionSub}>
+                Help gather more of {firstName}&rsquo;s people
+              </div>
+            </div>
+            <span style={ticketArrow}>&rarr;</span>
+          </button>
+
+          <a href="https://churpie.me" style={ticketActionRow}>
+            <div>
+              <div style={ticketActionTitle}>Make your own card</div>
+              <div style={ticketActionSub}>For someone who needs one</div>
+            </div>
+            <span style={ticketArrow}>&rarr;</span>
+          </a>
+
+          <a href="https://churpie.me" style={ticketActionRowGhost}>
+            <div>
+              <div style={ticketActionTitleGhost}>What is churpie?</div>
+              <div style={ticketActionSub}>Learn more</div>
+            </div>
+            <span style={ticketArrowGhost}>&rarr;</span>
+          </a>
+        </div>
+      </div>
     </article>
   )
 }
-
-// ═══════════════════════════════════════════════════════════════
-// STYLES & countdown keyframes
-// ═══════════════════════════════════════════════════════════════
 
 function CountdownStyles() {
   return (
@@ -502,7 +578,7 @@ const mainCol = { maxWidth: 520, margin: '0 auto', padding: '0 20px' }
 const cardBox = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '28px 22px 24px', marginBottom: 24, boxShadow: `3px 3px 0 ${PAPER_AGED}, 6px 6px 0 ${PAPER_DARK}` }
 const cardFrom = { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, marginBottom: 14 }
 const cardHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 7vw, 34px)', lineHeight: 1.08, letterSpacing: '-0.5px', color: INK, marginBottom: 6, fontWeight: 400 }
-const cardSub = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, lineHeight: 1.3, color: INK_FADED, fontStyle: 'italic', marginBottom: 22, textTransform: 'lowercase', fontWeight: 400 }
+const cardSub = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, lineHeight: 1.3, color: INK_FADED, fontStyle: 'italic', marginBottom: 22, fontWeight: 400 }
 
 const organizerNote = { background: PINK_PALE, border: `1px solid rgba(212, 38, 106, 0.3)`, padding: '16px 18px', marginBottom: 22, borderRadius: 2 }
 const organizerNoteLabel = { fontFamily: "'Caveat', cursive", fontSize: 18, fontWeight: 700, color: PINK, transform: 'rotate(-1deg)', display: 'inline-block', marginBottom: 4, lineHeight: 1 }
@@ -523,7 +599,7 @@ const reassuranceList = { listStyle: 'none', padding: 0, margin: 0 }
 const reassuranceItem = { fontSize: 13, lineHeight: 1.6, color: INK, padding: '8px 0', display: 'flex', gap: 10, alignItems: 'flex-start' }
 
 const nervousBox = { background: PAPER_AGED, padding: '20px 22px 18px', border: `1px dashed ${PAPER_DARK}`, marginBottom: 24 }
-const nervousTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: INK, marginBottom: 10, lineHeight: 1.2, textTransform: 'lowercase', fontWeight: 400 }
+const nervousTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: INK, marginBottom: 10, lineHeight: 1.2, fontWeight: 400 }
 const nervousBody = { fontSize: 13, color: INK_FADED, lineHeight: 1.65, marginBottom: 10 }
 
 const viewfinder = { position: 'relative', width: '100%', aspectRatio: '9 / 16', maxHeight: 500, background: '#000', borderRadius: 8, overflow: 'hidden' }
@@ -535,3 +611,25 @@ const recDot = { width: 7, height: 7, borderRadius: '50%', background: '#fff' }
 const inputLabel = { display: 'block', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, fontWeight: 700, marginBottom: 6 }
 const textInput = { width: '100%', padding: '12px 14px', fontSize: 14, border: `1px solid ${PAPER_DARK}`, background: '#fff', fontFamily: 'inherit', color: INK, outline: 'none', borderRadius: 2, boxSizing: 'border-box' }
 const errorBox = { background: '#FBE3E3', border: '1px solid #B22222', padding: '12px 14px', fontSize: 13, color: '#7A1F1F', borderRadius: 2, lineHeight: 1.5 }
+
+const ticketCard = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: 0, marginBottom: 24, boxShadow: `3px 3px 0 ${PAPER_AGED}, 6px 6px 0 ${PAPER_DARK}` }
+const ticketTop = { padding: '28px 24px 20px', borderBottom: `2px dashed ${PAPER_DARK}` }
+const ticketTopRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }
+const ticketLabel = { fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: INK_GHOST, marginBottom: 3, fontWeight: 700 }
+const ticketValue = { fontSize: 11, color: INK_FADED }
+const ticketValueBold = { fontSize: 13, color: INK, fontWeight: 700 }
+const sentStamp = { transform: 'rotate(8deg)', border: `2.5px solid ${PINK}`, padding: '6px 14px', background: 'rgba(212, 38, 106, 0.05)', fontFamily: "'Permanent Marker', cursive", fontSize: 18, color: PINK, lineHeight: 1, letterSpacing: 1.5 }
+const ticketHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 36, lineHeight: 1.05, fontWeight: 400, margin: '0 0 12px' }
+const ticketBody = { fontSize: 14, lineHeight: 1.65, color: INK, margin: '0 0 8px' }
+const ticketBodyItalic = { fontSize: 14, lineHeight: 1.65, color: INK_FADED, margin: 0, fontStyle: 'italic' }
+const ticketMeta = { padding: '16px 24px', borderBottom: `1px dashed ${PAPER_DARK}`, display: 'flex', justifyContent: 'space-between', gap: 16 }
+const ticketMetaCol = { flex: 1 }
+const ticketActions = { padding: '20px 24px 24px' }
+const ticketActionsTitle = { fontFamily: "'Caveat', cursive", fontSize: 22, color: CYAN, fontWeight: 600, transform: 'rotate(-0.5deg)', display: 'inline-block', marginBottom: 14, lineHeight: 1 }
+const ticketActionRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: `1px solid ${PAPER_DARK}`, background: '#fff', color: INK, textDecoration: 'none', fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', width: '100%' }
+const ticketActionRowGhost = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: `1px solid ${PAPER_AGED}`, background: 'transparent', color: INK_FADED, textDecoration: 'none', fontFamily: 'inherit' }
+const ticketActionTitle = { fontSize: 13, fontWeight: 700, marginBottom: 2 }
+const ticketActionTitleGhost = { fontSize: 13, marginBottom: 2 }
+const ticketActionSub = { fontSize: 11, color: INK_GHOST }
+const ticketArrow = { color: PINK, fontSize: 14 }
+const ticketArrowGhost = { color: INK_GHOST, fontSize: 14 }
