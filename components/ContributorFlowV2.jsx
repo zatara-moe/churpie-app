@@ -433,7 +433,7 @@ function PreviewScreen({ firstName, previewUrl, name, setName, uploading, error,
         type="text"
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="so {firstName} knows who it's from"
+        placeholder={`so ${firstName} knows who it's from`}
         style={textInput}
       />
       <div style={{ fontSize: 11, color: INK_GHOST, marginTop: 6, fontStyle: 'italic' }}>
