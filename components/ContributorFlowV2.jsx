@@ -261,7 +261,7 @@ function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) 
 
         <h1 style={cardHeadline}>
           you&rsquo;re one of<br />
-          <span style={{ color: PINK }}>{firstName.toLowerCase()}&rsquo;s</span> people.
+          <span style={{ color: PINK }}>{firstName}&rsquo;s</span> people.
         </h1>
         <p style={cardSub}>
           and someone who loves them is rallying everyone.
