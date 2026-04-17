@@ -28,7 +28,7 @@ const THEME_LABELS = {
   support: 'Hard stretch', graduation: 'Milestone', justbecause: 'Something else',
 }
 
-export default function CardDetailClient({ card: initialCard }) {
+export default function CardDetailClient({ card: initialCard, previewUrl }) {
   const router = useRouter()
   const [card, setCard] = useState(initialCard)
   const [copied, setCopied] = useState(false)
@@ -40,7 +40,6 @@ export default function CardDetailClient({ card: initialCard }) {
     if (typeof window !== 'undefined') setOrigin(window.location.origin)
   }, [])
 
-  // Poll for status if compiling (every 5s)
   useEffect(() => {
     if (card.status !== 'compiling') return
     const poll = setInterval(async () => {
@@ -166,24 +165,17 @@ export default function CardDetailClient({ card: initialCard }) {
           </section>
         )}
 
-      {card.status === 'compiling' && (
+        {card.status === 'compiling' && (
           <CompileStepper />
         )}
 
         {card.status === 'compiled' && (
-          <section style={sendBanner}>
-            <div style={{ ...sendLabel, color: GREEN }}>Ready to deliver</div>
-            <div style={sendTitle}>
-              this is what {card.recipient_name} will see.
-            </div>
-            <div style={sendBody}>
-              Watch it all the way through first. When it feels right, send it.
-              Once it&rsquo;s gone, it&rsquo;s gone — you can&rsquo;t unsend it.
-            </div>
-            <button style={sendBtn} onClick={() => setShowSendConfirm(true)}>
-              Send it to {card.recipient_name} →
-            </button>
-          </section>
+          <PreviewTicket
+            card={card}
+            previewUrl={previewUrl}
+            submittedClips={submittedClips}
+            onSend={() => setShowSendConfirm(true)}
+          />
         )}
 
         {card.status === 'sent' && (
@@ -259,8 +251,104 @@ export default function CardDetailClient({ card: initialCard }) {
   )
 }
 
-// ─── CompileStepper ─────────────────────────────────────────────
-// Simulated 4-step progress for the compiling state.
+function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
+  const firstName = card.recipient_name.split(' ')[0]
+  const totalSeconds = submittedClips.reduce((sum, c) => sum + (c.duration_seconds || 0), 0)
+  const mm = Math.floor(totalSeconds / 60).toString().padStart(2, '0')
+  const ss = (totalSeconds % 60).toString().padStart(2, '0')
+  const durationStr = `${mm}:${ss}`
+
+  const now = new Date()
+  const readyAt = now.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).toLowerCase()
+
+  const contributorNames = submittedClips
+    .map(c => c.contributor_name)
+    .filter(n => n && n.trim())
+
+  return (
+    <article style={previewCard}>
+      <div style={previewTop}>
+        <div style={previewTopRow}>
+          <div>
+            <div style={previewLabel}>Draft complete</div>
+            <div style={previewValue}>{readyAt}</div>
+          </div>
+          <div style={readyStamp}>READY</div>
+        </div>
+
+        <h2 style={previewHeadline}>watch it back.</h2>
+        <p style={previewBody}>
+          Then, when it feels right, send it on its way.
+        </p>
+      </div>
+
+      <div style={previewMeta}>
+        <div style={previewMetaCol}>
+          <div style={previewLabel}>Length</div>
+          <div style={previewValueBold}>{durationStr}</div>
+        </div>
+        <div style={previewMetaCol}>
+          <div style={previewLabel}>Clips</div>
+          <div style={previewValueBold}>{submittedClips.length}</div>
+        </div>
+        <div style={{ ...previewMetaCol, textAlign: 'right' }}>
+          <div style={previewLabel}>For</div>
+          <div style={previewValueBold}>{firstName}</div>
+        </div>
+      </div>
+
+      <div style={previewPlayerWrap}>
+        {previewUrl ? (
+          <video
+            src={previewUrl}
+            controls
+            playsInline
+            preload="metadata"
+            style={previewVideo}
+          />
+        ) : (
+          <div style={previewPlayerFallback}>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 20 }}>
+              Preview isn&rsquo;t ready. Try refreshing the page.
+            </div>
+          </div>
+        )}
+        <div style={previewHint}>Only you can see this preview.</div>
+      </div>
+
+      {contributorNames.length > 0 && (
+        <div style={previewContribs}>
+          <div style={previewLabel}>Who&rsquo;s in it</div>
+          <div style={previewContribsList}>
+            {contributorNames.map((n, i) => (
+              <span key={i} style={previewContribChip}>{n}</span>
+            ))}
+            {submittedClips.length > contributorNames.length && (
+              <span style={{ ...previewContribChip, background: 'transparent', color: INK_GHOST, border: `1px dashed ${PAPER_DARK}` }}>
+                + {submittedClips.length - contributorNames.length} anonymous
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div style={previewSend}>
+        <button style={sendBtn} onClick={onSend}>
+          Send it to {firstName} →
+        </button>
+        <div style={previewSendHint}>
+          Once it&rsquo;s gone, it&rsquo;s gone — you can&rsquo;t unsend it.
+        </div>
+      </div>
+    </article>
+  )
+}
 
 function CompileStepper() {
   const [elapsed, setElapsed] = useState(0)
@@ -378,7 +466,7 @@ const shareHint = { fontSize: 11, color: INK_FADED, marginTop: 12, fontStyle: 'i
 
 const sendBanner = { background: GREEN_PALE, border: `1px solid ${GREEN}`, padding: '22px 22px 20px', marginTop: 8, borderRadius: 2 }
 const sendLabel = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 700, marginBottom: 10 }
-const sendTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, marginBottom: 10, lineHeight: 1.2, textTransform: 'lowercase', fontWeight: 400 }
+const sendTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, marginBottom: 10, lineHeight: 1.2, fontWeight: 400 }
 const sendBody = { fontSize: 13, color: INK_FADED, marginBottom: 16, lineHeight: 1.6 }
 const sendBtn = { padding: '14px 26px', background: PINK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', boxShadow: `3px 3px 0 ${INK}`, borderRadius: 2 }
 
@@ -389,11 +477,35 @@ const emptyClips = { background: '#fff', border: `1px dashed ${PAPER_DARK}`, pad
 
 const modalBg = { position: 'fixed', inset: 0, background: 'rgba(26, 20, 16, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }
 const modalCard = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: 28, maxWidth: 440, width: '100%', boxShadow: `4px 4px 0 ${INK}` }
-const modalTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, marginBottom: 12, lineHeight: 1.2, textTransform: 'lowercase', fontWeight: 400 }
+const modalTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, marginBottom: 12, lineHeight: 1.2, fontWeight: 400 }
 const modalBody = { fontSize: 13, color: INK_FADED, lineHeight: 1.7, marginBottom: 22 }
 const modalCancel = { width: '100%', padding: '12px', background: 'transparent', border: `1px solid ${PAPER_DARK}`, color: INK_FADED, fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer' }
-
 
 const stepperList = { display: 'flex', flexDirection: 'column', gap: 14 }
 const stepperRow = { display: 'flex', alignItems: 'center', gap: 14 }
 const dotBase = { width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }
+
+const previewCard = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: 0, marginTop: 8, marginBottom: 8, boxShadow: `3px 3px 0 ${PAPER_AGED}, 6px 6px 0 ${PAPER_DARK}` }
+const previewTop = { padding: '24px 24px 16px', borderBottom: `2px dashed ${PAPER_DARK}` }
+const previewTopRow = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }
+const previewLabel = { fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', color: INK_GHOST, marginBottom: 3, fontWeight: 700 }
+const previewValue = { fontSize: 11, color: INK_FADED }
+const previewValueBold = { fontSize: 13, color: INK, fontWeight: 700 }
+const readyStamp = { transform: 'rotate(8deg)', border: `2.5px solid ${GREEN}`, padding: '6px 14px', background: 'rgba(45, 122, 58, 0.06)', fontFamily: "'Permanent Marker', cursive", fontSize: 18, color: GREEN, lineHeight: 1, letterSpacing: 1.5 }
+const previewHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 32, lineHeight: 1.05, fontWeight: 400, margin: '0 0 8px' }
+const previewBody = { fontSize: 13, lineHeight: 1.65, color: INK_FADED, margin: 0 }
+
+const previewMeta = { padding: '16px 24px', borderBottom: `1px dashed ${PAPER_DARK}`, display: 'flex', justifyContent: 'space-between', gap: 16 }
+const previewMetaCol = { flex: 1 }
+
+const previewPlayerWrap = { padding: '18px 24px 8px' }
+const previewVideo = { width: '100%', aspectRatio: '16 / 9', background: '#000', display: 'block', border: `1px solid ${INK}`, borderRadius: 0 }
+const previewPlayerFallback = { width: '100%', aspectRatio: '16 / 9', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${INK}` }
+const previewHint = { fontSize: 11, color: INK_GHOST, fontStyle: 'italic', textAlign: 'center', marginTop: 10 }
+
+const previewContribs = { padding: '16px 24px', borderTop: `1px dashed ${PAPER_DARK}` }
+const previewContribsList = { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }
+const previewContribChip = { fontSize: 16, padding: '4px 10px', background: PINK_PALE, color: INK, fontFamily: "'Caveat', cursive", fontWeight: 600, lineHeight: 1.2, borderRadius: 16 }
+
+const previewSend = { padding: '18px 24px 22px', borderTop: `1px dashed ${PAPER_DARK}` }
+const previewSendHint = { fontSize: 11, color: INK_GHOST, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }
