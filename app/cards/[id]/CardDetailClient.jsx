@@ -120,7 +120,7 @@ export default function CardDetailClient({ card: initialCard }) {
       </nav>
 
       <main style={main}>
-        <h1 style={title}>for {card.recipient_name.toLowerCase()}</h1>
+        <h1 style={title}>for {card.recipient_name}</h1>
         <div style={subtitle}>
           {themeLabel}
           {card.deadline_at && ` · sending ${new Date(card.deadline_at).toLocaleDateString()}`}
