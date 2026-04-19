@@ -236,6 +236,9 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
           onSend={triggerSend}
         />
       )}
+    </div>
+  )
+}
 
 function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
   const firstName = card.recipient_name.split(' ')[0]
