@@ -498,9 +498,9 @@ const previewBody = { fontSize: 13, lineHeight: 1.65, color: INK_FADED, margin: 
 const previewMeta = { padding: '16px 24px', borderBottom: `1px dashed ${PAPER_DARK}`, display: 'flex', justifyContent: 'space-between', gap: 16 }
 const previewMetaCol = { flex: 1 }
 
-const previewPlayerWrap = { padding: '18px 24px 8px' }
-const previewVideo = { width: '100%', aspectRatio: '16 / 9', background: '#000', display: 'block', border: `1px solid ${INK}`, borderRadius: 0 }
-const previewPlayerFallback = { width: '100%', aspectRatio: '16 / 9', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${INK}` }
+const previewPlayerWrap = { padding: '18px 24px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }
+const previewVideo = { width: '100%', maxWidth: 320, aspectRatio: '9 / 16', background: '#000', display: 'block', border: `1px solid ${INK}`, borderRadius: 0 }
+const previewPlayerFallback = { width: '100%', maxWidth: 320, aspectRatio: '9 / 16', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${INK}` }
 const previewHint = { fontSize: 11, color: INK_GHOST, fontStyle: 'italic', textAlign: 'center', marginTop: 10 }
 
 const previewContribs = { padding: '16px 24px', borderTop: `1px dashed ${PAPER_DARK}` }
