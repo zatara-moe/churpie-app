@@ -610,13 +610,15 @@ function PreviewScreen({ firstName, previewUrl, name, setName, uploading, error,
       </p>
 
       {previewUrl && (
-        <div style={{ position: 'relative', marginBottom: 18 }}>
+        <div style={{ position: 'relative', marginBottom: 18, display: 'flex', justifyContent: 'center' }}>
           <video
             src={previewUrl}
             controls
             playsInline
             style={{
               width: '100%',
+              maxWidth: 280,
+              aspectRatio: '9 / 16',
               borderRadius: 6,
               background: '#000',
               display: 'block',
