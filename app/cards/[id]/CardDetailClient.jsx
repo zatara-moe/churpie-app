@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import VideoFrame from '../../../components/VideoFrame'
 
 // ─── Palette ────────────────────────────────────────────────────
 const INK = '#1A1410'
