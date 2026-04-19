@@ -31,10 +31,6 @@ export default async function WatchPage({ params }) {
     c.status === 'submitted' || c.status === 'processed'
   )
 
-const submittedClips = (card.clips || []).filter(c =>
-    c.status === 'submitted' || c.status === 'processed'
-  )
-
   const totalDuration = submittedClips.reduce(
     (sum, c) => sum + (c.duration_seconds || 0),
     0
