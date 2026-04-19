@@ -26,26 +26,30 @@ export default async function CardDetailPage({ params }) {
   }
 
   let previewUrl = null
+  let delivery = null
   try {
     const sb = createServiceClient()
-    const { data: delivery, error: dErr } = await sb
+    const { data: d, error: dErr } = await sb
       .from('deliveries')
-      .select('compiled_video_key')
+      .select('*')
       .eq('card_id', params.id)
       .maybeSingle()
 
     if (dErr) {
       console.error('[card-detail] delivery query error:', dErr.message)
-    } else if (delivery?.compiled_video_key) {
-      console.log('[card-detail] generating preview for key:', delivery.compiled_video_key)
-      previewUrl = await getPresignedReadUrl(delivery.compiled_video_key, 3600)
-      console.log('[card-detail] preview URL length:', previewUrl?.length || 0)
-    } else {
-      console.log('[card-detail] no compiled_video_key for card', params.id)
+    } else if (d) {
+      delivery = d
+      if (d.compiled_video_key) {
+        console.log('[card-detail] generating preview for key:', d.compiled_video_key)
+        previewUrl = await getPresignedReadUrl(d.compiled_video_key, 3600)
+        console.log('[card-detail] preview URL length:', previewUrl?.length || 0)
+      } else {
+        console.log('[card-detail] no compiled_video_key for card', params.id)
+      }
     }
   } catch (err) {
     console.error('[card-detail] preview URL generation failed:', err.message)
   }
 
-  return <CardDetailClient card={card} previewUrl={previewUrl} />
+  return <CardDetailClient card={card} previewUrl={previewUrl} delivery={delivery} />
 }
