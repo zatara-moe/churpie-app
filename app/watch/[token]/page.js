@@ -27,6 +27,34 @@ export default async function WatchPage({ params }) {
     videoUrl = await getPresignedReadUrl(delivery.compiled_video_key, 3600)
   }
 
+  // Track first watch — only writes the timestamp if it's null
+  // (safe to call on every page load; the conditional update makes it a no-op after first hit)
+  if (delivery && !delivery.first_watched_at) {
+    try {
+      await sb
+        .from('deliveries')
+        .update({
+          first_watched_at: new Date().toISOString(),
+          watch_count: (delivery.watch_count || 0) + 1,
+        })
+        .eq('card_id', card.id)
+        .is('first_watched_at', null)
+    } catch (err) {
+      // Don't block the page render if tracking fails
+      console.error('Watch tracking failed:', err?.message)
+    }
+  } else if (delivery) {
+    // Subsequent watches — just bump the counter
+    try {
+      await sb
+        .from('deliveries')
+        .update({ watch_count: (delivery.watch_count || 0) + 1 })
+        .eq('card_id', card.id)
+    } catch (err) {
+      console.error('Watch count bump failed:', err?.message)
+    }
+  }
+
   const submittedClips = (card.clips || []).filter(c =>
     c.status === 'submitted' || c.status === 'processed'
   )
