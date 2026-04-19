@@ -502,5 +502,5 @@ const previewContribs = { padding: '16px 24px', borderTop: `1px dashed ${PAPER_D
 const previewContribsList = { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }
 const previewContribChip = { fontSize: 16, padding: '4px 10px', background: PINK_PALE, color: INK, fontFamily: "'Caveat', cursive", fontWeight: 600, lineHeight: 1.2, borderRadius: 16 }
 
-const previewSend = { padding: '18px 24px 22px', borderTop: `1px dashed ${PAPER_DARK}` }
+const previewSend = { padding: '18px 24px 22px', borderTop: `1px dashed ${PAPER_DARK}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }
 const previewSendHint = { fontSize: 11, color: INK_GHOST, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }
