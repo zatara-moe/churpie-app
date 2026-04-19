@@ -304,6 +304,7 @@ export default function ContributorFlowV2({ card }) {
             recipientName={card.recipient_name}
             organizerMessage={card.contributor_message}
             onStart={() => go('permission')}
+            onUpload={handleUploadFile}
           />
         )}
 
@@ -359,7 +360,15 @@ export default function ContributorFlowV2({ card }) {
   )
 }
 
-function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) {
+function LandingScreen({ firstName, recipientName, organizerMessage, onStart, onUpload }) {
+  const fileInputRef = useRef(null)
+
+  const handleFilePick = (e) => {
+    const file = e.target.files?.[0]
+    if (file && onUpload) onUpload(file)
+    e.target.value = ''
+  }
+
   return (
     <>
       <article style={cardBox}>
@@ -398,6 +407,30 @@ function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) 
         <button onClick={onStart} style={primaryCta}>
           Record 15 seconds &rarr;
         </button>
+
+        <div style={orDivider}>
+          <span style={orDividerLine} />
+          <span style={orDividerText}>or</span>
+          <span style={orDividerLine} />
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="video/*"
+          onChange={handleFilePick}
+          style={{ display: 'none' }}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          style={secondaryCta}
+        >
+          📁 Upload a video instead
+        </button>
+        <div style={{ fontSize: 11, color: INK_GHOST, textAlign: 'center', marginTop: 8, fontStyle: 'italic' }}>
+          Max 15 seconds · MP4 or MOV
+        </div>
+
         <div style={ctaHint}>
           takes about <span style={{ color: PINK, fontWeight: 700 }}>2 minutes</span> total
         </div>
