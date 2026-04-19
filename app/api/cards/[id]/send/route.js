@@ -1,7 +1,7 @@
 // app/api/cards/[id]/send/route.js
-// Marks a compiled card as sent. Supports two delivery modes:
-//   - 'email': we fire the delivery email via Resend (requires recipient_email)
-//   - 'link':  we just mark it sent; creator will share the watch link manually
+// Sends the video to the recipient via email.
+// The watch link itself is always available on the card detail page —
+// this route is specifically for firing the Resend email.
 
 export const dynamic = 'force-dynamic'
 
@@ -15,15 +15,16 @@ import { Resend } from 'resend'
 export async function POST(request, { params }) {
   const { id: cardId } = params
 
+  // Parse body — expects { recipientEmail } (optional; falls back to card's email)
   let body = {}
   try {
     body = await request.json()
   } catch {}
-  const sentVia = body.sentVia === 'link' ? 'link' : 'email'
   const recipientEmailOverride = typeof body.recipientEmail === 'string'
     ? body.recipientEmail.trim()
     : null
 
+  // Auth
   const supabase = createRouteHandlerClient({ cookies })
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
@@ -42,16 +43,13 @@ export async function POST(request, { params }) {
   if (!card) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 })
   }
-  if (card.status === 'sent') {
-    return NextResponse.json({ error: 'Already sent' }, { status: 400 })
-  }
-  if (card.status !== 'compiled') {
+  if (card.status !== 'compiled' && card.status !== 'sent') {
     return NextResponse.json({ error: 'Card not ready to send yet' }, { status: 400 })
   }
 
   let delivery = card.deliveries?.[0]
 
-  // Self-heal missing watch token
+  // Self-heal missing watch token (kept from previous version)
   if (!delivery?.watch_token) {
     try {
       const newToken = await signWatchToken(cardId)
@@ -76,67 +74,75 @@ export async function POST(request, { params }) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.churpie.me'
   const watchUrl = `${appUrl}/watch/${delivery.watch_token}`
 
+  // Resolve which email to use
   const emailToUse = recipientEmailOverride || card.recipient_email
 
-  if (sentVia === 'email') {
-    if (!emailToUse) {
-      return NextResponse.json({
-        error: 'No recipient email provided. Add one or pick the link option.',
-      }, { status: 400 })
-    }
-    if (!process.env.RESEND_API_KEY) {
-      return NextResponse.json({
-        error: 'Email not configured. Use the link option instead.',
-      }, { status: 500 })
-    }
-
-    try {
-      const resend = new Resend(process.env.RESEND_API_KEY)
-      const firstName = card.recipient_name.split(' ')[0]
-
-      await resend.emails.send({
-        from: 'churpie <hello@churpie.me>',
-        to: emailToUse,
-        subject: `${firstName}, everyone who loves you made something for you.`,
-        html: renderDeliveryEmail({
-          firstName,
-          watchUrl,
-          clipCount: (card.clips?.length || 0),
-        }),
-      })
-
-      if (recipientEmailOverride && recipientEmailOverride !== card.recipient_email) {
-        await sb
-          .from('cards')
-          .update({ recipient_email: recipientEmailOverride })
-          .eq('id', cardId)
-      }
-    } catch (err) {
-      console.error('Delivery email failed:', err.message)
-      return NextResponse.json({
-        error: 'Email could not send. Try again or use the link option.',
-      }, { status: 500 })
-    }
+  if (!emailToUse) {
+    return NextResponse.json({
+      error: 'No recipient email. Add one or just share the link directly.',
+    }, { status: 400 })
+  }
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({
+      error: 'Email not configured. Share the link directly for now.',
+    }, { status: 500 })
   }
 
-  const nowIso = new Date().toISOString()
-  await sb
-    .from('cards')
-    .update({ status: 'sent' })
-    .eq('id', cardId)
+  // Fire the email
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY)
+    const firstName = card.recipient_name.split(' ')[0]
 
+    await resend.emails.send({
+      from: 'churpie <hello@churpie.me>',
+      to: emailToUse,
+      subject: `${firstName}, everyone who loves you made something for you.`,
+      html: renderDeliveryEmail({
+        firstName,
+        watchUrl,
+        clipCount: (card.clips?.length || 0),
+      }),
+    })
+
+    // If they entered a new email inline, save it back to the card
+    if (recipientEmailOverride && recipientEmailOverride !== card.recipient_email) {
+      await sb
+        .from('cards')
+        .update({ recipient_email: recipientEmailOverride })
+        .eq('id', cardId)
+    }
+  } catch (err) {
+    console.error('Delivery email failed:', err.message)
+    return NextResponse.json({
+      error: 'Email could not send. Try again or share the link directly.',
+    }, { status: 500 })
+  }
+
+  // Record the email delivery
+  const nowIso = new Date().toISOString()
   await sb
     .from('deliveries')
     .update({
       status: 'sent',
       sent_at: nowIso,
-      sent_via: sentVia,
+      sent_via: 'email',
+      email_sent_at: nowIso,
+      email_sent_to: emailToUse,
     })
     .eq('card_id', cardId)
 
+  // Only flip card status to 'sent' the FIRST time; resends don't re-flip
+  if (card.status !== 'sent') {
+    await sb
+      .from('cards')
+      .update({ status: 'sent' })
+      .eq('id', cardId)
+  }
+
   return NextResponse.json({
-    status: 'sent',
-    sentVia,
+    status: 'emailed',
+    emailedTo: emailToUse,
+    emailedAt: nowIso,
     watchUrl,
   })
 }
