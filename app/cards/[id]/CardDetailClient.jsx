@@ -304,22 +304,16 @@ function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
         </div>
       </div>
 
-      <div style={previewPlayerWrap}>
-        {previewUrl ? (
-          <video
-            src={previewUrl}
-            controls
-            playsInline
-            preload="metadata"
-            style={previewVideo}
-          />
-        ) : (
-          <div style={previewPlayerFallback}>
-            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', padding: 20 }}>
-              Preview isn&rsquo;t ready. Try refreshing the page.
-            </div>
-          </div>
-        )}
+    <div style={previewPlayerWrap}>
+        <VideoFrame
+          videoUrl={previewUrl}
+          recipientName={card.recipient_name}
+          clipCount={submittedClips.length}
+          durationSeconds={totalSeconds}
+          theme={card.theme}
+          variant="preview"
+          videoProps={{ controls: true, preload: 'metadata' }}
+        />
         <div style={previewHint}>Only you can see this preview.</div>
       </div>
 
