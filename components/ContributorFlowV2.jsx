@@ -25,7 +25,7 @@ function getSupportedMimeType() {
 }
 
 export default function ContributorFlowV2({ card }) {
-  const [screen, setScreen] = useState('landing')
+  const [screen, setScreen] = useState('landing') // landing | permission | record | preview | sent
   const [name, setName] = useState('')
   const [recSecs, setRecSecs] = useState(0)
   const [recOn, setRecOn] = useState(false)
@@ -33,6 +33,7 @@ export default function ContributorFlowV2({ card }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [validationError, setValidationError] = useState(null)
 
   const timerRef = useRef(null)
   const mediaRef = useRef(null)
@@ -47,6 +48,7 @@ export default function ContributorFlowV2({ card }) {
 
   const go = (s) => { setError(null); setScreen(s) }
 
+  // Attach stream to video element once we reach the record screen
   useEffect(() => {
     if (screen === 'record' && streamRef.current && videoRef.current) {
       videoRef.current.srcObject = streamRef.current
@@ -56,14 +58,105 @@ export default function ContributorFlowV2({ card }) {
   const requestCamera = async () => {
     setError(null)
     try {
+      // Request portrait 720x1280. If device can't do that exactly,
+      // the browser returns its closest match. We handle the crop on display.
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
+        video: {
+          facingMode: 'user',
+          width:  { ideal: 720 },
+          height: { ideal: 1280 },
+          aspectRatio: { ideal: 9 / 16 },
+        },
         audio: true,
       })
       streamRef.current = stream
       go('record')
     } catch (err) {
-      setError('We need your camera to record. Please tap allow when your browser asks, or check your browser settings.')
+      // Fallback: try again without hard constraints (rare but possible)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user' },
+          audio: true,
+        })
+        streamRef.current = stream
+        go('record')
+      } catch (err2) {
+        setError('We need your camera to record. Please tap allow when your browser asks, or check your browser settings.')
+      }
+    }
+  }
+
+  // Handle a file picked from the device for upload
+  const handleUploadFile = (file) => {
+    if (!file) return
+    setError(null)
+    setValidationError(null)
+
+    // Format check — accept any video/* MIME type
+    if (!file.type.startsWith('video/')) {
+      setValidationError({
+        kind: 'format',
+        message: 'That file doesn\u2019t look like a video. Try an MP4 or MOV file.',
+      })
+      blobRef.current = file
+      setPreviewUrl(URL.createObjectURL(file))
+      durationRef.current = 0
+      go('preview')
+      return
+    }
+
+    // Size check — reject files over 50MB
+    if (file.size > 50 * 1024 * 1024) {
+      setValidationError({
+        kind: 'size',
+        message: 'That file is over 50MB. Try a smaller or shorter clip.',
+      })
+      blobRef.current = file
+      setPreviewUrl(URL.createObjectURL(file))
+      durationRef.current = 0
+      go('preview')
+      return
+    }
+
+    // Create preview URL and read duration from metadata
+    const url = URL.createObjectURL(file)
+    const probe = document.createElement('video')
+    probe.preload = 'metadata'
+    probe.src = url
+
+    probe.onloadedmetadata = () => {
+      const durationSecs = Math.round(probe.duration)
+      if (durationSecs > 15) {
+        setValidationError({
+          kind: 'duration',
+          message: `That clip is ${durationSecs} seconds — over the 15-second max. Try a shorter file, or record one here.`,
+          actualDuration: durationSecs,
+        })
+        durationRef.current = durationSecs
+      } else if (durationSecs < 1) {
+        setValidationError({
+          kind: 'duration',
+          message: 'That clip is too short to send. Try a longer one.',
+          actualDuration: durationSecs,
+        })
+        durationRef.current = durationSecs
+      } else {
+        durationRef.current = Math.max(1, Math.min(15, durationSecs))
+      }
+      blobRef.current = file
+      setPreviewUrl(url)
+      go('preview')
+    }
+
+    probe.onerror = () => {
+      setValidationError({
+        kind: 'format',
+        message: 'We couldn\u2019t read that file. Try a different one.',
+      })
+      blobRef.current = file
+      setPreviewUrl(url)
+      durationRef.current = 0
+      go('preview')
     }
   }
 
@@ -74,6 +167,7 @@ export default function ContributorFlowV2({ card }) {
       return
     }
 
+    // 3-2-1 countdown
     for (const n of [3, 2, 1]) {
       setCountdown(n)
       await new Promise(r => setTimeout(r, 900))
@@ -123,7 +217,17 @@ export default function ContributorFlowV2({ card }) {
     setPreviewUrl(null)
     blobRef.current = null
     setRecSecs(0)
+    setValidationError(null)
     go('record')
+  }
+
+  // For uploaded files — returns the user to the permission/upload screen
+  const pickDifferentFile = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
+    blobRef.current = null
+    setValidationError(null)
+    go('permission')
   }
 
   const releaseStream = () => {
@@ -208,6 +312,7 @@ export default function ContributorFlowV2({ card }) {
             firstName={firstName}
             error={error}
             onAllow={requestCamera}
+            onUpload={handleUploadFile}
             onBack={() => go('landing')}
           />
         )}
@@ -233,8 +338,10 @@ export default function ContributorFlowV2({ card }) {
             setName={setName}
             uploading={uploading}
             error={error}
+            validationError={validationError}
             onSend={sendClip}
             onRetake={retakeClip}
+            onPickDifferent={pickDifferentFile}
           />
         )}
 
@@ -333,11 +440,19 @@ function LandingScreen({ firstName, recipientName, organizerMessage, onStart }) 
   )
 }
 
-function PermissionScreen({ firstName, error, onAllow, onBack }) {
+function PermissionScreen({ firstName, error, onAllow, onUpload, onBack }) {
+  const fileInputRef = useRef(null)
+
+  const handleFilePick = (e) => {
+    const file = e.target.files?.[0]
+    if (file && onUpload) onUpload(file)
+    e.target.value = ''
+  }
+
   return (
     <article style={{ ...cardBox, textAlign: 'center' }}>
       <h2 style={{ ...cardHeadline, fontSize: 28, marginBottom: 10 }}>
-        one quick ask.
+        ready, {firstName}?
       </h2>
       <p style={{ fontSize: 14, color: INK_FADED, lineHeight: 1.6, marginBottom: 22 }}>
         Tap allow so we can use your camera for the next 15 seconds.
@@ -349,9 +464,33 @@ function PermissionScreen({ firstName, error, onAllow, onBack }) {
       )}
 
       <button onClick={onAllow} style={{ ...primaryCta, marginBottom: 12 }}>
-        Allow camera &rarr;
+        Start the camera &rarr;
       </button>
-      <button onClick={onBack} style={ghostBtn}>
+
+      <div style={orDivider}>
+        <span style={orDividerLine} />
+        <span style={orDividerText}>or</span>
+        <span style={orDividerLine} />
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        onChange={handleFilePick}
+        style={{ display: 'none' }}
+      />
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        style={secondaryCta}
+      >
+        📁 Upload a video you already have
+      </button>
+      <div style={{ fontSize: 11, color: INK_GHOST, marginTop: 8, fontStyle: 'italic' }}>
+        Max 15 seconds · MP4 or MOV
+      </div>
+
+      <button onClick={onBack} style={{ ...ghostBtn, marginTop: 18 }}>
         &larr; Back
       </button>
     </article>
@@ -376,6 +515,7 @@ function RecordScreen({ firstName, recSecs, recOn, countdown, videoRef, onStart,
           playsInline
           style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
         />
+        <FrameGuide visible={!recOn && countdown === null} />
         {countdown !== null && (
           <div style={countdownOverlay}>
             <div style={countdownNumber} key={countdown}>{countdown}</div>
@@ -408,46 +548,98 @@ function RecordScreen({ firstName, recSecs, recOn, countdown, videoRef, onStart,
   )
 }
 
-function PreviewScreen({ firstName, previewUrl, name, setName, uploading, error, onSend, onRetake }) {
+function FrameGuide({ visible }) {
+  if (!visible) return null
+  return (
+    <div style={frameGuideWrap} aria-hidden="true">
+      <div style={{ ...frameCorner, top: 16, left: 16, borderTop: `2px solid rgba(255,255,255,0.75)`, borderLeft: `2px solid rgba(255,255,255,0.75)` }} />
+      <div style={{ ...frameCorner, top: 16, right: 16, borderTop: `2px solid rgba(255,255,255,0.75)`, borderRight: `2px solid rgba(255,255,255,0.75)` }} />
+      <div style={{ ...frameCorner, bottom: 16, left: 16, borderBottom: `2px solid rgba(255,255,255,0.75)`, borderLeft: `2px solid rgba(255,255,255,0.75)` }} />
+      <div style={{ ...frameCorner, bottom: 16, right: 16, borderBottom: `2px solid rgba(255,255,255,0.75)`, borderRight: `2px solid rgba(255,255,255,0.75)` }} />
+      <div style={frameHint}>stay in the frame</div>
+    </div>
+  )
+}
+
+function PreviewScreen({ firstName, previewUrl, name, setName, uploading, error, validationError, onSend, onRetake, onPickDifferent }) {
+  const isInvalid = !!validationError
+  const durationBadge = validationError?.actualDuration
+    ? `${validationError.actualDuration}s · too long`
+    : null
+
   return (
     <article style={cardBox}>
       <h2 style={{ ...cardHeadline, fontSize: 28, marginBottom: 10 }}>
         watch it back.
       </h2>
       <p style={{ fontSize: 13, color: INK_FADED, marginBottom: 18 }}>
-        Happy with it? Or one more take?
+        {isInvalid ? 'Pick a different one?' : 'Happy with it? Or one more take?'}
       </p>
 
       {previewUrl && (
-        <video
-          src={previewUrl}
-          controls
-          playsInline
-          style={{ width: '100%', borderRadius: 6, background: '#000', marginBottom: 18 }}
-        />
+        <div style={{ position: 'relative', marginBottom: 18 }}>
+          <video
+            src={previewUrl}
+            controls
+            playsInline
+            style={{
+              width: '100%',
+              borderRadius: 6,
+              background: '#000',
+              display: 'block',
+              opacity: isInvalid ? 0.55 : 1,
+            }}
+          />
+          {durationBadge && (
+            <div style={invalidBadge}>{durationBadge}</div>
+          )}
+        </div>
       )}
 
-      <label style={inputLabel}>Your name (optional)</label>
-      <input
-        type="text"
-        value={name}
-        onChange={e => setName(e.target.value)}
-        placeholder={`so ${firstName} knows who it's from`}
-        style={textInput}
-      />
-      <div style={{ fontSize: 11, color: INK_GHOST, marginTop: 6, fontStyle: 'italic' }}>
-        Skip this if you want to stay anonymous — {firstName} will still get your clip.
-      </div>
+      {validationError && (
+        <div style={validationBox}>
+          {validationError.message}
+        </div>
+      )}
+
+      {!isInvalid && (
+        <>
+          <label style={inputLabel}>Your name (optional)</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={`so ${firstName} knows who it's from`}
+            style={textInput}
+          />
+          <div style={{ fontSize: 11, color: INK_GHOST, marginTop: 6, fontStyle: 'italic' }}>
+            Skip this if you want to stay anonymous — {firstName} will still get your clip.
+          </div>
+        </>
+      )}
 
       {error && <div style={{ ...errorBox, marginTop: 16 }}>{error}</div>}
 
       <div style={{ marginTop: 22, display: 'grid', gap: 10 }}>
-        <button onClick={onSend} disabled={uploading} style={{ ...primaryCta, opacity: uploading ? 0.6 : 1 }}>
-          {uploading ? 'Sending…' : `Send it to ${firstName} →`}
-        </button>
-        <button onClick={onRetake} disabled={uploading} style={ghostBtn}>
-          One more take
-        </button>
+        {isInvalid ? (
+          <>
+            <button onClick={onPickDifferent} style={primaryCta}>
+              Pick a different file
+            </button>
+            <button disabled style={disabledCta}>
+              Send it in
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={onSend} disabled={uploading} style={{ ...primaryCta, opacity: uploading ? 0.6 : 1 }}>
+              {uploading ? 'Sending…' : `Send it to ${firstName} →`}
+            </button>
+            <button onClick={onRetake} disabled={uploading} style={ghostBtn}>
+              One more take
+            </button>
+          </>
+        )}
       </div>
     </article>
   )
@@ -486,6 +678,7 @@ function SentScreen({ firstName, recipientName, contributorName, durationSeconds
         setTimeout(() => setShareCopied(false), 2500)
       }
     } catch {
+      // User dismissed share dialog
     }
   }
 
@@ -581,8 +774,8 @@ const mainCol = { maxWidth: 520, margin: '0 auto', padding: '0 20px' }
 
 const cardBox = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '28px 22px 24px', marginBottom: 24, boxShadow: `3px 3px 0 ${PAPER_AGED}, 6px 6px 0 ${PAPER_DARK}` }
 const cardFrom = { fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, marginBottom: 14 }
-const cardHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 7vw, 34px)', lineHeight: 1.08, letterSpacing: '-0.5px', color: INK, marginBottom: 6, fontWeight: 400 }
-const cardSub = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, lineHeight: 1.3, color: INK_FADED, fontStyle: 'italic', marginBottom: 22, fontWeight: 400 }
+const cardHeadline = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(28px, 7vw, 34px)', lineHeight: 1.08, letterSpacing: '-0.5px', color: INK, marginBottom: 6, fontWeight: 400, textTransform: 'lowercase' }
+const cardSub = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, lineHeight: 1.3, color: INK_FADED, fontStyle: 'italic', marginBottom: 22, textTransform: 'lowercase', fontWeight: 400 }
 
 const organizerNote = { background: PINK_PALE, border: `1px solid rgba(212, 38, 106, 0.3)`, padding: '16px 18px', marginBottom: 22, borderRadius: 2 }
 const organizerNoteLabel = { fontFamily: "'Caveat', cursive", fontSize: 18, fontWeight: 700, color: PINK, transform: 'rotate(-1deg)', display: 'inline-block', marginBottom: 4, lineHeight: 1 }
@@ -593,6 +786,13 @@ const askLine = { fontSize: 13, lineHeight: 1.7, color: INK, marginBottom: 8, di
 const askDash = { color: PINK, fontWeight: 700, flexShrink: 0 }
 
 const primaryCta = { width: '100%', padding: '16px 22px', background: PINK, color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', border: 'none', cursor: 'pointer', boxShadow: `3px 3px 0 ${INK}`, borderRadius: 2 }
+const secondaryCta = { width: '100%', padding: '12px 22px', background: 'transparent', color: INK_FADED, border: `1px solid ${PAPER_DARK}`, fontFamily: 'inherit', fontSize: 12, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', cursor: 'pointer', borderRadius: 2 }
+const disabledCta = { width: '100%', padding: '16px 22px', background: PAPER_DARK, color: 'rgba(26, 20, 16, 0.4)', fontFamily: 'inherit', fontSize: 13, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', border: 'none', cursor: 'not-allowed', borderRadius: 2 }
+const orDivider = { display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 10px' }
+const orDividerLine = { flex: 1, height: 1, background: PAPER_DARK }
+const orDividerText = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: INK_GHOST }
+const invalidBadge = { position: 'absolute', top: 8, left: 8, background: 'rgba(178, 34, 34, 0.85)', padding: '3px 8px', fontSize: 10, color: '#fff', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700, borderRadius: 2 }
+const validationBox = { padding: '10px 14px', background: 'rgba(212, 38, 106, 0.08)', border: `1px dashed ${PINK}`, fontSize: 12, color: INK_FADED, textAlign: 'center', lineHeight: 1.55, marginBottom: 16, borderRadius: 2 }
 const ghostBtn = { display: 'inline-block', padding: '12px 20px', background: 'transparent', color: INK_FADED, border: `1px solid ${PAPER_DARK}`, fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', textDecoration: 'none', textAlign: 'center' }
 const ghostBtnSmall = { fontSize: 11, color: INK_FADED, background: 'transparent', border: 'none', cursor: 'pointer', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700, fontFamily: 'inherit', padding: 8 }
 const ctaHint = { textAlign: 'center', fontSize: 11, color: INK_FADED, textTransform: 'uppercase', letterSpacing: 1, marginTop: 12 }
@@ -603,10 +803,13 @@ const reassuranceList = { listStyle: 'none', padding: 0, margin: 0 }
 const reassuranceItem = { fontSize: 13, lineHeight: 1.6, color: INK, padding: '8px 0', display: 'flex', gap: 10, alignItems: 'flex-start' }
 
 const nervousBox = { background: PAPER_AGED, padding: '20px 22px 18px', border: `1px dashed ${PAPER_DARK}`, marginBottom: 24 }
-const nervousTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: INK, marginBottom: 10, lineHeight: 1.2, fontWeight: 400 }
+const nervousTitle = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 18, color: INK, marginBottom: 10, lineHeight: 1.2, textTransform: 'lowercase', fontWeight: 400 }
 const nervousBody = { fontSize: 13, color: INK_FADED, lineHeight: 1.65, marginBottom: 10 }
 
 const viewfinder = { position: 'relative', width: '100%', aspectRatio: '9 / 16', maxHeight: 500, background: '#000', borderRadius: 8, overflow: 'hidden' }
+const frameGuideWrap = { position: 'absolute', inset: 0, pointerEvents: 'none' }
+const frameCorner = { position: 'absolute', width: 22, height: 22 }
+const frameHint = { position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.8)', fontWeight: 700, background: 'rgba(0,0,0,0.35)', padding: '4px 10px', borderRadius: 2, whiteSpace: 'nowrap' }
 const countdownOverlay = { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
 const countdownNumber = { fontSize: 100, fontWeight: 700, color: '#fff', lineHeight: 1, animation: 'countPulse 0.9s ease-out', fontVariantNumeric: 'tabular-nums' }
 const recPill = { position: 'absolute', top: 12, left: 12, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(178, 34, 34, 0.9)', padding: '5px 11px', borderRadius: 20, color: '#fff', fontSize: 11, fontWeight: 700, letterSpacing: 1 }
