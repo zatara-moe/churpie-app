@@ -5,6 +5,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import VideoFrame from './VideoFrame'
 
 // ─── Palette ────────────────────────────────────────────────────
 const INK = '#1A1410'
@@ -17,7 +18,7 @@ const PINK = '#D4266A'
 const PINK_PALE = '#FAE0EC'
 const CYAN = '#0B9DAA'
 
-export default function RecipientExperienceV2({ recipientName, clipCount, contributors, videoUrl, cardId }) {
+export default function RecipientExperienceV2({ recipientName, clipCount, contributors, videoUrl, cardId, theme, durationSeconds, deliveredAt }) {
   const [phase, setPhase] = useState('arrival') // arrival | playing | after
   const [reply, setReply] = useState('')
   const [replyStatus, setReplyStatus] = useState(null) // null | 'sending' | 'sent' | 'error'
@@ -80,6 +81,11 @@ export default function RecipientExperienceV2({ recipientName, clipCount, contri
             videoRef={videoRef}
             videoUrl={videoUrl}
             onEnd={handleVideoEnd}
+            recipientName={recipientName}
+            clipCount={clipCount}
+            durationSeconds={durationSeconds}
+            theme={theme}
+            deliveredAt={deliveredAt}
           />
         )}
 
@@ -148,23 +154,19 @@ function ArrivalScreen({ firstName, clipCount, contributors, onStart, hasVideo }
   )
 }
 
-function PlayingScreen({ videoRef, videoUrl, onEnd }) {
+function PlayingScreen({ videoRef, videoUrl, onEnd, recipientName, clipCount, durationSeconds, theme, deliveredAt }) {
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px', display: 'flex', justifyContent: 'center' }}>
-      <video
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px' }}>
+      <VideoFrame
         ref={videoRef}
-        src={videoUrl}
-        controls
-        playsInline
-        onEnded={onEnd}
-        style={{
-          width: '100%',
-          maxWidth: 360,
-          aspectRatio: '9 / 16',
-          borderRadius: 4,
-          background: '#000',
-          boxShadow: `4px 4px 0 ${PAPER_DARK}, 8px 8px 0 ${PAPER_AGED}`,
-        }}
+        videoUrl={videoUrl}
+        recipientName={recipientName}
+        clipCount={clipCount}
+        durationSeconds={durationSeconds}
+        theme={theme}
+        variant="watch"
+        deliveredAt={deliveredAt}
+        videoProps={{ controls: true, onEnded: onEnd }}
       />
     </div>
   )
