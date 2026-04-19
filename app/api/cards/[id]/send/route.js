@@ -1,16 +1,28 @@
 // app/api/cards/[id]/send/route.js
-// Marks a compiled card as sent and fires the delivery email to the recipient.
+// Marks a compiled card as sent. Supports two delivery modes:
+//   - 'email': we fire the delivery email via Resend (requires recipient_email)
+//   - 'link':  we just mark it sent; creator will share the watch link manually
 
 export const dynamic = 'force-dynamic'
 
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { createServiceClient } from '../../../../../lib/supabase'
+import { signWatchToken } from '../../../../../lib/watch-token'
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
 
 export async function POST(request, { params }) {
   const { id: cardId } = params
+
+  let body = {}
+  try {
+    body = await request.json()
+  } catch {}
+  const sentVia = body.sentVia === 'link' ? 'link' : 'email'
+  const recipientEmailOverride = typeof body.recipientEmail === 'string'
+    ? body.recipientEmail.trim()
+    : null
 
   const supabase = createRouteHandlerClient({ cookies })
   const { data: { session } } = await supabase.auth.getSession()
@@ -20,7 +32,6 @@ export async function POST(request, { params }) {
 
   const sb = createServiceClient()
 
-  // Fetch card + delivery (to get watch token)
   const { data: card } = await sb
     .from('cards')
     .select('*, deliveries(*)')
@@ -38,24 +49,54 @@ export async function POST(request, { params }) {
     return NextResponse.json({ error: 'Card not ready to send yet' }, { status: 400 })
   }
 
-  const delivery = card.deliveries?.[0]
+  let delivery = card.deliveries?.[0]
+
+  // Self-heal missing watch token
   if (!delivery?.watch_token) {
-    return NextResponse.json({ error: 'Watch token missing — try recompiling' }, { status: 500 })
+    try {
+      const newToken = await signWatchToken(cardId)
+      const { data: healed } = await sb
+        .from('deliveries')
+        .upsert({
+          card_id: cardId,
+          watch_token: newToken,
+          status: 'compiled',
+        }, { onConflict: 'card_id' })
+        .select()
+        .single()
+      delivery = healed || { watch_token: newToken, card_id: cardId }
+    } catch (err) {
+      console.error('Watch token heal failed:', err.message)
+      return NextResponse.json({
+        error: 'Could not generate watch link. Try compiling again.',
+      }, { status: 500 })
+    }
   }
 
-  // Figure out app URL for the watch link
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.churpie.me'
   const watchUrl = `${appUrl}/watch/${delivery.watch_token}`
 
-  // Fire the delivery email (non-blocking — failure shouldn't block status change)
-  if (card.recipient_email && process.env.RESEND_API_KEY) {
+  const emailToUse = recipientEmailOverride || card.recipient_email
+
+  if (sentVia === 'email') {
+    if (!emailToUse) {
+      return NextResponse.json({
+        error: 'No recipient email provided. Add one or pick the link option.',
+      }, { status: 400 })
+    }
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({
+        error: 'Email not configured. Use the link option instead.',
+      }, { status: 500 })
+    }
+
     try {
       const resend = new Resend(process.env.RESEND_API_KEY)
       const firstName = card.recipient_name.split(' ')[0]
 
       await resend.emails.send({
         from: 'churpie <hello@churpie.me>',
-        to: card.recipient_email,
+        to: emailToUse,
         subject: `${firstName}, everyone who loves you made something for you.`,
         html: renderDeliveryEmail({
           firstName,
@@ -63,13 +104,22 @@ export async function POST(request, { params }) {
           clipCount: (card.clips?.length || 0),
         }),
       })
+
+      if (recipientEmailOverride && recipientEmailOverride !== card.recipient_email) {
+        await sb
+          .from('cards')
+          .update({ recipient_email: recipientEmailOverride })
+          .eq('id', cardId)
+      }
     } catch (err) {
       console.error('Delivery email failed:', err.message)
-      // Don't block — creator can resend via support if needed
+      return NextResponse.json({
+        error: 'Email could not send. Try again or use the link option.',
+      }, { status: 500 })
     }
   }
 
-  // Mark card as sent
+  const nowIso = new Date().toISOString()
   await sb
     .from('cards')
     .update({ status: 'sent' })
@@ -77,13 +127,20 @@ export async function POST(request, { params }) {
 
   await sb
     .from('deliveries')
-    .update({ status: 'sent', sent_at: new Date().toISOString() })
+    .update({
+      status: 'sent',
+      sent_at: nowIso,
+      sent_via: sentVia,
+    })
     .eq('card_id', cardId)
 
-  return NextResponse.json({ status: 'sent', watchUrl })
+  return NextResponse.json({
+    status: 'sent',
+    sentVia,
+    watchUrl,
+  })
 }
 
-// Inline email template (bulletin-board aesthetic, email-client-safe)
 function renderDeliveryEmail({ firstName, watchUrl, clipCount }) {
   return `<!DOCTYPE html>
 <html>
