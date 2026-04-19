@@ -150,7 +150,7 @@ function ArrivalScreen({ firstName, clipCount, contributors, onStart, hasVideo }
 
 function PlayingScreen({ videoRef, videoUrl, onEnd }) {
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px' }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: '20px', display: 'flex', justifyContent: 'center' }}>
       <video
         ref={videoRef}
         src={videoUrl}
@@ -159,6 +159,8 @@ function PlayingScreen({ videoRef, videoUrl, onEnd }) {
         onEnded={onEnd}
         style={{
           width: '100%',
+          maxWidth: 360,
+          aspectRatio: '9 / 16',
           borderRadius: 4,
           background: '#000',
           boxShadow: `4px 4px 0 ${PAPER_DARK}, 8px 8px 0 ${PAPER_AGED}`,
