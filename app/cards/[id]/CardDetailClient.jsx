@@ -91,18 +91,23 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
     }
   }
 
-  const triggerSend = async () => {
+   const triggerSend = async ({ sentVia, recipientEmail } = {}) => {
     setActionLoading('send')
     try {
-      const res = await fetch(`/api/cards/${card.id}/send`, { method: 'POST' })
+      const res = await fetch(`/api/cards/${card.id}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sentVia, recipientEmail }),
+      })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'Send failed')
       }
       setCard({ ...card, status: 'sent' })
-      setShowSendConfirm(false)
+      return data
     } catch (err) {
       alert(`Something hiccuped: ${err.message}. Try again in a moment.`)
+      return null
     } finally {
       setActionLoading(null)
     }
@@ -224,33 +229,13 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
       </main>
 
       {showSendConfirm && (
-        <div style={modalBg} onClick={() => setShowSendConfirm(false)}>
-          <div style={modalCard} onClick={e => e.stopPropagation()}>
-            <div style={modalTitle}>One last check.</div>
-            <div style={modalBody}>
-              This sends the video to <strong>{card.recipient_name}</strong> right now.
-              Once it&rsquo;s gone, it&rsquo;s gone — you can&rsquo;t unsend it.
-            </div>
-            <button
-              style={{ ...sendBtn, width: '100%', marginBottom: 10 }}
-              onClick={triggerSend}
-              disabled={actionLoading === 'send'}
-            >
-              {actionLoading === 'send' ? 'Sending…' : 'Yes, send it'}
-            </button>
-            <button
-              style={modalCancel}
-              onClick={() => setShowSendConfirm(false)}
-              disabled={actionLoading === 'send'}
-            >
-              Not yet
-            </button>
-          </div>
-        </div>
+        <SendModal
+          card={card}
+          actionLoading={actionLoading === 'send'}
+          onClose={() => setShowSendConfirm(false)}
+          onSend={triggerSend}
+        />
       )}
-    </div>
-  )
-}
 
 function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
   const firstName = card.recipient_name.split(' ')[0]
@@ -440,7 +425,214 @@ function StepperDot({ state, number }) {
     </div>
   )
 }
+// ─── SendModal ──────────────────────────────────────────────────
+function SendModal({ card, actionLoading, onClose, onSend }) {
+  const hasEmail = !!card.recipient_email && card.recipient_email.trim().length > 0
+  const [step, setStep] = useState('choose')
+  const [email, setEmail] = useState(card.recipient_email || '')
+  const [emailError, setEmailError] = useState(null)
+  const [watchUrl, setWatchUrl] = useState(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
+  const firstName = card.recipient_name.split(' ')[0]
+
+  const pickEmail = async () => {
+    if (hasEmail) {
+      const result = await onSend({ sentVia: 'email' })
+      if (result?.watchUrl) {
+        setWatchUrl(result.watchUrl)
+        setStep('sent-email')
+      }
+    } else {
+      setStep('ask-email')
+    }
+  }
+
+  const submitEmail = async () => {
+    const trimmed = email.trim()
+    if (!trimmed || !trimmed.includes('@') || !trimmed.includes('.')) {
+      setEmailError('That doesn\u2019t look like an email address.')
+      return
+    }
+    setEmailError(null)
+    const result = await onSend({ sentVia: 'email', recipientEmail: trimmed })
+    if (result?.watchUrl) {
+      setWatchUrl(result.watchUrl)
+      setStep('sent-email')
+    }
+  }
+
+  const pickLink = async () => {
+    const result = await onSend({ sentVia: 'link' })
+    if (result?.watchUrl) {
+      setWatchUrl(result.watchUrl)
+      setStep('link-ready')
+    }
+  }
+
+  const copyLink = async () => {
+    if (!watchUrl) return
+    try {
+      await navigator.clipboard.writeText(watchUrl)
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 2500)
+    } catch {
+      alert(`Copy this link: ${watchUrl}`)
+    }
+  }
+
+  const canClose = !actionLoading
+
+  return (
+    <div style={modalBg} onClick={canClose ? onClose : undefined}>
+      <div style={modalCard} onClick={e => e.stopPropagation()}>
+
+        {step === 'choose' && (
+          <>
+            <div style={modalTitle}>how should {firstName} get this?</div>
+            <div style={modalBody}>
+              Once you pick, it&rsquo;s gone — you can&rsquo;t unsend it.
+            </div>
+
+            <button
+              style={{ ...sendBtn, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}
+              onClick={pickEmail}
+              disabled={actionLoading}
+            >
+              <span>📧 &nbsp; {actionLoading ? 'Sending\u2026' : 'Send it via email'}</span>
+              <span>→</span>
+            </button>
+            <div style={modalHelper}>
+              {hasEmail
+                ? `We\u2019ll email ${firstName} at ${card.recipient_email}.`
+                : `We\u2019ll email ${firstName} a link to watch. We\u2019ll ask for their email next.`}
+            </div>
+
+            <div style={modalDivider}>
+              <span style={modalDividerLine} />
+              <span style={modalDividerText}>or</span>
+              <span style={modalDividerLine} />
+            </div>
+
+            <button
+              style={{ ...modalSecondary, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              onClick={pickLink}
+              disabled={actionLoading}
+            >
+              <span>🔗 &nbsp; Just give me the link</span>
+              <span>→</span>
+            </button>
+            <div style={{ ...modalHelper, fontStyle: 'italic' }}>
+              Copy it yourself and send however feels right — text, DM, whatever.
+            </div>
+
+            <button
+              style={{ ...modalCancel, marginTop: 18 }}
+              onClick={onClose}
+              disabled={actionLoading}
+            >
+              Not yet
+            </button>
+          </>
+        )}
+
+        {step === 'ask-email' && (
+          <>
+            <div style={modalTitle}>what&rsquo;s {firstName}&rsquo;s email?</div>
+            <div style={modalBody}>
+              We&rsquo;ll send a gentle email with the watch link.
+            </div>
+
+            <label style={inputLabel}>Recipient email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setEmailError(null) }}
+              placeholder={`${firstName.toLowerCase()}@example.com`}
+              style={textInput}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') submitEmail() }}
+            />
+            <div style={inputHint}>We won&rsquo;t share this with anyone.</div>
+
+            {emailError && (
+              <div style={{ ...errorBox, marginTop: 12 }}>{emailError}</div>
+            )}
+
+            <button
+              style={{ ...sendBtn, width: '100%', marginTop: 18, marginBottom: 10 }}
+              onClick={submitEmail}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Sending\u2026' : 'Send it →'}
+            </button>
+            <button
+              style={modalCancel}
+              onClick={() => setStep('choose')}
+              disabled={actionLoading}
+            >
+              ← Back
+            </button>
+          </>
+        )}
+
+        {step === 'link-ready' && (
+          <>
+            <div style={modalTitle}>link&rsquo;s ready.</div>
+            <div style={modalBody}>
+              Copy it and send it to {firstName} however feels right.
+            </div>
+
+            <label style={inputLabel}>Watch link</label>
+            <div style={linkRow}>
+              <div style={linkDisplay}>{watchUrl}</div>
+              <button style={linkCopyBtn} onClick={copyLink}>
+                {linkCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <div style={linkSentBadge}>
+              ✓ marked as sent
+            </div>
+
+            <button
+              style={{ ...modalDoneBtn, width: '100%' }}
+              onClick={onClose}
+            >
+              Done
+            </button>
+          </>
+        )}
+
+        {step === 'sent-email' && (
+          <>
+            <div style={modalTitle}>it&rsquo;s on its way.</div>
+            <div style={modalBody}>
+              We sent {firstName} an email with the link. You can also copy the link below to share it elsewhere.
+            </div>
+
+            <label style={inputLabel}>Watch link</label>
+            <div style={linkRow}>
+              <div style={linkDisplay}>{watchUrl}</div>
+              <button style={linkCopyBtn} onClick={copyLink}>
+                {linkCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <button
+              style={{ ...modalDoneBtn, width: '100%', marginTop: 18 }}
+              onClick={onClose}
+            >
+              Done
+            </button>
+          </>
+        )}
+
+      </div>
+    </div>
+  )
+}
+      
 // ─── Styles ─────────────────────────────────────────────────────
 const wrap = { minHeight: '100vh', background: PAPER, fontFamily: "'Courier Prime', 'Courier New', monospace", color: INK, paddingBottom: 80 }
 const stripe = { height: 4, background: `repeating-linear-gradient(90deg, ${PINK} 0 12px, ${CYAN} 12px 24px)` }
@@ -504,3 +696,21 @@ const previewContribChip = { fontSize: 16, padding: '4px 10px', background: PINK
 
 const previewSend = { padding: '18px 24px 22px', borderTop: `1px dashed ${PAPER_DARK}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }
 const previewSendHint = { fontSize: 11, color: INK_GHOST, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }
+
+// ─── SendModal styles ──────────────────────────────────────────
+const modalHelper = { fontSize: 11, color: INK_GHOST, marginBottom: 14, lineHeight: 1.5, padding: '0 4px' }
+const modalSecondary = { width: '100%', padding: '14px 18px', background: 'transparent', color: INK_FADED, border: `1px solid ${PAPER_DARK}`, fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
+const modalDivider = { display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px' }
+const modalDividerLine = { flex: 1, height: 1, background: PAPER_DARK }
+const modalDividerText = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: INK_GHOST }
+const modalDoneBtn = { padding: '14px 26px', background: INK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
+
+const inputLabel = { display: 'block', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, fontWeight: 700, marginBottom: 6 }
+const textInput = { width: '100%', padding: '12px 14px', fontSize: 14, border: `1px solid ${PAPER_DARK}`, background: '#fff', fontFamily: 'inherit', color: INK, outline: 'none', borderRadius: 2, boxSizing: 'border-box' }
+const inputHint = { fontSize: 11, color: INK_GHOST, marginTop: 6, fontStyle: 'italic' }
+const errorBox = { background: '#FBE3E3', border: '1px solid #B22222', padding: '10px 12px', fontSize: 12, color: '#7A1F1F', borderRadius: 2, lineHeight: 1.5 }
+
+const linkRow = { display: 'flex', gap: 8, marginBottom: 16 }
+const linkDisplay = { flex: 1, padding: '12px 14px', fontSize: 11, border: `1px solid ${PAPER_DARK}`, background: PAPER, fontFamily: 'inherit', color: INK_FADED, borderRadius: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const linkCopyBtn = { padding: '12px 18px', background: PINK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2, minWidth: 80 }
+const linkSentBadge = { padding: '10px 12px', background: 'rgba(45, 122, 58, 0.06)', border: `1px dashed ${GREEN}`, marginBottom: 18, fontSize: 11, color: GREEN, textAlign: 'center', lineHeight: 1.5, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderRadius: 2 }
