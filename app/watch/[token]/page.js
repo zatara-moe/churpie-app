@@ -31,6 +31,15 @@ export default async function WatchPage({ params }) {
     c.status === 'submitted' || c.status === 'processed'
   )
 
+const submittedClips = (card.clips || []).filter(c =>
+    c.status === 'submitted' || c.status === 'processed'
+  )
+
+  const totalDuration = submittedClips.reduce(
+    (sum, c) => sum + (c.duration_seconds || 0),
+    0
+  )
+
   return (
     <RecipientExperienceV2
       recipientName={card.recipient_name}
@@ -40,6 +49,9 @@ export default async function WatchPage({ params }) {
       }))}
       videoUrl={videoUrl}
       cardId={card.id}
+      theme={card.theme}
+      durationSeconds={totalDuration}
+      deliveredAt={delivery?.sent_at || card.created_at}
     />
   )
 }
