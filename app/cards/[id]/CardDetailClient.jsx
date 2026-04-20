@@ -339,14 +339,6 @@ function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
         </div>
       )}
 
-      <div style={previewSend}>
-        <button style={sendBtn} onClick={onSend}>
-          Send it to {firstName} →
-        </button>
-        <div style={previewSendHint}>
-          Once it&rsquo;s gone, it&rsquo;s gone — you can&rsquo;t unsend it.
-        </div>
-      </div>
     </article>
   )
 }
