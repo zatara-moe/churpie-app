@@ -107,8 +107,8 @@ export default function DashboardClient({ initialCards, firstName, userEmail }) 
               <div style={urgentLabel}>Waiting on you</div>
               <div style={urgentTitle}>
                 {urgent.reason === 'ready'
-                  ? `${urgent.card.recipient_name}'s card is ready. Press when you are.`
-                  : `${urgent.card.recipient_name}'s card sends soon — have a look.`}
+                  ? `${urgent.card.recipient_name.split(' ')[0]}'s card is ready. Press when you are.`
+                  : `${urgent.card.recipient_name.split(' ')[0]}'s card sends soon — have a look.`}
               </div>
               <a href={`/cards/${urgent.card.id}`} style={urgentBtn}>
                 Review and send &rarr;
