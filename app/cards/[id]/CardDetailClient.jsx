@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import VideoFrame from '../../../components/VideoFrame'
 
-// ─── Palette ────────────────────────────────────────────────────
 const INK = '#1A1410'
 const INK_FADED = '#4A3F30'
 const INK_GHOST = '#7A6E5C'
@@ -29,10 +28,12 @@ const THEME_LABELS = {
   support: 'Hard stretch', graduation: 'Milestone', justbecause: 'Something else',
 }
 
-export default function CardDetailClient({ card: initialCard, previewUrl }) {
+export default function CardDetailClient({ card: initialCard, previewUrl, delivery: initialDelivery }) {
   const router = useRouter()
   const [card, setCard] = useState(initialCard)
+  const [delivery, setDelivery] = useState(initialDelivery)
   const [copied, setCopied] = useState(false)
+  const [watchLinkCopied, setWatchLinkCopied] = useState(false)
   const [origin, setOrigin] = useState('')
   const [actionLoading, setActionLoading] = useState(null)
   const [showSendConfirm, setShowSendConfirm] = useState(false)
@@ -59,8 +60,9 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
   }, [card.id, card.status, router])
 
   const contributorUrl = origin ? `${origin}/c/${card.slug}` : ''
+  const watchUrl = (origin && delivery?.watch_token) ? `${origin}/watch/${delivery.watch_token}` : ''
   const clips = card.clips || []
-  const submittedClips = clips.filter(c => c.status === 'submitted' || c.status === 'processed')
+  const submittedClips = clips.filter(c => c && (c.status === 'submitted' || c.status === 'processed'))
   const canPreview = submittedClips.length >= 2
   const themeLabel = THEME_LABELS[card.theme] || card.theme
 
@@ -72,6 +74,17 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
       setTimeout(() => setCopied(false), 2500)
     } catch {
       alert(`Copy this link: ${contributorUrl}`)
+    }
+  }
+
+  const copyWatchLink = async () => {
+    if (!watchUrl) return
+    try {
+      await navigator.clipboard.writeText(watchUrl)
+      setWatchLinkCopied(true)
+      setTimeout(() => setWatchLinkCopied(false), 2500)
+    } catch {
+      alert(`Copy this link: ${watchUrl}`)
     }
   }
 
@@ -91,19 +104,25 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
     }
   }
 
-   const triggerSend = async ({ sentVia, recipientEmail } = {}) => {
+  const triggerSend = async ({ recipientEmail } = {}) => {
     setActionLoading('send')
     try {
       const res = await fetch(`/api/cards/${card.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sentVia, recipientEmail }),
+        body: JSON.stringify({ recipientEmail }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         throw new Error(data.error || 'Send failed')
       }
-      setCard({ ...card, status: 'sent' })
+      if (card.status !== 'sent') setCard({ ...card, status: 'sent' })
+      setDelivery(d => ({
+        ...(d || {}),
+        email_sent_at: data.emailedAt,
+        email_sent_to: data.emailedTo,
+        sent_via: 'email',
+      }))
       return data
     } catch (err) {
       alert(`Something hiccuped: ${err.message}. Try again in a moment.`)
@@ -184,18 +203,16 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
           />
         )}
 
-        {card.status === 'sent' && (
-          <section style={{ ...sendBanner, background: PINK_PALE, borderColor: PINK }}>
-            <div style={{ ...sendLabel, color: PINK }}>Already sent</div>
-            <div style={sendTitle}>
-              this one&rsquo;s with {card.recipient_name}.
-            </div>
-            <div style={sendBody}>
-              {card.watch_count > 0
-                ? `They've watched it ${card.watch_count} time${card.watch_count === 1 ? '' : 's'} so far.`
-                : 'Waiting for them to press play.'}
-            </div>
-          </section>
+        {(card.status === 'compiled' || card.status === 'sent') && watchUrl && (
+          <DeliveryBox
+            card={card}
+            delivery={delivery}
+            watchUrl={watchUrl}
+            watchLinkCopied={watchLinkCopied}
+            onCopyLink={copyWatchLink}
+            onOpenSendModal={() => setShowSendConfirm(true)}
+            actionLoading={actionLoading === 'send'}
+          />
         )}
 
         {card.status === 'failed' && (
@@ -217,7 +234,7 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
         ) : (
           <div style={clipList}>
             {submittedClips.map((clip, i) => (
-              <div key={clip.id} style={clipItem}>
+              <div key={clip.id || i} style={clipItem}>
                 <span>{clip.contributor_name || `Clip ${i + 1}`}</span>
                 <span style={{ color: INK_GHOST, fontSize: 11, letterSpacing: 0.5 }}>
                   {clip.duration_seconds}s
@@ -231,6 +248,7 @@ export default function CardDetailClient({ card: initialCard, previewUrl }) {
       {showSendConfirm && (
         <SendModal
           card={card}
+          delivery={delivery}
           actionLoading={actionLoading === 'send'}
           onClose={() => setShowSendConfirm(false)}
           onSend={triggerSend}
@@ -292,7 +310,7 @@ function PreviewTicket({ card, previewUrl, submittedClips, onSend }) {
         </div>
       </div>
 
-    <div style={previewPlayerWrap}>
+      <div style={previewPlayerWrap}>
         <VideoFrame
           videoUrl={previewUrl}
           recipientName={card.recipient_name}
@@ -428,28 +446,87 @@ function StepperDot({ state, number }) {
     </div>
   )
 }
-// ─── SendModal ──────────────────────────────────────────────────
-function SendModal({ card, actionLoading, onClose, onSend }) {
+
+function DeliveryBox({ card, delivery, watchUrl, watchLinkCopied, onCopyLink, onOpenSendModal, actionLoading }) {
+  const firstName = card.recipient_name.split(' ')[0]
+  const emailedAt = delivery?.email_sent_at
+  const emailedTo = delivery?.email_sent_to
+
+  const emailedAtPretty = emailedAt
+    ? new Date(emailedAt).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }).toLowerCase()
+    : null
+
+  return (
+    <section style={deliveryBox}>
+      <div style={deliveryLabel}>The watch link</div>
+      <div style={{ ...deliveryHelper, marginBottom: 10 }}>
+        Anyone with this link can watch. Share it however feels right.
+      </div>
+      <div style={deliveryLinkRow}>
+        <div style={deliveryLinkDisplay}>{watchUrl}</div>
+        <button style={deliveryCopyBtn} onClick={onCopyLink}>
+          {watchLinkCopied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+
+      <div style={deliveryDivider} />
+
+      {emailedAt ? (
+        <>
+          <div style={{ ...deliveryLabel, color: CYAN }}>Email delivery</div>
+          <div style={deliveryEmailedBadge}>
+            ✓ Emailed to {emailedTo} on {emailedAtPretty}
+          </div>
+          <button
+            style={deliveryResendBtn}
+            onClick={onOpenSendModal}
+            disabled={actionLoading}
+          >
+            Resend email
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={deliveryLabel}>Email delivery</div>
+          <div style={{ ...deliveryHelper, marginBottom: 12 }}>
+            {card.recipient_email
+              ? `Email ${firstName} at ${card.recipient_email} so it lands in their inbox.`
+              : `Email ${firstName} so it lands in their inbox.`}
+          </div>
+          <button
+            style={deliverySendBtn}
+            onClick={onOpenSendModal}
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Sending\u2026' : `Send via email →`}
+          </button>
+        </>
+      )}
+
+      {card.watch_count > 0 && (
+        <div style={deliveryWatchCount}>
+          {firstName} has watched it{' '}
+          {card.watch_count === 1 ? 'once' : `${card.watch_count} times`} so far.
+        </div>
+      )}
+    </section>
+  )
+}
+
+function SendModal({ card, delivery, actionLoading, onClose, onSend }) {
   const hasEmail = !!card.recipient_email && card.recipient_email.trim().length > 0
-  const [step, setStep] = useState('choose')
+  const alreadyEmailed = !!delivery?.email_sent_at
   const [email, setEmail] = useState(card.recipient_email || '')
   const [emailError, setEmailError] = useState(null)
-  const [watchUrl, setWatchUrl] = useState(null)
-  const [linkCopied, setLinkCopied] = useState(false)
+  const [success, setSuccess] = useState(null)
 
   const firstName = card.recipient_name.split(' ')[0]
-
-  const pickEmail = async () => {
-    if (hasEmail) {
-      const result = await onSend({ sentVia: 'email' })
-      if (result?.watchUrl) {
-        setWatchUrl(result.watchUrl)
-        setStep('sent-email')
-      }
-    } else {
-      setStep('ask-email')
-    }
-  }
 
   const submitEmail = async () => {
     const trimmed = email.trim()
@@ -458,29 +535,16 @@ function SendModal({ card, actionLoading, onClose, onSend }) {
       return
     }
     setEmailError(null)
-    const result = await onSend({ sentVia: 'email', recipientEmail: trimmed })
-    if (result?.watchUrl) {
-      setWatchUrl(result.watchUrl)
-      setStep('sent-email')
+    const result = await onSend({ recipientEmail: trimmed })
+    if (result?.emailedTo) {
+      setSuccess({ emailedTo: result.emailedTo, emailedAt: result.emailedAt })
     }
   }
 
-  const pickLink = async () => {
-    const result = await onSend({ sentVia: 'link' })
-    if (result?.watchUrl) {
-      setWatchUrl(result.watchUrl)
-      setStep('link-ready')
-    }
-  }
-
-  const copyLink = async () => {
-    if (!watchUrl) return
-    try {
-      await navigator.clipboard.writeText(watchUrl)
-      setLinkCopied(true)
-      setTimeout(() => setLinkCopied(false), 2500)
-    } catch {
-      alert(`Copy this link: ${watchUrl}`)
+  const sendNowWithExisting = async () => {
+    const result = await onSend({})
+    if (result?.emailedTo) {
+      setSuccess({ emailedTo: result.emailedTo, emailedAt: result.emailedAt })
     }
   }
 
@@ -490,60 +554,46 @@ function SendModal({ card, actionLoading, onClose, onSend }) {
     <div style={modalBg} onClick={canClose ? onClose : undefined}>
       <div style={modalCard} onClick={e => e.stopPropagation()}>
 
-        {step === 'choose' && (
+        {success ? (
           <>
-            <div style={modalTitle}>how should {firstName} get this?</div>
+            <div style={modalTitle}>it&rsquo;s on its way.</div>
             <div style={modalBody}>
-              Once you pick, it&rsquo;s gone — you can&rsquo;t unsend it.
+              We emailed {firstName} at <strong>{success.emailedTo}</strong>.
             </div>
-
+            <button style={{ ...modalDoneBtn, width: '100%' }} onClick={onClose}>
+              Done
+            </button>
+          </>
+        ) : hasEmail && !alreadyEmailed ? (
+          <>
+            <div style={modalTitle}>ready to email {firstName}?</div>
+            <div style={modalBody}>
+              We&rsquo;ll send the watch link to <strong>{card.recipient_email}</strong>.
+            </div>
             <button
-              style={{ ...sendBtn, width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}
-              onClick={pickEmail}
+              style={{ ...sendBtn, width: '100%', marginBottom: 10 }}
+              onClick={sendNowWithExisting}
               disabled={actionLoading}
             >
-              <span>📧 &nbsp; {actionLoading ? 'Sending\u2026' : 'Send it via email'}</span>
-              <span>→</span>
+              {actionLoading ? 'Sending\u2026' : 'Yes, send it →'}
             </button>
-            <div style={modalHelper}>
-              {hasEmail
-                ? `We\u2019ll email ${firstName} at ${card.recipient_email}.`
-                : `We\u2019ll email ${firstName} a link to watch. We\u2019ll ask for their email next.`}
-            </div>
-
-            <div style={modalDivider}>
-              <span style={modalDividerLine} />
-              <span style={modalDividerText}>or</span>
-              <span style={modalDividerLine} />
-            </div>
-
             <button
-              style={{ ...modalSecondary, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              onClick={pickLink}
-              disabled={actionLoading}
-            >
-              <span>🔗 &nbsp; Just give me the link</span>
-              <span>→</span>
-            </button>
-            <div style={{ ...modalHelper, fontStyle: 'italic' }}>
-              Copy it yourself and send however feels right — text, DM, whatever.
-            </div>
-
-            <button
-              style={{ ...modalCancel, marginTop: 18 }}
+              style={modalCancel}
               onClick={onClose}
               disabled={actionLoading}
             >
               Not yet
             </button>
           </>
-        )}
-
-        {step === 'ask-email' && (
+        ) : (
           <>
-            <div style={modalTitle}>what&rsquo;s {firstName}&rsquo;s email?</div>
+            <div style={modalTitle}>
+              {alreadyEmailed ? `resend to a different address?` : `what\u2019s ${firstName}\u2019s email?`}
+            </div>
             <div style={modalBody}>
-              We&rsquo;ll send a gentle email with the watch link.
+              {alreadyEmailed
+                ? `We\u2019ll send another email with the watch link.`
+                : `We\u2019ll send a gentle email with the watch link.`}
             </div>
 
             <label style={inputLabel}>Recipient email</label>
@@ -571,62 +621,10 @@ function SendModal({ card, actionLoading, onClose, onSend }) {
             </button>
             <button
               style={modalCancel}
-              onClick={() => setStep('choose')}
+              onClick={onClose}
               disabled={actionLoading}
             >
-              ← Back
-            </button>
-          </>
-        )}
-
-        {step === 'link-ready' && (
-          <>
-            <div style={modalTitle}>link&rsquo;s ready.</div>
-            <div style={modalBody}>
-              Copy it and send it to {firstName} however feels right.
-            </div>
-
-            <label style={inputLabel}>Watch link</label>
-            <div style={linkRow}>
-              <div style={linkDisplay}>{watchUrl}</div>
-              <button style={linkCopyBtn} onClick={copyLink}>
-                {linkCopied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-
-            <div style={linkSentBadge}>
-              ✓ marked as sent
-            </div>
-
-            <button
-              style={{ ...modalDoneBtn, width: '100%' }}
-              onClick={onClose}
-            >
-              Done
-            </button>
-          </>
-        )}
-
-        {step === 'sent-email' && (
-          <>
-            <div style={modalTitle}>it&rsquo;s on its way.</div>
-            <div style={modalBody}>
-              We sent {firstName} an email with the link. You can also copy the link below to share it elsewhere.
-            </div>
-
-            <label style={inputLabel}>Watch link</label>
-            <div style={linkRow}>
-              <div style={linkDisplay}>{watchUrl}</div>
-              <button style={linkCopyBtn} onClick={copyLink}>
-                {linkCopied ? 'Copied' : 'Copy'}
-              </button>
-            </div>
-
-            <button
-              style={{ ...modalDoneBtn, width: '100%', marginTop: 18 }}
-              onClick={onClose}
-            >
-              Done
+              Not yet
             </button>
           </>
         )}
@@ -635,15 +633,14 @@ function SendModal({ card, actionLoading, onClose, onSend }) {
     </div>
   )
 }
-      
-// ─── Styles ─────────────────────────────────────────────────────
+
 const wrap = { minHeight: '100vh', background: PAPER, fontFamily: "'Courier Prime', 'Courier New', monospace", color: INK, paddingBottom: 80 }
 const stripe = { height: 4, background: `repeating-linear-gradient(90deg, ${PINK} 0 12px, ${CYAN} 12px 24px)` }
 const navBar = { maxWidth: 720, margin: '0 auto', padding: '24px 24px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }
 const logo = { fontFamily: "'Permanent Marker', cursive", fontSize: 22, color: INK, textDecoration: 'none' }
 const backLink = { fontSize: 11, color: INK_FADED, textDecoration: 'none', letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700 }
 const main = { maxWidth: 720, margin: '0 auto', padding: 24 }
-const title = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.1, letterSpacing: '-0.5px', marginBottom: 8, fontWeight: 400 }
+const title = { fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.1, letterSpacing: '-0.5px', textTransform: 'lowercase', marginBottom: 8, fontWeight: 400 }
 const subtitle = { fontSize: 13, color: INK_FADED, marginBottom: 28, letterSpacing: 0.3 }
 const statusBar = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '16px 20px', marginBottom: 24, borderRadius: 2 }
 
@@ -689,31 +686,30 @@ const previewMeta = { padding: '16px 24px', borderBottom: `1px dashed ${PAPER_DA
 const previewMetaCol = { flex: 1 }
 
 const previewPlayerWrap = { padding: '18px 24px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }
-const previewVideo = { width: '100%', maxWidth: 320, aspectRatio: '9 / 16', background: '#000', display: 'block', border: `1px solid ${INK}`, borderRadius: 0 }
-const previewPlayerFallback = { width: '100%', maxWidth: 320, aspectRatio: '9 / 16', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${INK}` }
 const previewHint = { fontSize: 11, color: INK_GHOST, fontStyle: 'italic', textAlign: 'center', marginTop: 10 }
 
 const previewContribs = { padding: '16px 24px', borderTop: `1px dashed ${PAPER_DARK}` }
 const previewContribsList = { display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }
-const previewContribChip = { fontSize: 16, padding: '4px 10px', background: PINK_PALE, color: INK, fontFamily: "'Caveat', cursive", fontWeight: 600, lineHeight: 1.2, borderRadius: 16 }
+const previewContribChip = { padding: '4px 10px', background: PINK_PALE, color: INK, fontFamily: "'Caveat', cursive", fontWeight: 600, fontSize: 16, lineHeight: 1.2, borderRadius: 16 }
 
 const previewSend = { padding: '18px 24px 22px', borderTop: `1px dashed ${PAPER_DARK}`, display: 'flex', flexDirection: 'column', alignItems: 'center' }
 const previewSendHint = { fontSize: 11, color: INK_GHOST, textAlign: 'center', marginTop: 12, fontStyle: 'italic' }
-
-// ─── SendModal styles ──────────────────────────────────────────
-const modalHelper = { fontSize: 11, color: INK_GHOST, marginBottom: 14, lineHeight: 1.5, padding: '0 4px' }
-const modalSecondary = { width: '100%', padding: '14px 18px', background: 'transparent', color: INK_FADED, border: `1px solid ${PAPER_DARK}`, fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
-const modalDivider = { display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px' }
-const modalDividerLine = { flex: 1, height: 1, background: PAPER_DARK }
-const modalDividerText = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: INK_GHOST }
-const modalDoneBtn = { padding: '14px 26px', background: INK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
 
 const inputLabel = { display: 'block', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: INK_FADED, fontWeight: 700, marginBottom: 6 }
 const textInput = { width: '100%', padding: '12px 14px', fontSize: 14, border: `1px solid ${PAPER_DARK}`, background: '#fff', fontFamily: 'inherit', color: INK, outline: 'none', borderRadius: 2, boxSizing: 'border-box' }
 const inputHint = { fontSize: 11, color: INK_GHOST, marginTop: 6, fontStyle: 'italic' }
 const errorBox = { background: '#FBE3E3', border: '1px solid #B22222', padding: '10px 12px', fontSize: 12, color: '#7A1F1F', borderRadius: 2, lineHeight: 1.5 }
 
-const linkRow = { display: 'flex', gap: 8, marginBottom: 16 }
-const linkDisplay = { flex: 1, padding: '12px 14px', fontSize: 11, border: `1px solid ${PAPER_DARK}`, background: PAPER, fontFamily: 'inherit', color: INK_FADED, borderRadius: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
-const linkCopyBtn = { padding: '12px 18px', background: PINK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2, minWidth: 80 }
-const linkSentBadge = { padding: '10px 12px', background: 'rgba(45, 122, 58, 0.06)', border: `1px dashed ${GREEN}`, marginBottom: 18, fontSize: 11, color: GREEN, textAlign: 'center', lineHeight: 1.5, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderRadius: 2 }
+const modalDoneBtn = { padding: '14px 26px', background: INK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
+
+const deliveryBox = { background: '#fff', border: `1px solid ${PAPER_DARK}`, padding: '22px 22px 20px', marginTop: 8, borderRadius: 2, boxShadow: `3px 3px 0 ${PAPER_AGED}` }
+const deliveryLabel = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: INK_FADED, fontWeight: 700, marginBottom: 8 }
+const deliveryHelper = { fontSize: 12, color: INK_GHOST, lineHeight: 1.55, fontStyle: 'italic' }
+const deliveryLinkRow = { display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }
+const deliveryLinkDisplay = { flex: 1, minWidth: 200, padding: '12px 14px', fontSize: 12, border: `1px solid ${PAPER_DARK}`, background: PAPER, fontFamily: 'inherit', color: INK_FADED, borderRadius: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
+const deliveryCopyBtn = { padding: '12px 20px', background: PINK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2, minWidth: 90 }
+const deliveryDivider = { height: 1, margin: '18px 0 16px', borderTop: `1px dashed ${PAPER_DARK}` }
+const deliverySendBtn = { padding: '14px 26px', background: PINK, color: '#fff', border: 'none', fontFamily: 'inherit', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', boxShadow: `3px 3px 0 ${INK}`, borderRadius: 2 }
+const deliveryEmailedBadge = { padding: '10px 12px', background: 'rgba(45, 122, 58, 0.06)', border: `1px dashed ${GREEN}`, marginBottom: 12, fontSize: 12, color: GREEN, textAlign: 'left', lineHeight: 1.5, fontWeight: 700, borderRadius: 2 }
+const deliveryResendBtn = { padding: '10px 18px', background: 'transparent', color: INK_FADED, border: `1px solid ${PAPER_DARK}`, fontFamily: 'inherit', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700, cursor: 'pointer', borderRadius: 2 }
+const deliveryWatchCount = { marginTop: 16, paddingTop: 14, borderTop: `1px dashed ${PAPER_DARK}`, fontSize: 12, color: INK_FADED, fontStyle: 'italic' }
