@@ -144,7 +144,7 @@ export default function CardDetailClient({ card: initialCard, previewUrl, delive
       </nav>
 
       <main style={main}>
-        <h1 style={title}>for {card.recipient_name}</h1>
+        <h1 style={title}>for {<h1 style={title}>for <span style={{ textTransform: 'none' }}>{card.recipient_name}</span></h1>}</h1>
         <div style={subtitle}>
           {themeLabel}
           {card.deadline_at && ` · sending ${new Date(card.deadline_at).toLocaleDateString()}`}
