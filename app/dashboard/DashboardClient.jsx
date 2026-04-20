@@ -99,16 +99,16 @@ export default function DashboardClient({ initialCards, firstName, userEmail }) 
         </nav>
 
         <main style={main}>
-          <h1 style={greeting}>hi, {firstName}.</h1>
+          <h1 style={greeting}>hi, <span style={{ textTransform: 'none' }}>{firstName}</span>.</h1>
           <div style={subgreeting}>here&rsquo;s where your cards are.</div>
 
           {urgent && (
             <section style={urgentBanner}>
               <div style={urgentLabel}>Waiting on you</div>
               <div style={urgentTitle}>
-                {urgent.reason === 'ready'
-                  ? `${urgent.card.recipient_name.split(' ')[0]}'s card is ready. Press when you are.`
-                  : `${urgent.card.recipient_name.split(' ')[0]}'s card sends soon — have a look.`}
+               {urgent.reason === 'ready'
+                  ? <><span style={{ textTransform: 'none' }}>{urgent.card.recipient_name.split(' ')[0]}</span>{`'s card is ready. Press when you are.`}</>
+                  : <><span style={{ textTransform: 'none' }}>{urgent.card.recipient_name.split(' ')[0]}</span>{`'s card sends soon — have a look.`}</>}
               </div>
               <a href={`/cards/${urgent.card.id}`} style={urgentBtn}>
                 Review and send &rarr;
