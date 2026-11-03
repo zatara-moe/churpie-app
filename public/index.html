@@ -50,13 +50,18 @@
   .cta-sub { text-align: center; font-size: 13px; color: var(--ink-faded); font-weight: 600; }
   .cta-sub span { display: inline-block; margin: 0 6px; }
 
-  /* how it works: every step shows a picture of itself */
-  .steps2 { display: grid; gap: 14px; }
-  .step2 { background: #fff; border-radius: 22px; padding: 16px; display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; box-shadow: 0 3px 0 rgba(0,0,0,0.06); }
-  .step2 .pic { width: 96px; height: 96px; border-radius: 16px; background: var(--paper); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-  .step2 .num { font-family: 'DM Serif Display', serif; font-style: italic; color: var(--pink); font-size: 24px; line-height: 1; }
-  .step2 strong { display: block; font-size: 17px; margin: 2px 0 4px; }
-  .step2 p { color: var(--ink-faded); font-size: 14px; }
+  /* how it works: a route from you to them, each stop says who does it and how long it takes */
+  .how-sub { text-align: center; color: var(--ink-faded); font-size: 16px; max-width: 420px; margin: -4px auto 22px; text-wrap: balance; }
+  .route { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+  .stop { position: relative; display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 14px; grid-template-areas: "pin art" "line who" "line h" "line p"; padding-bottom: 28px; }
+  .stop::before { content: ''; position: absolute; left: 23px; top: 48px; bottom: 0; width: 2px; background: repeating-linear-gradient(180deg, var(--pink) 0 8px, transparent 8px 14px, var(--cyan) 14px 22px, transparent 22px 28px); }
+  .stop.last { padding-bottom: 0; } .stop.last::before { display: none; }
+  .stop .pin { grid-area: pin; width: 48px; height: 48px; border-radius: 50%; background: #fff; border: 2px solid var(--pink); color: var(--pink); display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-style: italic; font-size: 24px; position: relative; z-index: 1; align-self: start; }
+  .stop.last .pin { background: var(--pink); color: #fff; }
+  .stop .art { grid-area: art; height: 96px; display: flex; align-items: center; }
+  .stop .who { grid-area: who; font-family: 'Courier Prime', monospace; font-size: 12px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--cyan); margin-top: 4px; }
+  .stop h3 { grid-area: h; font-size: 19px; margin: 4px 0 4px; }
+  .stop > p:last-child { grid-area: p; color: var(--ink-faded); font-size: 15px; max-width: 34ch; }
   .mini-note { background: #FFF6D8; width: 78px; padding: 8px; transform: rotate(-2deg); box-shadow: 0 3px 6px rgba(0,0,0,0.12); font-family: 'Caveat', cursive; font-size: 14px; line-height: 1; }
   .mini-bubble { background: #E9E9EB; border-radius: 14px; padding: 6px 8px; width: 82px; font-size: 9px; font-weight: 600; line-height: 1.2; }
   .mini-bubble .lp { background: #fff; border-radius: 8px; margin-top: 4px; overflow: hidden; }
@@ -87,18 +92,35 @@
     .hero .cta-sub { grid-area: sub; text-align: left; align-self: start; } .hero .cta-sub span:first-child { margin-left: 0; }
     section.block { padding-top: 56px; }
     section.block h2 { font-size: 40px; text-align: center; margin-bottom: 24px; }
-    .steps2 { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
-    .step2 { grid-template-columns: 1fr; padding: 20px; align-items: start; }
-    .step2 .pic { width: 100%; height: 120px; }
+    .how-sub { font-size: 18px; margin-bottom: 36px; }
+    .route { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 28px; position: relative; }
+    .route::before { content: ''; position: absolute; left: 12.5%; right: 12.5%; top: 143px; height: 2px; background: repeating-linear-gradient(90deg, var(--pink) 0 10px, transparent 10px 18px, var(--cyan) 18px 28px, transparent 28px 36px); }
+    .stop { grid-template-columns: 1fr; grid-template-rows: 120px 62px auto auto auto; grid-template-areas: "art" "pin" "who" "h" "p"; justify-items: center; text-align: center; padding-bottom: 0; }
+    .stop::before { display: none; }
+    .stop .art { height: 120px; justify-content: center; } .stop .pin { margin: 0; align-self: start; }
+    .stop > p:last-child { max-width: 28ch; }
     section.block.stack { max-width: 680px; margin: 0 auto; }
     section.block.stack > .btn.primary { width: auto; align-self: center; padding: 0 36px; }
   }
   section.block h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.1; margin-bottom: 14px; }
+  /* footer: stacks on phones, 2 columns on tablets, 4 on desktop */
+  .site-foot { background: var(--paper-aged); margin-top: 24px; }
+  .site-foot::before { content: ''; display: block; height: 4px; background: repeating-linear-gradient(90deg, var(--pink) 0 14px, var(--paper-aged) 14px 20px, var(--cyan) 20px 34px, var(--paper-aged) 34px 40px); }
+  .foot-in { max-width: 1120px; margin: 0 auto; padding: 36px 20px 24px; display: grid; gap: 28px 20px; grid-template-columns: 1fr 1fr; }
+  .foot-brand { grid-column: 1 / -1; } .foot-col.made { order: 2; } .foot-col.promise { order: 3; grid-column: 1 / -1; }
+  .foot-brand .logo { font-size: 28px; } .foot-brand p { color: var(--ink-faded); margin: 6px 0 0; max-width: 30ch; }
+  .foot-col { display: flex; flex-direction: column; gap: 8px; }
+  .foot-col h4 { margin: 0 0 2px; font-family: 'Courier Prime', monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faded); }
+  .foot-col a { color: var(--ink); font-weight: 700; text-decoration: none; width: fit-content; } .foot-col a:hover { color: var(--pink); }
+  .foot-col p { color: var(--ink-faded); font-size: 14px; }
+  .foot-base { max-width: 1120px; margin: 0 auto; padding: 16px 20px 28px; border-top: 1px solid var(--paper-dark); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink-ghost); }
+  @media (min-width: 600px) { .foot-in, .foot-base { max-width: 720px; padding-left: 24px; padding-right: 24px; } .foot-in { grid-template-columns: repeat(3, minmax(0, 1fr)); } .foot-col.promise { grid-column: auto; order: 0; } .foot-col.made { order: 0; } }
+  @media (min-width: 960px) { .foot-in, .foot-base { max-width: 1120px; } .foot-in { grid-template-columns: 1.6fr 1fr 1.3fr 1fr; padding: 48px 40px 32px; } .foot-brand { grid-column: auto; } .foot-base { padding: 18px 40px 32px; } }
 </style>
 </head>
 <body>
 <div class="stripe"></div>
-<main class="wrap" style="padding-bottom: 48px">
+<main class="wrap" style="padding-bottom: 56px">
   <section class="hero stack" style="gap: 14px">
     <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">My board</a></div>
     <h1>a video card from everyone who loves them.</h1>
@@ -117,18 +139,39 @@
     <p class="cta-sub"><span>Free</span>·<span>About a minute</span>·<span>No app, for anyone</span></p>
   </section>
 
-  <section class="block">
+  <section class="block how" id="how">
     <h2>how it works</h2>
-    <div class="steps2">
-      <div class="step2"><div class="pic"><div class="mini-note">tell Rosa your favorite memory…</div></div>
-        <div><span class="num">1</span><strong>Ask one question</strong><p>Their name, the moment, and the one thing you'd love everyone to say.</p></div></div>
-      <div class="step2"><div class="pic"><div class="mini-bubble">Maria is making a video for Rosa<div class="lp"><i></i><b>Add your 15 seconds</b></div></div></div>
-        <div><span class="num">2</span><strong>Text the link</strong><p>To the group chat, WhatsApp, email. They tap, record, done. No sign-up.</p></div></div>
-      <div class="step2"><div class="pic"><div class="mini-grid" id="miniGrid"></div></div>
-        <div><span class="num">3</span><strong>Watch faces arrive</strong><p>See every message as it lands, and hide any you like. We even out the sound and add music and names.</p></div></div>
-      <div class="step2"><div class="pic"><div class="mini-env"><span>Rosa</span><em></em></div></div>
-        <div><span class="num">4</span><strong>They press play</strong><p>One link, and everyone they love is on it. It's theirs to keep. We delete our copy after 30 days.</p></div></div>
-    </div>
+    <p class="how-sub">A minute from you. A few seconds from each of them. Everyone at once, for them.</p>
+    <ol class="route">
+      <li class="stop">
+        <div class="art" aria-hidden="true"><div class="mini-note">tell Rosa your favorite memory…</div></div>
+        <span class="pin">1</span>
+        <p class="who">You · about a minute</p>
+        <h3>Ask one question</h3>
+        <p>Their name, the moment, and the one thing you'd love everyone to say.</p>
+      </li>
+      <li class="stop">
+        <div class="art" aria-hidden="true"><div class="mini-bubble">Maria is making a video for Rosa<div class="lp"><i></i><b>Add your 15 seconds</b></div></div></div>
+        <span class="pin">2</span>
+        <p class="who">Everyone · 15 seconds</p>
+        <h3>Send one link</h3>
+        <p>To the group chat, WhatsApp or email. They tap, record, and they're done. No app, no sign-up.</p>
+      </li>
+      <li class="stop">
+        <div class="art" aria-hidden="true"><div class="mini-grid" id="miniGrid"></div></div>
+        <span class="pin">3</span>
+        <p class="who">You · a quick look</p>
+        <h3>Watch faces arrive</h3>
+        <p>See each message as it lands and hide any you like. We even out the sound and add music and names.</p>
+      </li>
+      <li class="stop last">
+        <div class="art" aria-hidden="true"><div class="mini-env"><span>Rosa</span><em></em></div></div>
+        <span class="pin">4</span>
+        <p class="who">Them · to keep</p>
+        <h3>They press play</h3>
+        <p>Everyone they love, in one reel that's theirs to keep. We delete our copy after 30 days.</p>
+      </li>
+    </ol>
   </section>
 
   <section class="block stack" style="gap: 14px">
@@ -137,9 +180,34 @@
     <p class="muted" style="text-align:center">(which, it turns out, is most of them.)</p>
     <a class="btn primary" href="/new">Start a card for someone</a>
     <p class="quote">“Hope is the thing with feathers.”<span>Emily Dickinson</span></p>
-    <p class="ghost" style="text-align: center">Free for people, always. Made in Flagstaff by Hope for Americans.</p>
   </section>
 </main>
+<footer class="site-foot">
+  <div class="foot-in">
+    <div class="foot-brand">
+      <a class="logo" href="/">churpie<b>.</b></a>
+      <p>A video card from everyone who loves them.</p>
+    </div>
+    <nav class="foot-col" aria-label="Churpie">
+      <h4>Churpie</h4>
+      <a href="/new">Start a card</a>
+      <a href="#how">How it works</a>
+      <a href="/new?moment=team">For teams</a>
+    </nav>
+    <div class="foot-col promise">
+      <h4>Our promise</h4>
+      <p>Free for people, always.</p>
+      <p>No app or account, for anyone.</p>
+      <p>Everything is deleted 30 days after the reel is made.</p>
+    </div>
+    <div class="foot-col made">
+      <h4>Made by</h4>
+      <a href="https://sherwooddigital.org" rel="noopener">Sherwood Digital</a>
+      <p>Made in Flagstaff, Arizona.</p>
+    </div>
+  </div>
+  <div class="foot-base"><span>© 2026 Sherwood Digital</span><span>churpie.me</span></div>
+</footer>
 <script type="module">
   import { DEMO_PEOPLE, personSVG } from '/people.js'
   const screen = document.getElementById('screen'), bars = document.getElementById('bars')
