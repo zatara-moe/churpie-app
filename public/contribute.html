@@ -16,6 +16,9 @@
 <link rel="stylesheet" href="/app.css">
 <style>
   .cam { position: relative; }
+  /* keep Record on the first screen of a phone: the camera gives up height, never the button */
+  #record .video.cam:not(.live) { aspect-ratio: auto; height: 190px; }
+  #record .video.cam:not(.live) .rail, #record .video.cam:not(.live) .calm { display: none; }
   .cam .tele { position: absolute; left: 12px; right: 12px; top: 12px; text-align: center; font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.92); border-radius: 14px; padding: 10px 14px; line-height: 1.3; z-index: 2; }
   .cam .rail { position: absolute; right: 10px; bottom: 12px; top: auto; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
   .cam .rail .btn { width: 58px; min-height: 0; padding: 8px 0 6px; border-radius: 16px; background: #fff; flex-direction: column; gap: 2px; font-size: 10px; box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
@@ -64,6 +67,9 @@
   .howto { background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 8px 24px rgba(26,20,16,0.05); }
   .howto summary { list-style: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 700; font-size: 16px; }
   .howto summary::-webkit-details-marker { display: none; }
+  .howto .sum { display: flex; flex-direction: column; gap: 2px; flex: 1; } .howto .sum small { font-size: 12px; font-weight: 600; color: var(--ink-ghost); }
+  .howto .thumbs { display: flex; gap: 4px; margin-right: 8px; } .howto .thumbs img { width: 22px; height: 38px; object-fit: cover; border-radius: 6px; }
+  .howto[open] .thumbs { display: none; }
   .howto summary .chev { transition: transform 200ms; } .howto[open] summary .chev { transform: rotate(180deg); }
   .tips { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 14px -16px 0; padding: 0 16px 4px; scrollbar-width: none; }
   .tips::-webkit-scrollbar { display: none; }
@@ -112,8 +118,8 @@
   <div class="steps" aria-label="Step 1 of 3: record"><span class="on" id="st1"></span><span id="st2"></span><span id="st3"></span></div>
 
   <!-- RECORD -->
-  <details class="howto" id="howto" open>
-    <summary>How to look great <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
+  <details class="howto" id="howto">
+    <summary><span class="sum"><span>How to look great</span><small>4 quick tips, 10 seconds to read</small></span><span class="thumbs" aria-hidden="true"><img src="/tips/upright.jpg" alt=""><img src="/tips/sideways.jpg" alt=""><img src="/tips/light.jpg" alt=""><img src="/tips/lens.jpg" alt=""></span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
     <div class="tips" role="list">
       <div class="tip" role="listitem"><div class="shot"><img src="/tips/upright.jpg" alt="A woman filming upright, waving, filling the frame" loading="lazy"><span class="tag ok" aria-hidden="true">✓</span></div><strong>Hold your phone upright</strong><span>You'll fill the whole card, like a story.</span></div>
       <div class="tip" role="listitem"><div class="shot"><img src="/tips/sideways.jpg" alt="A couple filmed sideways, shown smaller with a soft blurred border" loading="lazy"><span class="tag fine" aria-hidden="true">✓</span></div><strong>Sideways works too</strong><span>It gets a soft border so nothing is cut off.</span></div>
@@ -259,6 +265,7 @@ async function openCamera() {
   stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 1280 } }, audio: true })
   $('#cam').srcObject = stream
   $('#camPlaceholder').classList.add('hidden')
+  $('.video.cam').classList.add('live')
 }
 function cameraHelp() {
   $('#camPlaceholder').classList.remove('hidden')

@@ -70,7 +70,8 @@
   .mini-env em { position: absolute; right: 6px; top: 8px; width: 16px; height: 20px; background: var(--pink); }
 
   .moments { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-  .moments span { background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 0 rgba(0,0,0,0.06); }
+  .moments a { color: var(--ink); text-decoration: none; }
+  .moments a { background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 0 rgba(0,0,0,0.06); }
   section.block { padding: 28px 0 0; }
   .quote { text-align: center; font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 19px; color: var(--ink-faded); margin-top: 18px; }
   .quote span { display: block; font-family: 'DM Sans', sans-serif; font-style: normal; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-ghost); margin-top: 4px; }
@@ -114,11 +115,11 @@
 
   <section class="block stack" style="gap: 14px">
     <h2>any moment worth gathering for.</h2>
-    <div class="moments"><span>Birthdays</span><span>Graduations</span><span>Welcome home</span><span>Get well</span><span>Retirements</span><span>Thank you</span><span>Team send-offs</span><span>In memory</span></div>
+    <div class="moments" aria-label="Start a card for a moment"><a href="/new?moment=birthday">Birthdays</a><a href="/new?moment=congrats">Graduations</a><a href="/new?moment=missyou">Welcome home</a><a href="/new?moment=getwell">Get well</a><a href="/new?moment=team">Retirements</a><a href="/new?moment=thankyou">Thank you</a><a href="/new?moment=team">Team send-offs</a><a href="/new?moment=memory">In memory</a></div>
     <p class="muted" style="text-align:center">(which, it turns out, is most of them.)</p>
     <a class="btn primary" href="/new">Start a card for someone</a>
-    <p class="ghost" style="text-align: center">Free for people, always. Made in Flagstaff by Hope for Americans.</p>
     <p class="quote">“Hope is the thing with feathers.”<span>Emily Dickinson</span></p>
+    <p class="ghost" style="text-align: center">Free for people, always. Made in Flagstaff by Hope for Americans.</p>
   </section>
 </main>
 <script type="module">

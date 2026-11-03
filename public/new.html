@@ -41,6 +41,9 @@
   .share-grid .ico { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; }
   .host-card { background: #fff; border-radius: 20px; padding: 16px; border: 1.5px solid var(--paper-dark); display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; }
   .host-card .key { width: 52px; height: 52px; border-radius: 16px; background: var(--pink-pale); display: flex; align-items: center; justify-content: center; color: var(--pink); }
+  .more { border-top: 1px solid var(--paper-dark); padding-top: 12px; }
+  .more summary { cursor: pointer; font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .more summary .ghost { font-weight: 600; }
   #qr { display: flex; justify-content: center; padding: 12px; background: #fff; border-radius: 16px; }
 </style>
 </head>
@@ -74,12 +77,16 @@
     <label class="field">Your question
       <textarea name="prompt" required maxlength="240"></textarea>
     </label>
-    <div class="row" style="flex-wrap: wrap; gap: 6px" id="promptIdeas"></div>
+    <div class="row" style="flex-wrap: wrap; gap: 6px; align-items: center"><span class="ghost">Need an idea?</span><span class="row" style="flex-wrap: wrap; gap: 6px" id="promptIdeas"></span></div>
     <h3>How should it feel?</h3>
     <div class="choices" id="tones" role="group" aria-label="tone"></div>
-    <h3>House rules (optional)</h3>
-    <div class="stack" id="rules" style="gap: 4px"></div>
-    <label class="check"><input type="checkbox" name="thirty"> Let people record 30 seconds instead of 15</label>
+    <details class="more">
+      <summary>More options <span class="ghost">house rules, longer messages</span></summary>
+      <div class="stack" style="gap: 4px; margin-top: 10px">
+        <div class="stack" id="rules" style="gap: 4px"></div>
+        <label class="check"><input type="checkbox" name="thirty"> Let people record 30 seconds instead of 15</label>
+      </div>
+    </details>
     <div class="row">
       <button class="btn outline" type="button" id="back2">Back</button>
       <button class="btn primary" type="submit">Next: the card</button>
@@ -102,7 +109,6 @@
   <!-- done: the share moment -->
   <section id="done" class="stack hidden" style="gap: 16px">
     <div class="done-hero stack" style="gap: 6px">
-      <span class="pill pink" style="align-self: center">Your card is open</span>
       <h1 id="doneTitle"></h1>
       <p class="muted" id="doneSub"></p>
     </div>
@@ -128,7 +134,7 @@
       <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
       <div class="stack" style="gap: 10px">
         <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages come in, hide any you like, and send <span id="firstName3"></span> the finished reel. Save this link. It's the only way back in.</p></div>
-        <a class="btn primary" id="hostLink" href="#">Open my board</a>
+        <a class="btn outline" id="hostLink" href="#">Open my board</a>
         <div class="row">
           <a class="btn" id="hostText" href="#">Text me</a>
           <button class="btn" id="copyHost" type="button">Copy link</button>
@@ -145,6 +151,9 @@ import { cardPreview } from '/people.js'
 
 const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
 const { moments, vibes } = await api('/api/catalog')
+// arriving from a moment on the home page (/new?moment=getwell) preselects it and its card
+const picked = moments.find((m) => m.id === new URLSearchParams(location.search).get('moment'))
+if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
 const TONES = [['funny', 'Light', 'make them laugh'], ['heartfelt', 'Warm', 'say the real thing'], ['hype', 'Loud', 'big energy, say their name'], ['quiet', 'Gentle', 'slow down, plain words']]
 const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
 
@@ -193,7 +202,7 @@ $('#step1').addEventListener('submit', (e) => {
   const ta = $('#step2 textarea'); const name = firstName(new FormData(e.target).get('recipientName'))
   if (!ta.value) ta.value = m.prompt.replace(/\bthem\b/, name).replace(/\btheir\b/, `${name}'s`)
   if (!state.tone) { state.tone = m.tone; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === m.tone)) }
-  $('#promptIdeas').innerHTML = moments.filter((x) => x.id !== 'brand').slice(0, 5).map((x) => `<button type="button" class="pill aged" data-p="${escapeHtml(x.prompt)}">${escapeHtml(x.label)} idea</button>`).join('')
+  $('#promptIdeas').innerHTML = moments.filter((x) => x.id !== 'brand').slice(0, 5).map((x) => `<button type="button" class="pill aged" data-p="${escapeHtml(x.prompt)}">${escapeHtml(x.label)}</button>`).join('')
   paint(); go(2)
 })
 $('#promptIdeas').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { $('#step2 textarea').value = b.dataset.p; paint() } })

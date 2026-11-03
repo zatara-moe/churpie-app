@@ -23,6 +23,7 @@ body {
 .logo { font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 26px; letter-spacing: -0.3px; color: var(--ink); text-decoration: none; }
 .logo b { color: var(--pink); font-weight: 400; }
 h1, h2, h3 { margin: 0; line-height: 1.15; font-weight: 700; letter-spacing: -0.3px; }
+h1, h2, h3, .lede { text-wrap: balance; }
 h1 { font-size: 26px; } h2 { font-size: 20px; } h3 { font-size: 16px; }
 p { margin: 0; }
 .muted { color: var(--ink-faded); font-size: 13px; font-weight: 600; }

@@ -20,6 +20,9 @@
   .dlg { padding: 16px; }
   .tile.dragging { opacity: 0.4; }
   .tile.over { outline: 3px solid var(--cyan); }
+  .who-in { display: flex; flex-wrap: wrap; gap: 6px; }
+  .who-in span { background: var(--paper); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+  .who-in span.more { background: transparent; color: var(--ink-faded); font-weight: 600; padding-left: 0; }
 </style>
 </head>
 <body>
@@ -35,11 +38,14 @@
 
   <div class="card stack" id="status">
     <div class="row between"><strong style="font-size: 18px" id="countLine">...</strong><span class="muted" id="deadline"></span></div>
-    <div class="bar" id="bar"><span style="width: 0%"></span></div>
+    <div class="who-in" id="whoIn"></div>
     <div class="chips" id="chips"></div>
   </div>
 
   <div class="card stack hidden" id="sentBox"></div>
+
+  <div class="grid3" id="grid" aria-label="messages so far"></div>
+  <p class="ghost" style="text-align: center">Tap a message to watch it. Hold and drag to change the order. Hidden messages never reach <span id="firstName2"></span>.</p>
 
   <div class="card stack" id="introBox">
     <div class="row between">
@@ -51,9 +57,6 @@
     </div>
     <p class="ghost hidden" id="introDone">Your intro is in. Record again any time to replace it.</p>
   </div>
-
-  <div class="grid3" id="grid" aria-label="messages so far"></div>
-  <p class="ghost" style="text-align: center">Tap a message to watch it. Hold and drag to change the order. Hidden messages never reach <span id="firstName2"></span>.</p>
 
   <div class="card stack hidden" id="replies"><h3 id="repliesTitle">Notes back</h3><div id="replyList" class="stack"></div></div>
 </main>
@@ -90,7 +93,8 @@ function render() {
   document.title = `Your card for ${first} · churpie.`
   $('#countLine').textContent = `${ready.length} ${ready.length === 1 ? 'person is' : 'people are'} in`
   $('#deadline').textContent = card.deadlineAt ? `closes ${new Date(card.deadlineAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''
-  $('#bar').firstElementChild.style.width = `${Math.min(100, ready.length * 5)}%`
+  // who's in, by name: a goal-less progress bar read as "not enough"
+  $('#whoIn').innerHTML = ready.length ? ready.slice(0, 12).map((c) => `<span>${escapeHtml(c.name)}</span>`).join('') + (ready.length > 12 ? `<span class="more">+${ready.length - 12} more</span>` : '') : '<span class="more">Nobody yet. Send the invite to get it going.</span>'
   $('#chips').innerHTML = [
     flagged.length ? `<span class="pill tape">${flagged.length} to check</span>` : '',
     hidden.length ? `<span class="pill aged">${hidden.length} hidden</span>` : '',
@@ -109,7 +113,7 @@ function render() {
   // actions depend on state
   const a = $('#actions')
   if (card.status === 'open') {
-    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn primary" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">It takes about 2 minutes. ${escapeHtml(first)} sees nothing until you share the link.</p>`
+    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `It takes about 2 minutes. ${escapeHtml(first)} sees nothing until you share the link.`}</p>`
     $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
     $('#sendBtn')?.addEventListener('click', confirmSend)
     $('#sentBox').classList.add('hidden')
