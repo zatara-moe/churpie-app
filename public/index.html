@@ -72,6 +72,8 @@
   .moments { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
   .moments span { background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 0 rgba(0,0,0,0.06); }
   section.block { padding: 28px 0 0; }
+  .quote { text-align: center; font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 19px; color: var(--ink-faded); margin-top: 18px; }
+  .quote span { display: block; font-family: 'DM Sans', sans-serif; font-style: normal; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--ink-ghost); margin-top: 4px; }
   section.block h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.1; margin-bottom: 14px; }
 </style>
 </head>
@@ -79,9 +81,9 @@
 <div class="stripe"></div>
 <main class="wrap" style="padding-bottom: 48px">
   <section class="hero stack" style="gap: 14px">
-    <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">my card</a></div>
+    <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">My board</a></div>
     <h1>a video card from everyone who loves them.</h1>
-    <p class="lede">You send one link. Their people each record a few seconds. We stitch it into one reel they'll replay for years.</p>
+    <p class="lede">Send one link. Everyone who loves them records a few seconds. We put it all together into one reel they'll play again and again.</p>
 
     <div class="demo" aria-label="Example: a birthday reel for Rosa, with messages from six people">
       <span class="tape l"></span><span class="tape r"></span>
@@ -100,13 +102,13 @@
     <h2>how it works</h2>
     <div class="steps2">
       <div class="step2"><div class="pic"><div class="mini-note">tell Rosa your favorite memory…</div></div>
-        <div><span class="num">1</span><strong>Ask one question</strong><p>Their name, the moment, and the one thing you want everyone to say.</p></div></div>
-      <div class="step2"><div class="pic"><div class="mini-bubble">Maria is making a video for Rosa<div class="lp"><i></i><b>add 15 seconds</b></div></div></div>
-        <div><span class="num">2</span><strong>Text the link</strong><p>To the group chat, WhatsApp, email. They tap it, record, done. No sign-up.</p></div></div>
+        <div><span class="num">1</span><strong>Ask one question</strong><p>Their name, the moment, and the one thing you'd love everyone to say.</p></div></div>
+      <div class="step2"><div class="pic"><div class="mini-bubble">Maria is making a video for Rosa<div class="lp"><i></i><b>Add your 15 seconds</b></div></div></div>
+        <div><span class="num">2</span><strong>Text the link</strong><p>To the group chat, WhatsApp, email. They tap, record, done. No sign-up.</p></div></div>
       <div class="step2"><div class="pic"><div class="mini-grid" id="miniGrid"></div></div>
-        <div><span class="num">3</span><strong>Watch faces arrive</strong><p>Preview every message. Hide any. We level the sound, add music and their names.</p></div></div>
+        <div><span class="num">3</span><strong>Watch faces arrive</strong><p>See every message as it lands, and hide any you like. We even out the sound and add music and names.</p></div></div>
       <div class="step2"><div class="pic"><div class="mini-env"><span>Rosa</span><em></em></div></div>
-        <div><span class="num">4</span><strong>They open it</strong><p>One link, one reel, their whole corner. They keep it forever; we delete our copy in 30 days.</p></div></div>
+        <div><span class="num">4</span><strong>They press play</strong><p>One link, and everyone they love is on it. It's theirs to keep. We delete our copy after 30 days.</p></div></div>
     </div>
   </section>
 
@@ -116,6 +118,7 @@
     <p class="muted" style="text-align:center">(which, it turns out, is most of them.)</p>
     <a class="btn primary" href="/new">Start a card for someone</a>
     <p class="ghost" style="text-align: center">Free for people, always. Made in Flagstaff by Hope for Americans.</p>
+    <p class="quote">“Hope is the thing with feathers.”<span>Emily Dickinson</span></p>
   </section>
 </main>
 <script type="module">

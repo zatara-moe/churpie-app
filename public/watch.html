@@ -84,7 +84,7 @@
   <div class="people sheet hidden" id="people"><div class="handle"></div><div class="row between"><h3>Everyone in this reel</h3><button class="btn quiet" style="width:auto" id="peopleClose">Close</button></div><div class="stack" id="peopleList" style="margin-top: 10px"></div></div>
 </div></div>
 
-<dialog id="dlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><form class="stack" style="padding: 16px" id="replyForm"><h3>Say thanks to everyone</h3><p class="muted">The host sees this, and can pass it on.</p><textarea name="text" required maxlength="500" placeholder="You all…"></textarea><button class="btn primary" type="submit">Send</button><button class="btn quiet" type="button" id="dlgClose">Not now</button></form></dialog>
+<dialog id="dlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><form class="stack" style="padding: 16px" id="replyForm"><h3>Say thanks to everyone</h3><p class="muted" id="replyNote">Your note goes to everyone who made this.</p><textarea name="text" required maxlength="500" placeholder="You all…"></textarea><button class="btn primary" type="submit">Send</button><button class="btn quiet" type="button" id="dlgClose">Not now</button></form></dialog>
 
 <script type="module">
 import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion } from '/app.js'
@@ -95,9 +95,10 @@ const { card, people, manifest } = data
 const first = firstName(card.recipientName)
 const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds
-const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because they miss you', memory: 'in memory', team: 'from the team', brand: '' }
+const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '' }
 
 $('#stampN').textContent = n
+$('#replyNote').textContent = `${firstName(card.hostName)} gets this and can pass it on to everyone.`
 $('#recName').textContent = first
 $('#momentLine').textContent = MOMENT[card.moment] || ''
 $('#fromLine').textContent = `From ${card.hostName}${n > 1 ? ` and ${n - 1} more` : ''}`
@@ -108,8 +109,8 @@ $('#footLine').textContent = card.expiresAt ? `You can pause, skip, or come back
 if (!data.ready) {
   $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden')
   $('#notReadyBody').innerHTML = data.expired
-    ? `<h2>This reel has run its course.</h2><p class="muted">It was made for ${escapeHtml(first)} by ${escapeHtml(card.hostName)} and ${n - 1} more, and it was deleted after 30 days, as promised.</p>`
-    : `<h2>${escapeHtml(card.hostName)} is still weaving this together.</h2><p class="muted">Check back in a few minutes.</p>`
+    ? `<h2>This reel isn't here anymore.</h2><p class="muted">${escapeHtml(card.hostName)}${n > 1 ? ` and ${n - 1} others` : ''} made it for ${escapeHtml(first)}. We delete every reel after 30 days, as promised, so the copies that remain are the ones people saved.</p>`
+    : `<h2>${escapeHtml(card.hostName)} is still putting this together.</h2><p class="muted">It's almost ready. Come back a little later.</p>`
 }
 
 // ── reel ─────────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ $('#dlgClose').onclick = () => $('#dlg').close()
 $('#replyForm').addEventListener('submit', async (e) => { e.preventDefault(); await api(`/api/watch/${token}/reply`, { method: 'POST', body: { text: new FormData(e.target).get('text') } }); $('#dlg').close(); toast("It's on its way.") })
 // tap right side of the video to skip, left to go back: a bonus, never the only way
 vid.addEventListener('click', (e) => { const r = vid.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width; if (x > 0.7) $('#nextBtn').click(); else if (x < 0.3) $('#backBtn').click(); else $('#pauseBtn').click() })
-vid.addEventListener('ended', () => { toast(`That's everyone. ${n} people. Keep it forever with the pink button.`, 5000) })
+vid.addEventListener('ended', () => { toast(`That's everyone. ${n} ${n === 1 ? 'person' : 'people'} showed up for you. Tap Keep it forever to save it.`, 6000) })
 </script>
 </body>
 </html>

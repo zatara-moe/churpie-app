@@ -43,27 +43,27 @@
 
   <div class="card stack" id="introBox">
     <div class="row between">
-      <div><h3>Explain it in your own voice (optional)</h3><p class="muted">15 seconds. Contributors get a “Hear you” button; it also opens the reel.</p></div>
+      <div><h3>Say it in your own voice (optional)</h3><p class="muted">Record 15 seconds. Everyone you invite can tap to hear you first, and it opens the reel.</p></div>
     </div>
     <div class="row">
       <button class="btn" id="introRecord">Record it</button>
       <input type="file" id="introFile" accept="video/*" class="hidden"><button class="btn" id="introUpload">Upload it</button>
     </div>
-    <p class="ghost hidden" id="introDone">Your intro is in. Record again to replace it.</p>
+    <p class="ghost hidden" id="introDone">Your intro is in. Record again any time to replace it.</p>
   </div>
 
   <div class="grid3" id="grid" aria-label="messages so far"></div>
-  <p class="ghost" style="text-align: center">Tap a message to preview it. Hold and drag to reorder. Hidden messages never reach <span id="firstName2"></span>.</p>
+  <p class="ghost" style="text-align: center">Tap a message to watch it. Hold and drag to change the order. Hidden messages never reach <span id="firstName2"></span>.</p>
 
-  <div class="card stack hidden" id="replies"><h3>Replies</h3><div id="replyList" class="stack"></div></div>
+  <div class="card stack hidden" id="replies"><h3 id="repliesTitle">Notes back</h3><div id="replyList" class="stack"></div></div>
 </main>
 
 <div class="sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto">
   <div class="handle"></div>
   <div class="row" style="margin-bottom: 12px">
-    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Share invite</button>
-    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Preview</button>
-    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>The prompt</button>
+    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Invite more</button>
+    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Watch so far</button>
+    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Your question</button>
   </div>
   <div class="stack" id="actions"></div>
 </div>
@@ -87,20 +87,20 @@ function render() {
   const flagged = ready.filter((c) => c.flags?.length)
   const hidden = clips.filter((c) => c.status === 'hidden')
   $('#title').textContent = `${first}`
-  document.title = `your card for ${first} · churpie.`
+  document.title = `Your card for ${first} · churpie.`
   $('#countLine').textContent = `${ready.length} ${ready.length === 1 ? 'person is' : 'people are'} in`
   $('#deadline').textContent = card.deadlineAt ? `closes ${new Date(card.deadlineAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''
   $('#bar').firstElementChild.style.width = `${Math.min(100, ready.length * 5)}%`
   $('#chips').innerHTML = [
     flagged.length ? `<span class="pill tape">${flagged.length} to check</span>` : '',
     hidden.length ? `<span class="pill aged">${hidden.length} hidden</span>` : '',
-    `<span class="pill aged">${card.clipSeconds}-second clips</span>`,
-    card.accountType === 'business' ? `<span class="pill cyan">business card</span>` : '',
+    `<span class="pill aged">${card.clipSeconds}-second messages</span>`,
+    card.accountType === 'business' ? `<span class="pill cyan">For a business</span>` : '',
   ].join('')
 
   $('#grid').innerHTML = clips.map((c, i) => {
     const flag = c.flags?.[0]
-    const flagText = { quiet: 'Bit quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
+    const flagText = { quiet: 'Quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
     if (c.status === 'hidden') return `<button class="tile hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
     if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true">“${escapeHtml(c.text.slice(0, 90))}${c.text.length > 90 ? '…' : ''}”<span class="name">${escapeHtml(c.name)}</span></button>`
     return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="metadata" muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
@@ -109,22 +109,22 @@ function render() {
   // actions depend on state
   const a = $('#actions')
   if (card.status === 'open') {
-    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Check the ${flagged.length} flagged ${flagged.length === 1 ? 'clip' : 'clips'}</button><button class="btn outline" id="sendBtn">Weave it and send to ${escapeHtml(first)}</button>` : `<button class="btn primary" id="sendBtn" ${ready.length ? '' : 'disabled'}>Weave it and send to ${escapeHtml(first)}</button>`) + `<p class="ghost" style="text-align:center">Stitching takes about 2 minutes. Nothing goes out until you tap send.</p>`
+    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn primary" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">It takes about 2 minutes. ${escapeHtml(first)} sees nothing until you share the link.</p>`
     $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
     $('#sendBtn')?.addEventListener('click', confirmSend)
     $('#sentBox').classList.add('hidden')
   } else {
-    a.innerHTML = `<button class="btn primary" id="shareWatch" ${card.status === 'ready' || card.status === 'sent' ? '' : 'disabled'}>Share ${escapeHtml(first)}'s link</button><button class="btn quiet" id="copyWatch">Copy the watch link</button>`
+    a.innerHTML = `<button class="btn primary" id="shareWatch" ${card.status === 'ready' || card.status === 'sent' ? '' : 'disabled'}>Share ${escapeHtml(first)}'s link</button><button class="btn quiet" id="copyWatch">Copy ${escapeHtml(first)}'s link</button>`
     $('#shareWatch')?.addEventListener('click', () => share({ title: `${first}, people made you something`, text: `${first}, ${ready.length} people made you something. Find a quiet moment.`, url: card.links.watch }))
-    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast('Watch link copied.') })
+    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s link copied.`) })
     const box = $('#sentBox'); box.classList.remove('hidden')
     const msgs = {
-      queued: `<h3>Weaving ${ready.length} messages together.</h3><p class="muted">About 2 minutes. This page refreshes itself.</p>`,
-      stitching: `<h3>Weaving ${ready.length} messages together.</h3><p class="muted">Almost there.</p>`,
-      ready: `<h3>It's ready.</h3><p class="muted">Share the watch link with ${escapeHtml(first)} however you like. The reel and every clip disappear in ${fmtDays(card.expiresAt)}; ${escapeHtml(first)} can save it to their phone any time before then.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
-      sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">Disappears in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
-      failed: `<h3>Something hiccuped while stitching.</h3><p class="muted">${escapeHtml(card.stitchError || '')} Nothing was lost. <button class="btn quiet" id="retryBtn">Try again</button></p>`,
-      expired: `<h3>This card has run its course.</h3><p class="muted">The clips and the reel were deleted, as promised.</p>`,
+      queued: `<h3>Putting ${ready.length} messages together.</h3><p class="muted">About 2 minutes. You can stay here; this page updates on its own.</p>`,
+      stitching: `<h3>Putting ${ready.length} messages together.</h3><p class="muted">Almost there.</p>`,
+      ready: `<h3>It's ready.</h3><p class="muted">Send ${escapeHtml(first)} the link however you like: a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
+      sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
+      failed: `<h3>Something hiccuped while we put it together.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}. <button class="btn quiet" id="retryBtn">Try again</button></p>`,
+      expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message were deleted after 30 days, as promised. The copies that remain are the ones people saved.</p>`,
     }
     box.innerHTML = msgs[card.status] || ''
     $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast('30 more days.'); data = await load(); render() })
@@ -140,7 +140,7 @@ render()
 $('#grid').addEventListener('click', (e) => { const t = e.target.closest('.tile[data-id]'); if (t) openClip(t.dataset.id) })
 function openClip(id) {
   const c = data.clips.find((x) => x.id === id); if (!c) return
-  const flagText = { quiet: 'The stitcher could barely hear this one.', short: 'This one is under 3 seconds.', dark: 'This one is mostly dark.', noname: `We didn't hear “${first}” in this one; it may be off prompt.`, blurry: 'This one looks blurry or shaky.' }
+  const flagText = { quiet: 'This one is very quiet. It may be hard to hear in the reel.', short: 'This one is under 3 seconds.', dark: 'This one is mostly dark. Faces may be hard to see.', noname: `We didn't hear “${first}” in this one. Worth a quick look.`, blurry: 'This one looks blurry or shaky.' }
   $('#dlgBody').innerHTML = `
     <div class="row between"><strong>${escapeHtml(c.name)}</strong><span class="muted">${c.location ? escapeHtml(c.location) : ''}</span></div>
     ${c.kind === 'text' ? `<p class="rulebox" style="background: var(--amber-pale); border-radius: 14px; padding: 12px; font-size: 16px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video src="${c.streamUrl}" controls playsinline autoplay></video></div>`}
@@ -175,10 +175,10 @@ function confirmSend() {
   const ready = data.clips.filter((c) => c.status === 'ready')
   const flagged = ready.filter((c) => c.flags?.length)
   $('#dlgBody').innerHTML = `
-    <h2>Send ${escapeHtml(first)} the reel?</h2>
-    <p class="muted">${ready.length} messages go in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'clip is' : 'clips are'} still in; hide them first if you'd rather.` : ''} Anyone who adds a message after this will need a part two.</p>
-    <p class="muted">The reel and every clip disappear 30 days after you send, unless ${escapeHtml(first)} saves it or you extend once.</p>
-    <button class="btn primary" id="dlgSend">Send it</button>
+    <h2>Make ${escapeHtml(first)}'s reel now?</h2>
+    <p class="muted">${ready.length} ${ready.length === 1 ? 'message goes' : 'messages go'} in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'one is' : 'ones are'} still in; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} After this the card closes, so anyone who's late will need a part two.</p>
+    <p class="muted">${escapeHtml(first)} can save the reel to keep forever. We delete our copy 30 days after it's made (you can add 30 more days once).</p>
+    <button class="btn primary" id="dlgSend">Make it</button>
     <button class="btn outline" id="dlgClose">Not yet</button>`
   $('#dlg').showModal()
   $('#dlgClose').onclick = () => $('#dlg').close()
@@ -186,7 +186,7 @@ function confirmSend() {
 }
 
 // ── share, preview, prompt ──────────────────────────────────────────────────
-$('#shareBtn').onclick = () => share({ title: `A video for ${first}`, text: `${data.card.hostName} is making a video for ${first}. You're in ${first}'s corner. Record ${data.card.clipSeconds} seconds, it'll mean everything.`, url: data.card.links.invite })
+$('#shareBtn').onclick = () => share({ title: `A video for ${first}`, text: `${data.card.hostName} is making a surprise video for ${first}, and you're one of ${first}'s people. Tap, record ${data.card.clipSeconds} seconds, done. (Shh, don't tell ${first}.)`, url: data.card.links.invite })
 $('#previewBtn').onclick = () => {
   const ready = data.clips.filter((c) => c.status === 'ready')
   if (!ready.length) return toast('Nothing to preview yet.')
@@ -202,7 +202,7 @@ $('#previewBtn').onclick = () => {
   play(); $('#dlg').showModal()
 }
 $('#promptBtn').onclick = () => {
-  $('#dlgBody').innerHTML = `<h3>${escapeHtml(firstName(data.card.hostName))} asks</h3><p style="font-size: 18px">${escapeHtml(data.card.prompt)}</p>${data.card.tone ? `<p class="muted">Tone: ${escapeHtml(data.card.tone)}</p>` : ''}${data.card.rules?.length ? `<p class="muted">${data.card.rules.map(escapeHtml).join(' · ')}</p>` : ''}<p class="ghost">The prompt is locked once people start recording, so everyone answers the same thing.</p><button class="btn outline" id="dlgClose">Close</button>`
+  $('#dlgBody').innerHTML = `<h3>${escapeHtml(firstName(data.card.hostName))} asks</h3><p style="font-size: 18px">${escapeHtml(data.card.prompt)}</p>${data.card.tone ? `<p class="muted">Feel: ${escapeHtml(({ funny: 'Light', heartfelt: 'Warm', hype: 'Loud', quiet: 'Gentle' })[data.card.tone] || data.card.tone)}</p>` : ''}${data.card.rules?.length ? `<p class="muted">${data.card.rules.map(escapeHtml).join(' · ')}</p>` : ''}<p class="ghost">The question stays put once people start recording, so everyone answers the same thing.</p><button class="btn outline" id="dlgClose">Close</button>`
   $('#dlg').showModal(); $('#dlgClose').onclick = () => $('#dlg').close()
 }
 
@@ -211,8 +211,8 @@ $('#introUpload').onclick = () => $('#introFile').click()
 $('#introFile').onchange = async () => { const f = $('#introFile').files[0]; if (!f) return; await upload(`/api/host/${token}/intro`, f); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
 $('#introRecord').onclick = async () => {
   let stream
-  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) } catch { return toast('Camera blocked. Upload a clip instead.') }
-  $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/14"><video id="iv" autoplay muted playsinline></video></div><p class="muted">Say what you're after, in your own words. 15 seconds.</p><button class="btn primary" id="ivStop">Stop and save</button>`
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) } catch { return toast('Your camera is blocked. Upload a video instead.') }
+  $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/14"><video id="iv" autoplay muted playsinline></video></div><p class="muted">Tell everyone what this is for, in your own words. 15 seconds.</p><button class="btn primary" id="ivStop">Stop and save</button>`
   $('#iv').srcObject = stream; $('#dlg').showModal()
   const chunks = []; const rec = new MediaRecorder(stream, { mimeType: recorderMime() || undefined }); rec.ondataavailable = (e) => chunks.push(e.data)
   rec.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); $('#dlg').close(); await upload(`/api/host/${token}/intro`, new Blob(chunks, { type: rec.mimeType })); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
@@ -222,7 +222,7 @@ $('#introRecord').onclick = async () => {
 
 // ── replies ─────────────────────────────────────────────────────────────────
 const { replies } = await api(`/api/host/${token}/replies`).catch(() => ({ replies: [] }))
-if (replies.length) { $('#replies').classList.remove('hidden'); $('#replyList').innerHTML = replies.map((r) => `<p class="card" style="padding: 12px">“${escapeHtml(r.text)}”</p>`).join('') }
+if (replies.length) { $('#replies').classList.remove('hidden'); $('#repliesTitle').textContent = `From ${first}`; $('#replyList').innerHTML = replies.map((r) => `<p class="card" style="padding: 12px">“${escapeHtml(r.text)}”</p>`).join('') }
 </script>
 </body>
 </html>

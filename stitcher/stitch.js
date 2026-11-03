@@ -269,7 +269,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
 
     // 4. end card: the growth loop
     const end = path.join(tmp, 'end.mp4')
-    await makeCard(end, { seconds: 5, vibe: job.vibe, lines: [`made by ${job.clips.length} people`, 'on churpie.'], sub: ['make one for someone', 'churpie.me'] })
+    await makeCard(end, { seconds: 5, vibe: job.vibe, lines: [`${job.clips.length} ${job.clips.length === 1 ? 'person' : 'people'}`, 'showed up for you.'], sub: ['churpie.me'] })
     await push(end, { kind: 'end', name: 'churpie', clipId: null })
 
     // 5. weave

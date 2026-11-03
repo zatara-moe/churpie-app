@@ -116,7 +116,7 @@
     <summary>How to look great <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>
     <div class="tips" role="list">
       <div class="tip" role="listitem"><div class="shot"><img src="/tips/upright.jpg" alt="A woman filming upright, waving, filling the frame" loading="lazy"><span class="tag ok" aria-hidden="true">✓</span></div><strong>Hold your phone upright</strong><span>You'll fill the whole card, like a story.</span></div>
-      <div class="tip" role="listitem"><div class="shot"><img src="/tips/sideways.jpg" alt="A couple filmed sideways, shown smaller with a soft blurred border" loading="lazy"><span class="tag fine" aria-hidden="true">~</span></div><strong>Sideways works too</strong><span>It gets a soft border so nothing is cut off.</span></div>
+      <div class="tip" role="listitem"><div class="shot"><img src="/tips/sideways.jpg" alt="A couple filmed sideways, shown smaller with a soft blurred border" loading="lazy"><span class="tag fine" aria-hidden="true">✓</span></div><strong>Sideways works too</strong><span>It gets a soft border so nothing is cut off.</span></div>
       <div class="tip" role="listitem"><div class="shot"><img src="/tips/light.jpg" alt="A woman lit softly from the front by a window" loading="lazy"><span class="tag ok" aria-hidden="true">✓</span></div><strong>Face the light</strong><span>A window in front of you, not behind you.</span></div>
       <div class="tip" role="listitem"><div class="shot"><img src="/tips/lens.jpg" alt="A man looking straight into the camera lens" loading="lazy"><span class="tag ok" aria-hidden="true">✓</span></div><strong>Look at the lens</strong><span>Smile, say their name, then the message.</span></div>
     </div>
@@ -129,7 +129,7 @@
         <video id="cam" autoplay muted playsinline></video>
         <div class="placeholder" id="camPlaceholder">
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
-          <span>Tap Record and your camera will ask for permission.<br>Or upload a video from your phone.</span>
+          <span>Tap Record and your phone will ask to use the camera. Nothing leaves your phone until you send it.<br>Or upload a video you already have.</span>
         </div>
         <div class="tele hidden" id="tele"></div>
         <div class="count hidden" id="count"></div>
@@ -205,9 +205,9 @@
     <button class="btn primary" id="shareOn"></button>
     <div class="later stack" style="gap: 10px">
       <div><h3>Want to redo it later?</h3><p class="muted" style="margin-top: 4px" id="laterText"></p></div>
-      <div class="row"><a class="btn" id="editText" href="#">Text me</a><button class="btn" id="editLinkBtn" type="button">Copy</button></div>
+      <div class="row"><a class="btn" id="editText" href="#">Text me</a><button class="btn" id="editLinkBtn" type="button">Copy link</button></div>
     </div>
-    <a class="btn outline" href="/new">Make a card for someone in your life</a>
+    <a class="btn outline" href="/new">Make one for someone you love</a>
   </section>
 
   <!-- EDIT (came back via edit link) -->
@@ -234,7 +234,7 @@ const LIMIT = card.clipSeconds
 $('#hostLine').textContent = `${card.hostName} is making this for`
 $('#title').textContent = `${first}`
 const hostFirst = firstName(card.hostName)
-const TONE = { funny: 'keep it light', heartfelt: 'say the real thing', hype: 'big energy', quiet: 'slow down, plain words' }
+const TONE = { funny: 'make them laugh', heartfelt: 'say the real thing', hype: 'big energy', quiet: 'slow down, plain words' }
 $('#av').textContent = hostFirst.slice(0, 1).toUpperCase()
 $('#who').innerHTML = `a note from <b>${escapeHtml(hostFirst)}</b><br>for your video`
 $('#promptText').textContent = card.prompt
@@ -246,7 +246,7 @@ if (card.hasIntro) {
 }
 $('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
 if (card.status !== 'open') {
-  $('#record').innerHTML = `<div class="card"><h2>${escapeHtml(card.hostName)} already sent this card.</h2><p class="muted">Ask them to start a part two if you missed it.</p></div>`
+  $('#record').innerHTML = `<div class="card"><h2>${escapeHtml(card.hostName)} already sent this card.</h2><p class="muted">If you missed it, ${escapeHtml(firstName(card.hostName))} can start a part two.</p></div>`
 }
 
 // ── state ────────────────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ async function openCamera() {
 }
 function cameraHelp() {
   $('#camPlaceholder').classList.remove('hidden')
-  $('#camPlaceholder').innerHTML = `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or just tap <strong>Upload a video</strong> below.</span>`
+  $('#camPlaceholder').innerHTML = `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or tap <strong>Upload a video</strong> below.</span>`
 }
 
 if ($('#flip')) $('#flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; if (stream) await openCamera().catch(cameraHelp) }
@@ -287,7 +287,7 @@ async function startRecording() {
   recorder.start(250)
   startedAt = Date.now()
   $('#recBtn').classList.add('on'); $('#recLabel').textContent = 'Stop'; $('#tele').classList.remove('hidden')
-  $('#calm').textContent = 'Say their name first.'
+  $('#calm').textContent = `Say ${first}'s name, then your message.`
   tick = setInterval(() => {
     const s = (Date.now() - startedAt) / 1000
     $('#ring').setAttribute('stroke-dashoffset', String(283 - Math.min(1, s / LIMIT) * 283))
@@ -326,8 +326,8 @@ function reviewBlob(b, seconds) {
   if (seconds !== null && seconds < 3) notes.push('That was very short. Want another go?')
   if (b.size > 200 * 1024 * 1024) notes.push('That file is over 200 MB. Trim it in your camera roll first, or record here instead.')
   v.onloadedmetadata = () => {
-    if (isFinite(v.duration) && v.duration > LIMIT + 1) notes.push(`This is ${Math.round(v.duration)} seconds. ${firstName(card.hostName)} asked for ${LIMIT}. We'll use the first ${LIMIT} seconds, so make sure the good part is at the start, or trim it on your phone.`)
-    $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : '<p class="muted">Looks good. Does it answer the prompt? If yes, add your name and send it.</p>') + `<p class="ghost">The prompt: “${escapeHtml(card.prompt)}”</p>`
+    if (isFinite(v.duration) && v.duration > LIMIT + 1) notes.push(`This one is ${Math.round(v.duration)} seconds and ${hostFirst} asked for ${LIMIT}. We'll use the first ${LIMIT}, so put the good part up front, or trim it on your phone first.`)
+    $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : `<p class="muted">Looks good. Does it answer ${escapeHtml(hostFirst)}'s question? Then add your name and send it.</p>`) + `<p class="ghost">${escapeHtml(hostFirst)} asked: “${escapeHtml(card.prompt)}”</p>`
   }
   step(2); show('check')
 }
@@ -372,8 +372,8 @@ function finish(reg, name) {
   $('#doneGather').innerHTML = `${escapeHtml(hostFirst)} gathers everyone else<small>${card.clipCount ? `${card.clipCount} ${card.clipCount === 1 ? 'person has' : 'people have'} added theirs so far` : 'you went first'}</small>`
   $('#doneOpen').innerHTML = `${escapeHtml(first)} opens the reel<small>${escapeHtml(hostFirst)} sends it when it's ready</small>`
   $('#shareOn').textContent = `Invite someone else who loves ${first}`
-  $('#shareOn').onclick = () => share({ title: `A video for ${first}`, text: `${card.hostName} is making a surprise video for ${first}. Tap, record ${LIMIT} seconds, done. Don't tell ${first}!`, url: location.origin + `/c/${cardId}` })
-  $('#laterText').textContent = `You can swap or remove your message until ${hostFirst} sends the reel. Save your private link.`
+  $('#shareOn').onclick = () => share({ title: `A video for ${first}`, text: `${card.hostName} is making a surprise video for ${first}. Tap, record ${LIMIT} seconds, done. (Shh, don't tell ${first}.)`, url: location.origin + `/c/${cardId}` })
+  $('#laterText').textContent = `You can swap or remove your message until ${hostFirst} makes the reel. Save your private link.`
   $('#editText').href = `sms:?&body=${encodeURIComponent(`My churpie message for ${first} (to redo it): ${reg.editUrl}`)}`
   $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
   try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {}

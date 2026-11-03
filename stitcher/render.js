@@ -37,7 +37,7 @@ export async function renderFrames(job, outDir) {
       theme: job.theme || 'postcard', recipient: job.recipientName, first, host: job.hostName, n,
       prompt: job.prompt, moment: job.moment, momentLine: (MOMENT_LINE[job.moment] || (() => ''))(job),
       seconds: job.totalSeconds ? Math.round(job.totalSeconds) : undefined,
-      totalText: job.totalSeconds ? `${Math.round(job.totalSeconds)} seconds of them` : `${n} messages`,
+      totalText: job.totalSeconds ? `${Math.round(job.totalSeconds)} seconds, all for you` : `${n} messages`,
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase(),
       bignum: job.age || '', quote: job.quote, dates: job.dates, pronoun: job.pronoun,
     }

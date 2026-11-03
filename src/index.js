@@ -117,9 +117,9 @@ app.post('/api/cards', async (c) => {
   const hostEmail = sanitize(b.hostEmail, 120) || null
   const deadlineAt = b.deadlineAt ? new Date(b.deadlineAt).toISOString() : null
 
-  if (!recipientName) return bad(c, 'The recipient needs a name. Even just a first one.')
-  if (!hostName) return bad(c, 'Tell people who is organizing this.')
-  if (!prompt) return bad(c, 'Write the one thing everyone should do.')
+  if (!recipientName) return bad(c, "Who's it for? Even just a first name.")
+  if (!hostName) return bad(c, "Add your name so people know who's asking.")
+  if (!prompt) return bad(c, 'Write the one question everyone will answer.')
 
   const id = newId(8)
   const hostToken = newToken()
@@ -168,7 +168,7 @@ app.get('/api/cards/:id/intro', async (c) => {
 app.post('/api/cards/:id/clips', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
   if (!card) return bad(c, "This card isn't here anymore.", 404)
-  if (card.status !== 'open') return bad(c, `${card.host_name} has already sent this card.`, 409)
+  if (card.status !== 'open') return bad(c, `${card.host_name} already made the reel, so this card is closed.`, 409)
 
   const b = await c.req.json().catch(() => ({}))
   const name = sanitize(b.name, 40)
@@ -179,7 +179,7 @@ app.post('/api/cards/:id/clips', async (c) => {
   if (kind === 'text' && !text) return bad(c, 'Write a few words first.')
 
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status IN ('ready','uploading','hidden')`).bind(card.id).first()
-  if (count >= Number(c.env.MAX_CLIPS_PER_CARD || 50)) return bad(c, 'This card is full. Tell the host; they can start a part two.', 409)
+  if (count >= Number(c.env.MAX_CLIPS_PER_CARD || 50)) return bad(c, `This card is full. Let ${card.host_name} know; they can start a part two.`, 409)
 
   const clipId = newId(10)
   const editToken = newToken()
@@ -208,12 +208,12 @@ app.post('/api/cards/:id/clips', async (c) => {
 app.put('/api/clips/:clipId/upload', async (c) => {
   const clip = await c.env.DB.prepare(`SELECT * FROM clips WHERE id = ?`).bind(c.req.param('clipId')).first()
   if (!clip) return c.notFound()
-  if (clip.edit_token !== c.req.query('edit')) return bad(c, 'Not your clip.', 403)
-  if (clip.kind !== 'video') return bad(c, 'Text messages have nothing to upload.')
+  if (clip.edit_token !== c.req.query('edit')) return bad(c, "That link doesn't match this message. Use the private link you saved.", 403)
+  if (clip.kind !== 'video') return bad(c, 'Written messages have nothing to upload.')
 
   const maxBytes = Number(c.env.MAX_UPLOAD_MB || 200) * 1024 * 1024
   const len = Number(c.req.header('content-length') || 0)
-  if (len > maxBytes) return bad(c, `That video is too big. Keep it under ${c.env.MAX_UPLOAD_MB || 200} MB.`, 413)
+  if (len > maxBytes) return bad(c, `That video is too big. Trim it on your phone to under ${c.env.MAX_UPLOAD_MB || 200} MB, or record here instead.`, 413)
 
   const contentType = c.req.header('content-type') || clip.content_type || 'video/mp4'
   const obj = await c.env.CLIPS.put(clip.storage_key, c.req.raw.body, {
@@ -243,7 +243,7 @@ app.delete('/api/clips/:clipId', async (c) => {
   const clip = await c.env.DB.prepare(`SELECT * FROM clips WHERE id = ?`).bind(c.req.param('clipId')).first()
   if (!clip || clip.edit_token !== c.req.query('edit')) return c.notFound()
   const card = await getCard(c.env.DB, 'id', clip.card_id)
-  if (card.status !== 'open') return bad(c, 'The card has already been sent, so this clip is in it now.', 409)
+  if (card.status !== 'open') return bad(c, 'The reel is already made, so your message is in it now.', 409)
   if (clip.storage_key) await c.env.CLIPS.delete(clip.storage_key)
   await c.env.DB.prepare(`UPDATE clips SET status = 'removed' WHERE id = ?`).bind(clip.id).run()
   return c.json({ ok: true })
@@ -269,7 +269,7 @@ app.get('/api/clips/:clipId/stream', async (c) => {
 
 app.get('/api/host/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
-  if (!card) return bad(c, 'That host link is not valid.', 404)
+  if (!card) return bad(c, "We can't find a board at this link. Check that you copied all of it.", 404)
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
   return c.json({
@@ -295,7 +295,7 @@ app.get('/api/host/:token', async (c) => {
 app.post('/api/host/:token/clips/:clipId', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
-  if (card.status !== 'open') return bad(c, 'This card has been sent.', 409)
+  if (card.status !== 'open') return bad(c, 'The reel is already made, so this card is closed.', 409)
   const b = await c.req.json().catch(() => ({}))
   const sets = []
   const vals = []
@@ -311,7 +311,7 @@ app.post('/api/host/:token/order', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
   const { order } = await c.req.json().catch(() => ({}))
-  if (!Array.isArray(order)) return bad(c, 'Send the clip ids in order.')
+  if (!Array.isArray(order)) return bad(c, 'Something went wrong saving the order. Try dragging again.')
   const stmts = order.map((id, i) => c.env.DB.prepare(`UPDATE clips SET position = ? WHERE id = ? AND card_id = ?`).bind(i, id, card.id))
   await c.env.DB.batch(stmts)
   return c.json({ ok: true })
@@ -333,9 +333,9 @@ app.put('/api/host/:token/intro', async (c) => {
 app.post('/api/host/:token/send', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
-  if (card.status !== 'open' && card.status !== 'failed') return bad(c, 'Already on its way.', 409)
+  if (card.status !== 'open' && card.status !== 'failed') return bad(c, "It's already being put together.", 409)
   const clips = await listClips(c.env.DB, card.id)
-  if (!clips.length) return bad(c, 'Nobody has added a message yet.')
+  if (!clips.length) return bad(c, 'No messages yet. Invite a few people first.')
   const expiresAt = plusDays(Number(c.env.CLIP_LIFETIME_DAYS || 30))
   await c.env.DB.prepare(`UPDATE cards SET status = 'queued', stitch_error = NULL, expires_at = ? WHERE id = ?`).bind(expiresAt, card.id).run()
   await logEvent(c.env.DB, card.id, 'sent')
@@ -345,8 +345,8 @@ app.post('/api/host/:token/send', async (c) => {
 app.post('/api/host/:token/extend', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
-  if (card.extended) return bad(c, 'This card was already extended once.', 409)
-  if (!card.expires_at) return bad(c, 'Nothing to extend yet.')
+  if (card.extended) return bad(c, 'This card already got its 30 extra days.', 409)
+  if (!card.expires_at) return bad(c, 'Make the reel first, then you can add days.')
   const next = new Date(new Date(card.expires_at).getTime() + 30 * 86400000).toISOString()
   await c.env.DB.prepare(`UPDATE cards SET expires_at = ?, extended = 1 WHERE id = ?`).bind(next, card.id).run()
   await logEvent(c.env.DB, card.id, 'extended')
@@ -496,7 +496,7 @@ async function page(c, file, meta) {
   const base = c.env.APP_URL
   const m = {
     title: 'churpie.',
-    description: 'a group video card that edits itself and plays like a reel',
+    description: 'A video card from everyone who loves them. One link, a few seconds each, one reel to keep. Free.',
     image: `${base}/og/postcard.png`,
     url: c.req.url,
     ...meta,
@@ -510,37 +510,37 @@ async function page(c, file, meta) {
 }
 
 app.get('/', (c) => page(c, 'index.html', {}))
-app.get('/new', (c) => page(c, 'new.html', { title: 'make a card · churpie.' }))
+app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }))
 
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
-  if (!card) return page(c, 'gone.html', { title: "this card isn't here anymore" })
+  if (!card) return page(c, 'gone.html', { title: "This card isn't here anymore" })
   const first = card.recipient_name.split(' ')[0]
   return page(c, 'contribute.html', {
     title: `${card.host_name} is making a surprise video for ${first}`,
-    description: `Add ${card.clip_seconds} seconds. No app, no account. ${card.prompt}`,
+    description: `Add your ${card.clip_seconds} seconds. No app, no account. ${card.prompt}`,
     image: `${c.env.APP_URL}/og/${card.vibe}.png`,
   })
 })
 
 app.get('/h/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
-  if (!card) return page(c, 'gone.html', { title: 'that host link is not valid' })
-  return page(c, 'host.html', { title: `your card for ${card.recipient_name} · churpie.`, description: 'private host link, keep it to yourself' })
+  if (!card) return page(c, 'gone.html', { title: "We can't find this board" })
+  return page(c, 'host.html', { title: `Your card for ${card.recipient_name} · churpie.`, description: 'Your private board. Keep this link to yourself.' })
 })
 
 app.get('/w/:token', async (c) => {
   const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
-  if (!card) return page(c, 'gone.html', { title: "this reel isn't here anymore" })
+  if (!card) return page(c, 'gone.html', { title: "This reel isn't here anymore" })
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status = 'ready'`).bind(card.id).first()
   return page(c, 'watch.html', {
-    title: `${card.recipient_name}, ${count} people made you something`,
-    description: `from ${card.host_name} and everyone in your corner`,
+    title: `${card.recipient_name}, ${count} ${count === 1 ? 'person' : 'people'} made you something`,
+    description: `From ${card.host_name} and everyone who loves you. Find a quiet moment.`,
     image: `${c.env.APP_URL}/og/${card.vibe}.png`,
   })
 })
 
-app.notFound((c) => page(c, 'gone.html', { title: "this page isn't here anymore" }))
+app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore" }))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nightly sweep: delete what has expired, and raw clips 48h after a reel exists

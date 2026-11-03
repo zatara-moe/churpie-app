@@ -8,8 +8,8 @@ export const MOMENTS = [
   { id: 'getwell', label: 'Get well', prompt: "One thing you can't wait to do together when they're back.", tone: 'heartfelt', vibe: 'quietnote' },
   { id: 'missyou', label: 'Miss you', prompt: 'The thing you keep wanting to tell them.', tone: 'heartfelt', vibe: 'airmail' },
   { id: 'memory', label: 'In memory', prompt: 'Share one small moment you still think about.', tone: 'quiet', vibe: 'pressedflower' },
-  { id: 'team', label: 'Team send-off', prompt: "The one thing we'll miss. Keep it to 15 seconds.", tone: 'funny', vibe: 'kraft' },
-  { id: 'brand', label: 'For our customers', prompt: 'Tell us your first-day story, and say where you are from.', tone: 'heartfelt', vibe: 'postcard' },
+  { id: 'team', label: 'Team send-off', prompt: "The one thing you'll miss about working with them.", tone: 'funny', vibe: 'kraft' },
+  { id: 'brand', label: 'For a business', prompt: "Tell your first-day story, and say where you're from.", tone: 'heartfelt', vibe: 'postcard' },
 ]
 
 // A card theme sets the frame around the reel (both the story and the wide file), the stickers and the music. One choice, not three.
@@ -25,10 +25,10 @@ export const VIBES = [
 ]
 
 export const TONES = [
-  { id: 'funny', hint: 'keep it light' },
-  { id: 'heartfelt', hint: 'say the real thing' },
-  { id: 'hype', hint: 'big energy, say their name loud' },
-  { id: 'quiet', hint: 'slow down, plain words' },
+  { id: 'funny', label: 'Light', hint: 'make them laugh' },
+  { id: 'heartfelt', label: 'Warm', hint: 'say the real thing' },
+  { id: 'hype', label: 'Loud', hint: 'big energy, say their name' },
+  { id: 'quiet', label: 'Gentle', hint: 'slow down, plain words' },
 ]
 
 export const RULE_SUGGESTIONS = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Wear something red', 'Kids welcome']

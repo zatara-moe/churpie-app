@@ -145,12 +145,12 @@
 <div id="card" class="card"></div>
 <script>
   // window.CARD is injected by render.js: { theme, size, recipient, first, host, n, prompt, moment, momentLine, seconds, date, totalText }
-  const C = window.CARD || { theme: 'postcard', size: 'wide', first: 'Rosa', host: 'Maria', n: 5, prompt: 'Tell Rosa your favorite memory with her, then wish her happy 60th.', momentLine: 'turning 60', date: 'nov 3', totalText: '48 seconds of them' }
+  const C = window.CARD || { theme: 'postcard', size: 'wide', first: 'Rosa', host: 'Maria', n: 5, prompt: 'Tell Rosa your favorite memory with her, then wish her happy 60th.', momentLine: 'turning 60', date: 'nov 3', totalText: '48 seconds, all for you' }
   const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
   const el = document.getElementById('card')
   el.className = `card ${C.size} theme-${C.theme}`
   const t = C.theme, first = esc(C.first), host = esc(C.host), n = C.n, prompt = esc(C.prompt), ml = esc(C.momentLine || ''), date = esc(C.date || '')
-  const common = `<div class="bg"><div class="grain"></div></div><div class="window"></div><div class="tape t1"></div><div class="tape b t2"></div><div class="wordmark">churpie<b>.</b></div><div class="cta">make one → churpie.me</div>`
+  const common = `<div class="bg"><div class="grain"></div></div><div class="window"></div><div class="tape t1"></div><div class="tape b t2"></div><div class="wordmark">churpie<b>.</b></div><div class="cta">churpie.me</div>`
   const stamp = `<div class="stamp"><b>${n}</b><small>showed<br>up</small></div>`
   const asked = `<div class="asked">${host} asked ${n} people:</div><div class="prompt">${prompt}</div>`
   const meta = (rows) => `<div class="meta">${rows.map(([k, v]) => `<div><span class="k">${k}</span> <span class="v">${esc(v)}</span></div>`).join('')}</div>`
@@ -166,7 +166,7 @@
       <div class="circle">${n}</div><div class="circletext">a whole room full of people, even from far away.</div>`,
     kraft: `${common}${stamp}<div class="postmark">churpie post<br>${date}<br>handle with care</div>
       <div class="left note"><div class="eyebrow">to</div><div class="title">${first}</div><div class="sub">${ml}</div>${asked}</div>
-      <div class="manifest"><div class="h"><span>contents</span><span>qty</span></div><div class="r"><span>messages from your people</span><span>${n}</span></div><div class="r"><span>seconds of them</span><span>${esc(String(C.seconds || ''))}</span></div><div class="r"><span>open on</span><span>${date}</span></div></div>`,
+      <div class="manifest"><div class="h"><span>contents</span><span>qty</span></div><div class="r"><span>messages from your people</span><span>${n}</span></div><div class="r"><span>seconds, all for you</span><span>${esc(String(C.seconds || ''))}</span></div><div class="r"><span>open on</span><span>${date}</span></div></div>`,
     confettipop: `<div class="edge"></div>${common}${stamp}
       <div class="left"><div class="eyebrow">it's a birthday</div><div class="title">${first}</div><div class="sub">${ml}</div>${asked}</div>
       ${meta([['to', C.recipient || C.first], ['from', 'your whole crew'], ['', '(turn the volume up)']])}`,

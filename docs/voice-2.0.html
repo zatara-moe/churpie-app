@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Churpie Voice 2.0</title>
+<style>
+:root { --paper:#F5F0E8; --ink:#1A1410; --faded:#4A3F30; --pink:#D4266A; --cyan:#0B9DAA; --line:#D4C9A8; --card:#fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#1A1410; --ink:#F5F0E8; --faded:#C9BFAE; --line:#4A3F30; --card:#241C16; } }
+:root[data-theme="dark"] { --paper:#1A1410; --ink:#F5F0E8; --faded:#C9BFAE; --line:#4A3F30; --card:#241C16; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.6 Georgia, serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+h1 { font-size: 40px; line-height:1.05; margin: 0 0 8px; font-weight: 400; }
+h2 { font-size: 24px; font-weight: 400; margin: 44px 0 10px; border-top: 2px solid var(--ink); padding-top: 14px; }
+.kick { font: 700 12px/1 ui-monospace, Menlo, monospace; letter-spacing: 2px; text-transform: uppercase; color: var(--pink); }
+.lede { color: var(--faded); font-size: 18px; }
+blockquote { margin: 18px 0; padding: 16px 20px; background: var(--card); border-left: 4px solid var(--cyan); font-style: italic; }
+blockquote cite { display:block; font-style: normal; font: 12px ui-monospace, Menlo, monospace; color: var(--faded); margin-top: 8px; }
+table { width:100%; border-collapse: collapse; font: 14px/1.45 system-ui, sans-serif; background: var(--card); }
+th, td { text-align:left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--faded); }
+ul { padding-left: 20px; } li { margin: 6px 0; }
+code { font: 13px ui-monospace, Menlo, monospace; background: var(--card); padding: 1px 5px; border-radius: 4px; }
+.scroll { overflow-x: auto; }
+</style>
+</head>
+<body><div class="wrap">
+<div class="kick">churpie. · voice 2.0 · November 2026</div>
+<h1>Write like a postcard from someone who loves them.</h1>
+<p class="lede">Builds on the April voice guide; nothing in it is retired. Version 2.0 adds a literary anchor, a fixed vocabulary, a register for each screen, and the rules that came out of rewriting every line in the live app.</p>
+
+<h2>The anchor</h2>
+<blockquote>“Hope” is the thing with feathers – / That perches in the soul – / And sings the tune without the words – / And never stops – at all –<cite>Emily Dickinson, 1891 · public domain</cite></blockquote>
+<p>Churpie is a small bird's sound. Each message is a small chirp; together they make a song for one person. Dickinson is the model for <b>how</b> we write: short, plain words, said with total conviction, no decoration, and hope that is quiet rather than loud. The second model is the <b>postcard</b>: very little space, so every word earns its place, and it's always signed by a person.</p>
+<p>The line appears once in the product (the home page footer). We quote it, we don't imitate it. Our sentences stay modern and plain.</p>
+
+<h2>Four tests for every line</h2>
+<ul>
+<li><b>Would a person say it out loud to a friend?</b> If it sounds like software (“submit”, “stitch”, “clip ids”, “watch link”), rewrite it.</li>
+<li><b>Does it name a person?</b> Use “Rosa” and “Maria” wherever we know them. Never “the host”, “the recipient” or “contributors”.</li>
+<li><b>Is it true?</b> Never promise what the app doesn't do. (We removed “a backup copy of your links”; no email is ever sent.)</li>
+<li><b>Does it permit, not instruct?</b> “When you're ready” beats “Press the button”. One gentle ask beats three rules.</li>
+</ul>
+
+<h2>Our words</h2>
+<div class="scroll"><table>
+<tr><th>Say</th><th>Means</th><th>Never say</th></tr>
+<tr><td>card</td><td>the whole gift, from the first link to the end</td><td>project, event, campaign</td></tr>
+<tr><td>message</td><td>one person's part, video or written</td><td>clip, submission, entry, churp (in the UI)</td></tr>
+<tr><td>reel</td><td>the finished video inside the card (“a video” only in first-contact invites)</td><td>compilation, export, file</td></tr>
+<tr><td>make the reel / put it together</td><td>what happens when the host closes the card</td><td>stitch, weave, compile, render</td></tr>
+<tr><td>board</td><td>the host's private page</td><td>dashboard, admin, host link</td></tr>
+<tr><td>their people / everyone who loves them</td><td>the people who record</td><td>contributors, users, loved ones</td></tr>
+<tr><td>the question</td><td>what the host asks everyone</td><td>the prompt, the brief</td></tr>
+<tr><td>Light · Warm · Loud · Gentle</td><td>how it should feel (tone)</td><td>funny, heartfelt, hype (internal ids only)</td></tr>
+<tr><td>we delete our copy</td><td>the 30-day promise, framed as care</td><td>disappears, expires, has run its course</td></tr>
+</table></div>
+
+<h2>Register by screen</h2>
+<div class="scroll"><table>
+<tr><th>Screen</th><th>Reader</th><th>Register</th><th>Example</th></tr>
+<tr><td>Home</td><td>someone deciding</td><td>lowercase serif headlines; one bit of wit per screen</td><td>“any moment worth gathering for. (which, it turns out, is most of them.)”</td></tr>
+<tr><td>Start a card</td><td>the host, busy</td><td>a friend helping you plan; short, confident</td><td>“One question gets you 30 real answers instead of 30 different hellos.”</td></tr>
+<tr><td>Share</td><td>the host, buzzing</td><td>the one place for energy</td><td>“Message and link copied. Go rally.”</td></tr>
+<tr><td>Record</td><td>a nervous guest</td><td>reassuring; permission, not instruction</td><td>“No rush. Retake as many times as you like.”</td></tr>
+<tr><td>Board</td><td>the host, curating</td><td>calm, plain, honest about what happens</td><td>“It takes about 2 minutes. Rosa sees nothing until you share the link.”</td></tr>
+<tr><td>Watch</td><td>the person it's for</td><td>sacred and quiet; no wit, no asks, no brand beyond a whisper</td><td>“Find a quiet moment.”</td></tr>
+<tr><td>In memory, get well</td><td>someone hurting</td><td>gravity; plain words; never a joke, even in card art</td><td>“Share one small moment you still think about.”</td></tr>
+<tr><td>Errors</td><td>anyone, mid-task</td><td>own it, say it like a person, point forward</td><td>“Your connection blinked. Your video is still on your phone, so try once more.”</td></tr>
+</table></div>
+
+<h2>Mechanics</h2>
+<ul>
+<li><b>Case:</b> lowercase only for the wordmark, the home page's serif headlines and the hand-drawn card art. Everything else is sentence case, including link previews and page titles.</li>
+<li><b>No exclamation marks.</b> In shared texts, the playful version is a whisper: “(Shh, don't tell Rosa.)”</li>
+<li><b>No emoji or symbol shorthand in prose</b> (“~”, “→” as a verb). Icons always carry a word.</li>
+<li><b>Refer to buttons by their words, never their color</b> (“Tap Keep it forever”, not “the pink button”).</li>
+<li><b>Plurals are real:</b> “1 person”, never “1 people”.</li>
+<li><b>Recipient-facing surfaces never sell.</b> The end card says “12 people showed up for you.” with only <code>churpie.me</code> beneath it; no “make one” prompt on someone's gift.</li>
+</ul>
+
+<h2>Where the copy lives</h2>
+<p>Pages: <code>public/*.html</code> and <code>public/app.js</code>. Server messages and link previews: <code>src/index.js</code>. Moments, questions and tones: <code>src/catalog.js</code>. Card art and reel text: <code>stitcher/cards/card.html</code>, <code>stitcher/render.js</code>, <code>stitcher/stitch.js</code>. Machine-only errors (<code>Unauthorized</code>, <code>Bad key</code>) stay technical on purpose; no person ever sees them.</p>
+<p class="lede" style="margin-top:40px">When in doubt, read it aloud as if you were handing someone a postcard.</p>
+</div></body></html>

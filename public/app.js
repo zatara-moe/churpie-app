@@ -7,7 +7,7 @@ export async function api(path, opts = {}) {
     body: opts.body && typeof opts.body !== 'string' && !(opts.body instanceof Blob) ? JSON.stringify(opts.body) : opts.body,
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || 'Something hiccuped. We did not lose your work.')
+  if (!res.ok) throw new Error(data.error || 'Something hiccuped on our end. Try once more.')
   return data
 }
 
@@ -29,7 +29,7 @@ export async function share({ title, text, url }) {
     try { await navigator.share({ title, text, url }); return 'shared' } catch (e) { if (e.name === 'AbortError') return 'cancelled' }
   }
   await navigator.clipboard?.writeText(`${text} ${url}`.trim())
-  toast('Link copied. Go rally.')
+  toast('Link copied. Paste it anywhere.')
   return 'copied'
 }
 
@@ -65,9 +65,9 @@ export function upload(url, blob, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total) }
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText || '{}'))
-      else { let msg = 'Upload failed.'; try { msg = JSON.parse(xhr.responseText).error || msg } catch {} reject(new Error(msg)) }
+      else { let msg = "That didn't go through. Try once more."; try { msg = JSON.parse(xhr.responseText).error || msg } catch {} reject(new Error(msg)) }
     }
-    xhr.onerror = () => reject(new Error('Something hiccuped during the upload. Your video is still on your phone; try again.'))
+    xhr.onerror = () => reject(new Error('Your connection blinked. Your video is still on your phone, so try once more.'))
     xhr.send(blob)
   })
 }

@@ -53,13 +53,13 @@
   </div>
 
   <div class="live" id="live">
-    <div class="cap"><span>what you're making</span><div class="steps" style="width: 120px" aria-hidden="true"><span class="on" id="s1"></span><span id="s2"></span><span id="s3"></span></div></div>
+    <div class="cap"><span>your card so far</span><div class="steps" style="width: 120px" aria-hidden="true"><span class="on" id="s1"></span><span id="s2"></span><span id="s3"></span></div></div>
     <div id="pv"></div>
   </div>
 
   <!-- step 1: who and what -->
   <form id="step1" class="stack card" autocomplete="off">
-    <h1>Who is this for?</h1>
+    <h1>Who's this one for?</h1>
     <label class="field">Their first name<input type="text" name="recipientName" required maxlength="60" placeholder="Rosa"></label>
     <label class="field">Your name (so people know who's asking)<input type="text" name="hostName" required maxlength="60" placeholder="Maria"></label>
     <h2 style="margin-top: 6px">What's the moment?</h2>
@@ -70,12 +70,12 @@
   <!-- step 2: the brief -->
   <form id="step2" class="stack card hidden" autocomplete="off">
     <h1>What should everyone say?</h1>
-    <p class="muted">One question, so 30 people answer the same thing instead of 30 different hellos. It goes on the card.</p>
+    <p class="muted">One question gets you 30 real answers instead of 30 different hellos. It opens the reel, too.</p>
     <label class="field">Your question
       <textarea name="prompt" required maxlength="240"></textarea>
     </label>
     <div class="row" style="flex-wrap: wrap; gap: 6px" id="promptIdeas"></div>
-    <h3>Tone</h3>
+    <h3>How should it feel?</h3>
     <div class="choices" id="tones" role="group" aria-label="tone"></div>
     <h3>House rules (optional)</h3>
     <div class="stack" id="rules" style="gap: 4px"></div>
@@ -91,8 +91,8 @@
     <h1>Pick the card</h1>
     <p class="muted">Every message gets taped inside it. It sets the music, too.</p>
     <div class="themes" id="themes" role="group" aria-label="card"></div>
-    <label class="field">Close the card on (optional)<input type="datetime-local" name="deadlineAt"></label>
-    <label class="field">Your email (optional, a backup copy of your links)<input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com"></label>
+    <label class="field">Last day to add a message (optional)<input type="datetime-local" name="deadlineAt"></label>
+    <label class="field">Making this for a business? Your work email (optional)<input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com"></label>
     <div class="row">
       <button class="btn outline" type="button" id="back3">Back</button>
       <button class="btn primary" type="submit" id="makeBtn">Make the card</button>
@@ -102,9 +102,9 @@
   <!-- done: the share moment -->
   <section id="done" class="stack hidden" style="gap: 16px">
     <div class="done-hero stack" style="gap: 6px">
-      <span class="pill pink" style="align-self: center">Your card is live</span>
+      <span class="pill pink" style="align-self: center">Your card is open</span>
       <h1 id="doneTitle"></h1>
-      <p class="muted">Now invite their people. The more who add a few seconds, the bigger the moment.</p>
+      <p class="muted" id="doneSub"></p>
     </div>
 
     <div class="phone-msg">
@@ -122,16 +122,16 @@
       <button class="btn tile" id="viaMore" type="button"><span class="ico" style="background:#D4266A"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg></span>Other apps</button>
       <button class="btn tile" id="viaQR" type="button"><span class="ico" style="background:#C68B00"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h7v7H3zm2 2v3h3V5zm9-2h7v7h-7zm2 2v3h3V5zM3 14h7v7H3zm2 2v3h3v-3zm9-2h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 0h3v3h-3z"/></svg></span>QR code</button>
     </div>
-    <div id="qrBox" class="hidden stack"><div id="qr"></div><p class="ghost" style="text-align:center">For a party or a room full of people: they point their camera here.</p></div>
+    <div id="qrBox" class="hidden stack"><div id="qr"></div><p class="ghost" style="text-align:center">For a party or a room full of people. They point their phone camera here.</p></div>
 
     <div class="host-card">
       <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
       <div class="stack" style="gap: 10px">
-        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages arrive, hide any, and send the finished reel to <span id="firstName3"></span>. Save this link somewhere you'll find it.</p></div>
+        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages come in, hide any you like, and send <span id="firstName3"></span> the finished reel. Save this link. It's the only way back in.</p></div>
         <a class="btn primary" id="hostLink" href="#">Open my board</a>
         <div class="row">
           <a class="btn" id="hostText" href="#">Text me</a>
-          <button class="btn" id="copyHost" type="button">Copy</button>
+          <button class="btn" id="copyHost" type="button">Copy link</button>
         </div>
       </div>
     </div>
@@ -145,7 +145,7 @@ import { cardPreview } from '/people.js'
 
 const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
 const { moments, vibes } = await api('/api/catalog')
-const TONES = [['funny', 'keep it light'], ['heartfelt', 'say the real thing'], ['hype', 'big energy'], ['quiet', 'slow down, plain words']]
+const TONES = [['funny', 'Light', 'make them laugh'], ['heartfelt', 'Warm', 'say the real thing'], ['hype', 'Loud', 'big energy, say their name'], ['quiet', 'Gentle', 'slow down, plain words']]
 const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
 
 // ── live preview ─────────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ function choiceButtons(root, items, key, render, cls = 'choice') {
   })
 }
 choiceButtons($('#moments'), moments, 'moment', (m) => escapeHtml(m.label))
-choiceButtons($('#tones'), TONES.map(([id, hint]) => ({ id, hint })), 'tone', (t) => `${t.id}<small>${t.hint}</small>`)
+choiceButtons($('#tones'), TONES.map(([id, label, hint]) => ({ id, label, hint })), 'tone', (t) => `${t.label}<small>${t.hint}</small>`)
 function renderThemes() {
   const c = current()
   $('#themes').innerHTML = vibes.map((v, i) => `<button type="button" class="theme" data-id="${v.id}" aria-pressed="${state.vibe === v.id}">${cardPreview({ ...c, theme: v.id, person: i })}<strong>${escapeHtml(v.label)}</strong><small>${escapeHtml(v.for)}</small></button>`).join('')
@@ -215,9 +215,10 @@ $('#step3').addEventListener('submit', async (e) => {
     } })
     const first = firstName(f1.get('recipientName')), host = firstName(f1.get('hostName'))
     const invite = res.links.invite
-    $('#doneTitle').textContent = `${first}'s card is ready for messages.`
+    $('#doneTitle').textContent = `${first}'s card is ready.`
+    $('#doneSub').textContent = `Now send it to everyone who loves ${first}. Each person adds a few seconds.`
     $('#firstName3').textContent = first
-    $('#msg').value = `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${secs} seconds, done. No app needed. Don't tell ${first}!`
+    $('#msg').value = `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${secs} seconds, done. No app needed. (Shh, don't tell ${first}.)`
     $('#unfurl').innerHTML = `<img src="/og/${state.vibe}.png" alt="" style="display:block;width:100%;aspect-ratio:1200/630"><div class="t"><b>${escapeHtml(host)} is making a surprise video for ${escapeHtml(first)}</b><span>${escapeHtml(new URL(invite).host)}</span></div>`
     const text = () => `${$('#msg').value}\n${invite}`
     const wire = () => {
@@ -227,7 +228,7 @@ $('#step3').addEventListener('submit', async (e) => {
     }
     const grow = () => { const t = $('#msg'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }
     wire(); grow(); $('#msg').addEventListener('input', () => { wire(); grow() })
-    $('#viaCopy').onclick = async () => { await navigator.clipboard.writeText(text()); toast('Message and link copied. Paste it anywhere.') }
+    $('#viaCopy').onclick = async () => { await navigator.clipboard.writeText(text()); toast('Message and link copied. Go rally.') }
     $('#viaMore').onclick = () => share({ title: `A video for ${first}`, text: $('#msg').value, url: invite })
     $('#viaQR').onclick = () => {
       const box = $('#qrBox'); box.classList.toggle('hidden')
