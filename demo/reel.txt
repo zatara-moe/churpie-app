@@ -1,15 +1,16 @@
 # churpie home-page demo reel · one line per moment, in order
 # clip | start (sec) | length (sec) | fit | name sticker | place sticker (optional)
-#   fit = crop  → fills the frame (best for one face, centered)
-#   fit = blur  → whole clip shown, blurred copy fills the edges (best for groups and wide shots)
+#   fit = crop      → fills the frame, centered (one face in the middle)
+#   fit = zoom 0.4  → fills the frame, you pick where: 0 = far left, 0.5 = center, 1 = far right (groups, off-center faces)
+#   fit = blur      → whole clip shown small, blurred copy fills the edges (only when nobody can be cropped)
 # Rebuild with:  ./demo/build.sh      (needs ffmpeg; takes about a minute)
 # Contact sheet of all clips: demo/contact-sheet.png
 
 clip-01 | 0.6 | 1.6 | crop | Maria            | Flagstaff, AZ
 clip-04 | 0.3 | 1.6 | crop | Daniel           |
-clip-07 | 0.2 | 1.8 | blur | the Okafors      | Tucson, AZ
+clip-07 | 0.2 | 1.8 | zoom 0.35 | the Okafors      | Tucson, AZ
 clip-08 | 0.2 | 1.5 | crop | Jen              |
-clip-05 | 1.9 | 1.8 | blur | the Reyes family |
+clip-05 | 1.9 | 1.8 | zoom 0.65 | the Reyes family |
 clip-11 | 0.5 | 1.6 | crop | Nina             | San Diego, CA
-clip-03 | 0.4 | 1.8 | blur | everyone at the lake |
+clip-03 | 0.4 | 1.8 | zoom 0.38 | everyone at the lake |
 clip-12 | 1.6 | 2.2 | crop | Sofia            | Phoenix, AZ

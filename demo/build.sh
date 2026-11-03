@@ -30,6 +30,10 @@ grep -v '^\s*#' reel.txt | grep '|' | while IFS='|' read -r clip start len fit n
   clip=$(echo $clip | xargs); start=$(echo $start | xargs); len=$(echo $len | xargs); fit=$(echo $fit | xargs); name=$(echo "$name" | xargs); place=$(echo "$place" | xargs)
   n=$((n+1))
   if [ "$fit" = "crop" ]; then vf="scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280"
+  elif [[ "$fit" == zoom* ]]; then
+    # zoom = fill the frame, choosing where the crop sits. "zoom 0.5" is centered, "zoom 0.3" leans left, "zoom 0.7" leans right.
+    pos=$(echo "$fit" | awk '{print ($2=="" ? 0.5 : $2)}')
+    vf="scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280:(iw-720)*$pos:(ih-1280)*0.35"
   else vf="split=2[fg][bg];[bg]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,gblur=sigma=24[b];[fg]scale=720:1280:force_original_aspect_ratio=decrease[f];[b][f]overlay=(W-w)/2:(H-h)/2"; fi
   st="drawtext=fontfile='$FONT':text='$name':fontsize=40:fontcolor=0x1A1410:x=40:y=120:box=1:boxcolor=0xFFFFFF:boxborderw=16"
   [ -n "$place" ] && st="$st,drawtext=fontfile='$FONT':text='$place':fontsize=24:fontcolor=0x1A1410:x=44:y=200:box=1:boxcolor=0x7ECDD5:boxborderw=10"
