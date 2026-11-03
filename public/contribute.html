@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{og:title}}</title>
+<meta property="og:title" content="{{og:title}}">
+<meta property="og:description" content="{{og:description}}">
+<meta property="og:image" content="{{og:image}}">
+<meta property="og:url" content="{{og:url}}">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&family=DM+Serif+Display&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .cam { position: relative; }
+  .cam .tele { position: absolute; left: 12px; right: 12px; top: 12px; text-align: center; font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.92); border-radius: 14px; padding: 10px 14px; line-height: 1.3; z-index: 2; }
+  .cam .rail { position: absolute; right: 10px; bottom: 12px; top: auto; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+  .cam .rail .btn { width: 58px; min-height: 0; padding: 8px 0 6px; border-radius: 16px; background: #fff; flex-direction: column; gap: 2px; font-size: 10px; box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+  .cam .calm { position: absolute; left: 12px; bottom: 12px; max-width: 60%; font-size: 13px; background: rgba(255,255,255,0.88); border-radius: 12px; padding: 8px 12px; line-height: 1.3; z-index: 2; }
+  .cam .count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 120px; font-weight: 700; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,0.4); z-index: 3; pointer-events: none; }
+  .controls { display: flex; align-items: center; justify-content: space-between; }
+  .side { display: flex; flex-direction: column; align-items: center; gap: 6px; background: transparent; border: 0; font: inherit; font-weight: 700; font-size: 13px; color: var(--ink); width: 96px; cursor: pointer; }
+  .side span { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: #fff !important; box-shadow: inset 0 0 0 1.5px var(--paper-dark); }
+  .rec { position: relative; width: 98px; height: 98px; border-radius: 50%; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .rec svg { position: absolute; inset: 0; }
+  .rec .dot { width: 72px; height: 72px; border-radius: 50%; background: var(--pink); color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(212,38,106,0.25); transition: border-radius 150ms; }
+  .rec.on .dot { border-radius: 16px; width: 56px; height: 56px; }
+  .promptchip { width: 100%; background: #fff; border: 0; border-radius: 16px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; text-align: left; font: inherit; color: var(--ink); cursor: pointer; box-shadow: 0 2px 0 rgba(0,0,0,0.08); }
+  .promptchip .t { font-size: 14px; font-weight: 600; line-height: 1.25; flex: 1; }
+  .promptchip.open .t { white-space: normal; }
+  .rulebox { background: var(--amber-pale); border-radius: 14px; padding: 10px 12px; font-size: 13px; }
+  /* the host's note: a handwritten card, not a text box */
+  .note { position: relative; background: #FFFDF6; border-radius: 6px; padding: 20px 18px 16px; margin-top: 8px;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 10px 22px rgba(26,20,16,0.12);
+          background-image: repeating-linear-gradient(180deg, transparent 0 31px, rgba(11,157,170,0.14) 31px 32px); background-position: 0 14px; }
+  .note::before { content: ''; position: absolute; left: 50%; top: -10px; width: 92px; height: 24px; margin-left: -46px; background: rgba(247,217,108,0.85); transform: rotate(-3deg); }
+  .note .from { display: flex; align-items: center; gap: 10px; }
+  .note .av { width: 38px; height: 38px; border-radius: 50%; background: var(--pink); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-size: 20px; flex-shrink: 0; }
+  .note .who { font-family: 'Courier Prime', monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-faded); line-height: 1.3; }
+  .note .who b { color: var(--ink); }
+  .note .q { font-family: 'Caveat', cursive; font-size: 30px; line-height: 1.1; margin: 12px 0 12px; color: var(--ink); }
+  .note .tips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .note .tips span { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: transparent; box-shadow: inset 0 0 0 1px var(--paper-dark); color: var(--ink-faded); }
+  .note .tips span.tone { color: var(--ink); }
+  .note .hear { position: absolute; right: 14px; top: 16px; border: 0; background: var(--ink); color: #fff; font: inherit; font-weight: 700; font-size: 12px; border-radius: 999px; padding: 8px 12px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  /* done: a postcard back, not a form */
+  .sent { position: relative; background: #fff; border-radius: 10px; padding: 26px 20px 22px; box-shadow: 0 10px 24px rgba(26,20,16,0.10); overflow: hidden; }
+  .sent::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: repeating-linear-gradient(135deg, var(--pink) 0 10px, #fff 10px 20px, var(--cyan) 20px 30px, #fff 30px 40px); }
+  .sent h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 36px; line-height: 1; }
+  .sent .stampN { position: absolute; right: 18px; top: 24px; width: 70px; height: 84px; background: var(--pink); color: #fff; border: 4px solid #fff; outline: 2px dashed rgba(255,255,255,0.7); outline-offset: -9px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); transform: rotate(3deg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .sent .stampN b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; line-height: 1; } .sent .stampN small { font-family: 'Courier Prime', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+  .next { display: grid; gap: 0; margin-top: 18px; }
+  .next div { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding-bottom: 14px; position: relative; font-weight: 600; font-size: 15px; }
+  .next div::before { content: ''; position: absolute; left: 13px; top: 26px; bottom: 0; width: 2px; background: var(--paper-dark); }
+  .next div:last-child::before { display: none; }
+  .next i { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 13px; font-weight: 700; background: var(--paper-aged); color: var(--ink-faded); z-index: 1; }
+  .next i.ok { background: var(--green); color: #fff; }
+  .next small { display: block; color: var(--ink-faded); font-size: 13px; font-weight: 700; }
+  .later { background: #fff; border-radius: 20px; padding: 16px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 8px 24px rgba(26,20,16,0.05); }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main class="wrap stack" id="app" style="padding-bottom: 24px">
+  <div class="topbar">
+    <div class="row">
+      <div style="display: flex; flex-direction: column; line-height: 1.15">
+        <span class="muted" id="hostLine">Someone is making this for</span>
+        <strong style="font-size: 20px" id="title">...</strong>
+      </div>
+    </div>
+    <a class="logo" href="/">churpie<b>.</b></a>
+  </div>
+
+  <!-- the brief -->
+  <div class="note" id="note">
+    <div class="from"><span class="av" id="av"></span><span class="who" id="who"></span></div>
+    <button class="hear hidden" id="hearBtn" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg><span></span></button>
+    <p class="q" id="promptText"></p>
+    <div class="tips" id="tips"></div>
+  </div>
+  <video id="introVid" class="hidden" playsinline controls style="width: 100%; border-radius: 16px"></video>
+
+  <div class="steps" aria-label="Step 1 of 3: record"><span class="on" id="st1"></span><span id="st2"></span><span id="st3"></span></div>
+
+  <!-- RECORD -->
+  <section id="record" class="stack">
+    <div class="frame">
+      <div class="video cam">
+        <video id="cam" autoplay muted playsinline></video>
+        <div class="placeholder" id="camPlaceholder">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>Tap Record and your camera will ask for permission.<br>Or upload a video from your phone.</span>
+        </div>
+        <div class="tele hidden" id="tele"></div>
+        <div class="count hidden" id="count"></div>
+        <div class="rail">
+          <button class="btn" id="flip" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 8v4a8 8 0 0 1-14.9 4"/><path d="M4 16v-4A8 8 0 0 1 18.9 8"/><path d="M4 12l-2 3 3 1"/><path d="M20 12l2-3-3-1"/></svg>Flip</button>
+          <button class="btn" id="timerToggle" type="button" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Hide timer</button>
+        </div>
+        <div class="calm" id="calm">No rush. Retake as many times as you like.</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="side" id="uploadBtn" type="button"><span style="background: var(--amber-pale)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></span>Upload a video</button>
+      <input type="file" id="file" accept="video/*" class="hidden">
+      <button class="rec" id="recBtn" type="button" aria-label="Record. The ring fills as the seconds pass.">
+        <svg width="98" height="98" viewBox="0 0 98 98" aria-hidden="true"><circle cx="49" cy="49" r="45" fill="none" stroke="#EDE5D0" stroke-width="6"/><circle id="ring" cx="49" cy="49" r="45" fill="none" stroke="#D4266A" stroke-width="6" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" transform="rotate(-90 49 49)"/></svg>
+        <span class="dot" id="recLabel">Record</span>
+      </button>
+      <button class="side" id="writeBtn" type="button"><span style="background: var(--cyan-pale)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h8"/></svg></span>Write instead</button>
+    </div>
+    <p class="ghost" style="text-align: center" id="footnote">No account. No app.</p>
+  </section>
+
+  <!-- CHECK -->
+  <section id="check" class="stack hidden">
+    <div class="frame"><div class="video"><video id="preview" playsinline controls></video></div></div>
+    <div class="card stack" id="checkNotes"></div>
+    <form class="card stack" id="checkForm">
+      <label class="field">Your name<input type="text" name="name" required maxlength="40" placeholder="Grandma J"></label>
+      <label class="field">Where you are (optional)<input type="text" name="location" maxlength="40" placeholder="Phoenix, AZ"></label>
+      <div class="row">
+        <button class="btn outline" type="button" id="retake">Retake</button>
+        <button class="btn primary" type="submit" id="sendClip">Send it</button>
+      </div>
+      <div class="bar hidden" id="upbar"><span style="width: 0%"></span></div>
+    </form>
+  </section>
+
+  <!-- WRITE -->
+  <section id="write" class="stack hidden">
+    <form class="card stack" id="writeForm">
+      <h2>Write it instead</h2>
+      <p class="muted">It shows up in the reel as a postcard with your name on it. Up to 280 characters.</p>
+      <label class="field">Your message<textarea name="text" required maxlength="280"></textarea></label>
+      <label class="field">Your name<input type="text" name="name" required maxlength="40"></label>
+      <label class="field">Where you are (optional)<input type="text" name="location" maxlength="40"></label>
+      <div class="row">
+        <button class="btn outline" type="button" id="writeBack">Back</button>
+        <button class="btn primary" type="submit">Send it</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- DONE -->
+  <section id="done" class="stack hidden">
+    <div class="sent">
+      <div class="stampN"><b id="youAre">1</b><small>you're<br>in</small></div>
+      <p class="muted" style="font-family:'Courier Prime',monospace; letter-spacing: 1.5px; text-transform: uppercase; font-size: 12px">Message received</p>
+      <h1 id="doneTitle" style="margin-top: 6px; max-width: 70%">It's in.</h1>
+      <div class="next">
+        <div><i class="ok">✓</i><span>You added your message<small id="doneYou"></small></span></div>
+        <div><i>2</i><span id="doneGather">Everyone else adds theirs</span></div>
+        <div><i>3</i><span id="doneOpen">They open the reel</span></div>
+      </div>
+    </div>
+    <button class="btn primary" id="shareOn"></button>
+    <div class="later stack" style="gap: 10px">
+      <div><h3>Want to redo it later?</h3><p class="muted" style="margin-top: 4px" id="laterText"></p></div>
+      <div class="row"><a class="btn" id="editText" href="#">Text me</a><button class="btn" id="editLinkBtn" type="button">Copy</button></div>
+    </div>
+    <a class="btn outline" href="/new">Make a card for someone in your life</a>
+  </section>
+
+  <!-- EDIT (came back via edit link) -->
+  <section id="edit" class="stack hidden">
+    <div class="card stack">
+      <h2>Your message</h2>
+      <p class="muted" id="editStatus"></p>
+      <button class="btn primary" id="editReplace">Record or upload a new one</button>
+      <button class="btn outline" id="editRemove">Remove my message</button>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, upload } from '/app.js'
+
+const cardId = location.pathname.split('/')[2]
+const editToken = new URLSearchParams(location.search).get('edit')
+const card = await api(`/api/cards/${cardId}/public`).catch((e) => { document.body.innerHTML = `<main class="wrap"><p class="card">${escapeHtml(e.message)}</p></main>`; throw e })
+const first = firstName(card.recipientName)
+const LIMIT = card.clipSeconds
+
+// ── the brief ────────────────────────────────────────────────────────────────
+$('#hostLine').textContent = `${card.hostName} is making this for`
+$('#title').textContent = `${first}`
+const hostFirst = firstName(card.hostName)
+const TONE = { funny: 'keep it light', heartfelt: 'say the real thing', hype: 'big energy', quiet: 'slow down, plain words' }
+$('#av').textContent = hostFirst.slice(0, 1).toUpperCase()
+$('#who').innerHTML = `a note from <b>${escapeHtml(hostFirst)}</b><br>for your video`
+$('#promptText').textContent = card.prompt
+$('#tele').textContent = `“${card.prompt}”`
+$('#tips').innerHTML = [card.tone ? `<span class="tone">${escapeHtml(TONE[card.tone] || card.tone)}</span>` : '', ...(card.rules || []).map((r) => `<span>${escapeHtml(r)}</span>`), `<span>${LIMIT} seconds</span>`].join('')
+if (card.hasIntro) {
+  $('#hearBtn').classList.remove('hidden'); $('#hearBtn').lastChild.textContent = `Hear ${hostFirst}`
+  $('#hearBtn').onclick = () => { const v = $('#introVid'); v.src = `/api/cards/${cardId}/intro`; v.classList.toggle('hidden'); if (!v.classList.contains('hidden')) v.play() }
+}
+$('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
+if (card.status !== 'open') {
+  $('#record').innerHTML = `<div class="card"><h2>${escapeHtml(card.hostName)} already sent this card.</h2><p class="muted">Ask them to start a part two if you missed it.</p></div>`
+}
+
+// ── state ────────────────────────────────────────────────────────────────────
+let stream = null, recorder = null, chunks = [], blob = null, facing = 'user', timerHidden = false, tick = null, startedAt = 0
+const show = (id) => { ['record', 'check', 'write', 'done', 'edit'].forEach((s) => $(`#${s}`).classList.toggle('hidden', s !== id)); window.scrollTo({ top: 0 }) }
+const step = (n) => [1, 2, 3].forEach((i) => $(`#st${i}`).classList.toggle('on', i <= n))
+
+async function openCamera() {
+  if (stream) stream.getTracks().forEach((t) => t.stop())
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 720 }, height: { ideal: 1280 } }, audio: true })
+  $('#cam').srcObject = stream
+  $('#camPlaceholder').classList.add('hidden')
+}
+function cameraHelp() {
+  $('#camPlaceholder').classList.remove('hidden')
+  $('#camPlaceholder').innerHTML = `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or just tap <strong>Upload a video</strong> below.</span>`
+}
+
+if ($('#flip')) $('#flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; if (stream) await openCamera().catch(cameraHelp) }
+if ($('#timerToggle')) $('#timerToggle').onclick = () => {
+  timerHidden = !timerHidden
+  $('#timerToggle').setAttribute('aria-pressed', timerHidden)
+  $('#timerToggle').lastChild.textContent = timerHidden ? 'Show timer' : 'Hide timer'
+  $('#ring').style.visibility = timerHidden ? 'hidden' : 'visible'
+}
+
+async function startRecording() {
+  try { if (!stream) await openCamera() } catch { cameraHelp(); return }
+  // 3-2-1 so nobody starts mid-sentence
+  const count = $('#count'); count.classList.remove('hidden')
+  for (const n of [3, 2, 1]) { count.textContent = n; await new Promise((r) => setTimeout(r, 800)) }
+  count.classList.add('hidden')
+  chunks = []
+  recorder = new MediaRecorder(stream, { mimeType: recorderMime() || undefined, videoBitsPerSecond: 2_500_000 })
+  recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
+  recorder.onstop = onStopped
+  recorder.start(250)
+  startedAt = Date.now()
+  $('#recBtn').classList.add('on'); $('#recLabel').textContent = 'Stop'; $('#tele').classList.remove('hidden')
+  $('#calm').textContent = 'Say their name first.'
+  tick = setInterval(() => {
+    const s = (Date.now() - startedAt) / 1000
+    $('#ring').setAttribute('stroke-dashoffset', String(283 - Math.min(1, s / LIMIT) * 283))
+    if (s >= LIMIT + 1) stopRecording() // a 1-second grace so the last word lands
+  }, 100)
+}
+function stopRecording() {
+  clearInterval(tick)
+  if (recorder && recorder.state !== 'inactive') recorder.stop()
+  $('#recBtn').classList.remove('on'); $('#recLabel').textContent = 'Record'; $('#tele').classList.add('hidden')
+  $('#ring').setAttribute('stroke-dashoffset', '283')
+  $('#calm').textContent = 'No rush. Retake as many times as you like.'
+}
+function onStopped() {
+  blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' })
+  reviewBlob(blob, (Date.now() - startedAt) / 1000)
+}
+if ($('#recBtn')) $('#recBtn').onclick = () => (recorder && recorder.state === 'recording' ? stopRecording() : startRecording())
+
+if ($('#uploadBtn')) $('#uploadBtn').onclick = () => $('#file').click()
+if ($('#file')) $('#file').onchange = async () => {
+  const f = $('#file').files[0]; if (!f) return
+  blob = f
+  reviewBlob(f, null)
+}
+
+function reviewBlob(b, seconds) {
+  const v = $('#preview'); v.src = URL.createObjectURL(b); v.muted = false
+  const notes = []
+  if (seconds !== null && seconds < 3) notes.push('That was very short. Want another go?')
+  if (b.size > 200 * 1024 * 1024) notes.push('That file is over 200 MB. Trim it in your camera roll first, or record here instead.')
+  v.onloadedmetadata = () => {
+    if (isFinite(v.duration) && v.duration > LIMIT + 1) notes.push(`This is ${Math.round(v.duration)} seconds. ${firstName(card.hostName)} asked for ${LIMIT}. We'll use the first ${LIMIT} seconds, so make sure the good part is at the start, or trim it on your phone.`)
+    $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : '<p class="muted">Looks good. Does it answer the prompt? If yes, add your name and send it.</p>') + `<p class="ghost">The prompt: “${escapeHtml(card.prompt)}”</p>`
+  }
+  step(2); show('check')
+}
+if ($('#retake')) $('#retake').onclick = () => { blob = null; step(1); show('record') }
+
+$('#checkForm').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const f = new FormData(e.target)
+  const btn = $('#sendClip'); btn.disabled = true; btn.textContent = 'Sending...'
+  const bar = $('#upbar'); bar.classList.remove('hidden')
+  try {
+    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'video', contentType: blob.type || 'video/mp4' } })
+    await upload(reg.uploadUrl, blob, (p) => { bar.firstElementChild.style.width = `${Math.round(p * 100)}%` })
+    finish(reg, f.get('name'))
+  } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Send it'; bar.classList.add('hidden') }
+})
+
+if ($('#writeBtn')) $('#writeBtn').onclick = () => { step(2); show('write') }
+$('#writeBack').onclick = () => { step(1); show('record') }
+$('#writeForm').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const f = new FormData(e.target)
+  try {
+    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'text', text: f.get('text') } })
+    finish(reg, f.get('name'))
+  } catch (err) { toast(err.message) }
+})
+
+function finish(reg, name) {
+  if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null }
+  step(3)
+  $('#doneTitle').textContent = `Thank you, ${firstName(name)}.`
+  $('#youAre').textContent = `#${(card.clipCount || 0) + 1}`
+  $('#doneYou').textContent = `${first} will see it in the reel.`
+  $('#doneGather').innerHTML = `${escapeHtml(hostFirst)} gathers everyone else<small>${card.clipCount ? `${card.clipCount} ${card.clipCount === 1 ? 'person has' : 'people have'} added theirs so far` : 'you went first'}</small>`
+  $('#doneOpen').innerHTML = `${escapeHtml(first)} opens the reel<small>${escapeHtml(hostFirst)} sends it when it's ready</small>`
+  $('#shareOn').textContent = `Invite someone else who loves ${first}`
+  $('#shareOn').onclick = () => share({ title: `A video for ${first}`, text: `${card.hostName} is making a surprise video for ${first}. Tap, record ${LIMIT} seconds, done. Don't tell ${first}!`, url: location.origin + `/c/${cardId}` })
+  $('#laterText').textContent = `You can swap or remove your message until ${hostFirst} sends the reel. Save your private link.`
+  $('#editText').href = `sms:?&body=${encodeURIComponent(`My churpie message for ${first} (to redo it): ${reg.editUrl}`)}`
+  $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
+  try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {}
+  show('done')
+}
+
+// ── came back with an edit link ─────────────────────────────────────────────
+if (editToken) {
+  const clipId = await findOwnClip()
+  if (clipId) {
+    const { clip } = await api(`/api/clips/${clipId}?edit=${editToken}`)
+    $('#editStatus').textContent = clip.locked ? `${card.hostName} already sent the card, so your message is in it now.` : `Hi ${firstName(clip.name)}. Your ${clip.kind === 'text' ? 'message' : 'video'} is in. You can swap it or take it out.`
+    $('#editReplace').disabled = clip.locked; $('#editRemove').disabled = clip.locked
+    $('#editReplace').onclick = async () => { await api(`/api/clips/${clipId}?edit=${editToken}`, { method: 'DELETE' }).catch(() => {}); step(1); show('record') }
+    $('#editRemove').onclick = async () => { await api(`/api/clips/${clipId}?edit=${editToken}`, { method: 'DELETE' }); toast('Removed. Nobody will see it.'); step(1); show('record') }
+    show('edit')
+  }
+}
+async function findOwnClip() {
+  // the edit link only carries the token; the clip id is in the token's record. One cheap lookup.
+  const r = await fetch(`/api/clips/by-edit/${editToken}`).then((x) => x.json()).catch(() => ({}))
+  return r.clipId || null
+}
+</script>
+</body>
+</html>

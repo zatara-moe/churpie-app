@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+STITCH_TOKEN.txt
+APP_URL.txt
+
+# raw stock clips for the demo reel: kept on this Mac, not on GitHub (only public/demo/reel.mp4 ships)
+demo/clips/
+demo/contact-sheet.png

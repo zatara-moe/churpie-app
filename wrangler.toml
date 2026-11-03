@@ -1,0 +1,35 @@
+name = "churpie"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The whole app is one Worker: static pages from /public, API under /api.
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[vars]
+APP_URL = "https://churpie.mmajdali.workers.dev"
+CLIP_LIFETIME_DAYS = "30"
+MAX_CLIPS_PER_CARD = "50"
+MAX_UPLOAD_MB = "200"
+
+# Secrets (set with `wrangler secret put NAME`, never in this file):
+#   STITCH_TOKEN   shared secret the stitcher uses to pull jobs and push finals
+#   RESEND_API_KEY optional; without it, links are shown on screen and no email is sent
+#   TURNSTILE_SECRET optional bot check on upload
+
+[[d1_databases]]
+binding = "DB"
+database_name = "churpie"
+database_id = "5101aab0-be3e-4317-b106-504ec590385c"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "CLIPS"
+bucket_name = "churpie-clips"
+
+# Daily sweep: delete clips and reels whose card has expired.
+[triggers]
+crons = ["17 9 * * *"]

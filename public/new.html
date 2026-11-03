@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{og:title}}</title>
+<meta property="og:title" content="{{og:title}}">
+<meta property="og:description" content="{{og:description}}">
+<meta property="og:image" content="{{og:image}}">
+<meta property="og:url" content="{{og:url}}">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&family=DM+Serif+Display&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&family=Playfair+Display:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/preview.css">
+<style>
+  .live { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0 12px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+  .live .cap { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .live .cap span { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-ghost); }
+  .themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .theme { border: 3px solid transparent; background: transparent; border-radius: 16px; padding: 4px; cursor: pointer; font: inherit; text-align: left; color: var(--ink); }
+  .theme[aria-pressed=true] { border-color: var(--ink); background: #fff; }
+  .theme .pv { box-shadow: 0 2px 6px rgba(0,0,0,0.12); border-radius: 8px; }
+  .theme > strong { display: block; font-size: 14px; margin: 8px 4px 0; } .theme > small { display: block; font-size: 12px; color: var(--ink-faded); font-weight: 600; margin: 0 4px 4px; }
+
+  /* the share moment */
+  .done-hero { text-align: center; }
+  .done-hero h1 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 34px; line-height: 1.05; }
+  .phone-msg { background: #fff; border-radius: 22px; padding: 16px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 8px 24px rgba(26,20,16,0.05); }
+  .phone-msg .label { font-size: 12px; font-weight: 700; color: var(--ink-ghost); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .bubble { margin-left: auto; max-width: 88%; background: #1D8CF8; color: #fff; border-radius: 20px 20px 6px 20px; padding: 10px 14px; font-weight: 700; font-size: 15px; line-height: 1.35; }
+  .bubble textarea { all: unset; display: block; width: 100%; min-height: 60px; white-space: pre-wrap; color: #fff; font: inherit; }
+  .unfurl { margin: 6px 0 0 auto; max-width: 88%; border-radius: 18px; overflow: hidden; background: #E9E9EB; }
+  .unfurl .pv { border-radius: 0; box-shadow: none; }
+  .unfurl .t { padding: 8px 12px 10px; } .unfurl .t b { display: block; font-size: 14px; } .unfurl .t span { font-size: 12px; color: #6B6B70; font-weight: 700; }
+  .edit-hint { font-size: 12px; color: var(--ink-ghost); font-weight: 600; text-align: right; margin-top: 6px; }
+  .share-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .share-grid .btn.tile { min-height: 84px; font-size: 13px; background: #fff; }
+  .share-grid .ico { width: 36px; height: 36px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; }
+  .host-card { background: #fff; border-radius: 20px; padding: 16px; border: 1.5px solid var(--paper-dark); display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; }
+  .host-card .key { width: 52px; height: 52px; border-radius: 16px; background: var(--pink-pale); display: flex; align-items: center; justify-content: center; color: var(--pink); }
+  #qr { display: flex; justify-content: center; padding: 12px; background: #fff; border-radius: 16px; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main class="wrap stack" style="padding-bottom: 32px">
+  <div class="topbar">
+    <a class="logo" href="/">churpie<b>.</b></a>
+    <span class="ghost" id="stepLabel">Step 1 of 3</span>
+  </div>
+
+  <div class="live" id="live">
+    <div class="cap"><span>what you're making</span><div class="steps" style="width: 120px" aria-hidden="true"><span class="on" id="s1"></span><span id="s2"></span><span id="s3"></span></div></div>
+    <div id="pv"></div>
+  </div>
+
+  <!-- step 1: who and what -->
+  <form id="step1" class="stack card" autocomplete="off">
+    <h1>Who is this for?</h1>
+    <label class="field">Their first name<input type="text" name="recipientName" required maxlength="60" placeholder="Rosa"></label>
+    <label class="field">Your name (so people know who's asking)<input type="text" name="hostName" required maxlength="60" placeholder="Maria"></label>
+    <h2 style="margin-top: 6px">What's the moment?</h2>
+    <div class="choices" id="moments" role="group" aria-label="moment"></div>
+    <button class="btn primary" type="submit">Next: the question</button>
+  </form>
+
+  <!-- step 2: the brief -->
+  <form id="step2" class="stack card hidden" autocomplete="off">
+    <h1>What should everyone say?</h1>
+    <p class="muted">One question, so 30 people answer the same thing instead of 30 different hellos. It goes on the card.</p>
+    <label class="field">Your question
+      <textarea name="prompt" required maxlength="240"></textarea>
+    </label>
+    <div class="row" style="flex-wrap: wrap; gap: 6px" id="promptIdeas"></div>
+    <h3>Tone</h3>
+    <div class="choices" id="tones" role="group" aria-label="tone"></div>
+    <h3>House rules (optional)</h3>
+    <div class="stack" id="rules" style="gap: 4px"></div>
+    <label class="check"><input type="checkbox" name="thirty"> Let people record 30 seconds instead of 15</label>
+    <div class="row">
+      <button class="btn outline" type="button" id="back2">Back</button>
+      <button class="btn primary" type="submit">Next: the card</button>
+    </div>
+  </form>
+
+  <!-- step 3: the card -->
+  <form id="step3" class="stack card hidden" autocomplete="off">
+    <h1>Pick the card</h1>
+    <p class="muted">Every message gets taped inside it. It sets the music, too.</p>
+    <div class="themes" id="themes" role="group" aria-label="card"></div>
+    <label class="field">Close the card on (optional)<input type="datetime-local" name="deadlineAt"></label>
+    <label class="field">Your email (optional, a backup copy of your links)<input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com"></label>
+    <div class="row">
+      <button class="btn outline" type="button" id="back3">Back</button>
+      <button class="btn primary" type="submit" id="makeBtn">Make the card</button>
+    </div>
+  </form>
+
+  <!-- done: the share moment -->
+  <section id="done" class="stack hidden" style="gap: 16px">
+    <div class="done-hero stack" style="gap: 6px">
+      <span class="pill pink" style="align-self: center">Your card is live</span>
+      <h1 id="doneTitle"></h1>
+      <p class="muted">Now invite their people. The more who add a few seconds, the bigger the moment.</p>
+    </div>
+
+    <div class="phone-msg">
+      <div class="label">What they'll get</div>
+      <div class="bubble"><textarea id="msg" aria-label="Your invite message. Tap to edit."></textarea></div>
+      <div class="unfurl" id="unfurl"></div>
+      <div class="edit-hint">Tap the message to change it</div>
+    </div>
+
+    <div class="share-grid">
+      <a class="btn tile" id="viaText" href="#"><span class="ico" style="background:#34C759"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3C6.5 3 2 6.8 2 11.5c0 2.4 1.2 4.6 3.1 6.1L4 21l4-1.8c1.2.4 2.6.6 4 .6 5.5 0 10-3.8 10-8.5S17.5 3 12 3z"/></svg></span>Text</a>
+      <a class="btn tile" id="viaWhatsApp" href="#" target="_blank" rel="noopener"><span class="ico" style="background:#25D366"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.8 0-1.4.7-2 1-2.3.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 1.9c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.4z"/></svg></span>WhatsApp</a>
+      <a class="btn tile" id="viaEmail" href="#"><span class="ico" style="background:#0B9DAA"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>Email</a>
+      <button class="btn tile" id="viaCopy" type="button"><span class="ico" style="background:#4A3F30"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></span>Copy link</button>
+      <button class="btn tile" id="viaMore" type="button"><span class="ico" style="background:#D4266A"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg></span>Other apps</button>
+      <button class="btn tile" id="viaQR" type="button"><span class="ico" style="background:#C68B00"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3h7v7H3zm2 2v3h3V5zm9-2h7v7h-7zm2 2v3h3V5zM3 14h7v7H3zm2 2v3h3v-3zm9-2h3v3h-3zm4 0h3v3h-3zm-4 4h3v3h-3zm4 0h3v3h-3z"/></svg></span>QR code</button>
+    </div>
+    <div id="qrBox" class="hidden stack"><div id="qr"></div><p class="ghost" style="text-align:center">For a party or a room full of people: they point their camera here.</p></div>
+
+    <div class="host-card">
+      <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
+      <div class="stack" style="gap: 10px">
+        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages arrive, hide any, and send the finished reel to <span id="firstName3"></span>. Save this link somewhere you'll find it.</p></div>
+        <a class="btn primary" id="hostLink" href="#">Open my board</a>
+        <div class="row">
+          <a class="btn" id="hostText" href="#">Text me</a>
+          <button class="btn" id="copyHost" type="button">Copy</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script type="module">
+import { api, $, $$, toast, share, escapeHtml, firstName } from '/app.js'
+import { cardPreview } from '/people.js'
+
+const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
+const { moments, vibes } = await api('/api/catalog')
+const TONES = [['funny', 'keep it light'], ['heartfelt', 'say the real thing'], ['hype', 'big energy'], ['quiet', 'slow down, plain words']]
+const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
+
+// ── live preview ─────────────────────────────────────────────────────────────
+function current() {
+  return {
+    theme: state.vibe, moment: state.moment,
+    first: firstName($('#step1 [name=recipientName]').value), host: firstName($('#step1 [name=hostName]').value),
+    prompt: $('#step2 [name=prompt]').value,
+  }
+}
+function paint() { $('#pv').innerHTML = cardPreview(current()) }
+document.addEventListener('input', paint)
+
+function choiceButtons(root, items, key, render, cls = 'choice') {
+  root.innerHTML = items.map((it) => `<button type="button" class="${cls}" data-id="${it.id}" aria-pressed="${state[key] === it.id}">${render(it)}</button>`).join('')
+  root.addEventListener('click', (e) => {
+    const b = e.target.closest(`.${cls}`); if (!b) return
+    state[key] = b.dataset.id
+    $$(`.${cls}`, root).forEach((x) => x.setAttribute('aria-pressed', x === b))
+    if (key === 'moment') { const m = moments.find((x) => x.id === b.dataset.id); state.vibe = m.vibe; markTheme() }
+    paint()
+  })
+}
+choiceButtons($('#moments'), moments, 'moment', (m) => escapeHtml(m.label))
+choiceButtons($('#tones'), TONES.map(([id, hint]) => ({ id, hint })), 'tone', (t) => `${t.id}<small>${t.hint}</small>`)
+function renderThemes() {
+  const c = current()
+  $('#themes').innerHTML = vibes.map((v, i) => `<button type="button" class="theme" data-id="${v.id}" aria-pressed="${state.vibe === v.id}">${cardPreview({ ...c, theme: v.id, person: i })}<strong>${escapeHtml(v.label)}</strong><small>${escapeHtml(v.for)}</small></button>`).join('')
+}
+function markTheme() { $$('#themes .theme').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === state.vibe)) }
+$('#themes').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (!b) return; state.vibe = b.dataset.id; markTheme(); paint() })
+$('#rules').innerHTML = RULES.map((r) => `<label class="check"><input type="checkbox" value="${escapeHtml(r)}"> ${escapeHtml(r)}</label>`).join('')
+paint()
+
+function go(n) {
+  ;[1, 2, 3].forEach((i) => { $(`#step${i}`).classList.toggle('hidden', i !== n); $(`#s${i}`).classList.toggle('on', i <= n) })
+  $('#stepLabel').textContent = `Step ${n} of 3`
+  if (n === 3) renderThemes()
+  window.scrollTo({ top: 0 })
+}
+
+$('#step1').addEventListener('submit', (e) => {
+  e.preventDefault()
+  const m = moments.find((x) => x.id === state.moment)
+  const ta = $('#step2 textarea'); const name = firstName(new FormData(e.target).get('recipientName'))
+  if (!ta.value) ta.value = m.prompt.replace(/\bthem\b/, name).replace(/\btheir\b/, `${name}'s`)
+  if (!state.tone) { state.tone = m.tone; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === m.tone)) }
+  $('#promptIdeas').innerHTML = moments.filter((x) => x.id !== 'brand').slice(0, 5).map((x) => `<button type="button" class="pill aged" data-p="${escapeHtml(x.prompt)}">${escapeHtml(x.label)} idea</button>`).join('')
+  paint(); go(2)
+})
+$('#promptIdeas').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { $('#step2 textarea').value = b.dataset.p; paint() } })
+$('#back2').onclick = () => go(1)
+$('#step2').addEventListener('submit', (e) => { e.preventDefault(); go(3) })
+$('#back3').onclick = () => go(2)
+
+// ── make it, then the share moment ───────────────────────────────────────────
+$('#step3').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const f1 = new FormData($('#step1')), f2 = new FormData($('#step2')), f3 = new FormData($('#step3'))
+  const btn = $('#makeBtn'); btn.disabled = true; btn.textContent = 'Making it...'
+  try {
+    const secs = f2.get('thirty') ? 30 : 15
+    const res = await api('/api/cards', { method: 'POST', body: {
+      recipientName: f1.get('recipientName'), hostName: f1.get('hostName'), moment: state.moment,
+      prompt: f2.get('prompt'), tone: state.tone, rules: $$('#rules input:checked').map((x) => x.value),
+      clipSeconds: secs, vibe: state.vibe, deadlineAt: f3.get('deadlineAt') || null, hostEmail: f3.get('hostEmail') || null,
+    } })
+    const first = firstName(f1.get('recipientName')), host = firstName(f1.get('hostName'))
+    const invite = res.links.invite
+    $('#doneTitle').textContent = `${first}'s card is ready for messages.`
+    $('#firstName3').textContent = first
+    $('#msg').value = `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${secs} seconds, done. No app needed. Don't tell ${first}!`
+    $('#unfurl').innerHTML = `<img src="/og/${state.vibe}.png" alt="" style="display:block;width:100%;aspect-ratio:1200/630"><div class="t"><b>${escapeHtml(host)} is making a surprise video for ${escapeHtml(first)}</b><span>${escapeHtml(new URL(invite).host)}</span></div>`
+    const text = () => `${$('#msg').value}\n${invite}`
+    const wire = () => {
+      $('#viaText').href = `sms:?&body=${encodeURIComponent(text())}`
+      $('#viaWhatsApp').href = `https://wa.me/?text=${encodeURIComponent(text())}`
+      $('#viaEmail').href = `mailto:?subject=${encodeURIComponent(`A surprise video for ${first}`)}&body=${encodeURIComponent(text())}`
+    }
+    const grow = () => { const t = $('#msg'); t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px' }
+    wire(); grow(); $('#msg').addEventListener('input', () => { wire(); grow() })
+    $('#viaCopy').onclick = async () => { await navigator.clipboard.writeText(text()); toast('Message and link copied. Paste it anywhere.') }
+    $('#viaMore').onclick = () => share({ title: `A video for ${first}`, text: $('#msg').value, url: invite })
+    $('#viaQR').onclick = () => {
+      const box = $('#qrBox'); box.classList.toggle('hidden')
+      if (!$('#qr').hasChildNodes() && window.QRCode) new QRCode($('#qr'), { text: invite, width: 220, height: 220, colorDark: '#1A1410', colorLight: '#ffffff' })
+    }
+    $('#hostLink').href = res.links.host
+    $('#hostText').href = `sms:?&body=${encodeURIComponent(`My churpie board for ${first} (keep private): ${res.links.host}`)}`
+    $('#copyHost').onclick = async () => { await navigator.clipboard.writeText(res.links.host); toast('Board link copied. Keep it somewhere safe.') }
+    try { localStorage.setItem('churpie:last-host', res.links.host) } catch {}
+    ;[1, 2, 3].forEach((i) => $(`#step${i}`).classList.add('hidden'))
+    $('#live').classList.add('hidden')
+    $('#done').classList.remove('hidden'); $('#stepLabel').textContent = 'Done'
+    $('#msg').dispatchEvent(new Event('input'))
+    window.scrollTo({ top: 0 })
+  } catch (err) {
+    toast(err.message); btn.disabled = false; btn.textContent = 'Make the card'
+  }
+})
+</script>
+</body>
+</html>

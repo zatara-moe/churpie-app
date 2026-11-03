@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- churpie card frames. Rendered headless to a PNG with a transparent window where the reel goes.
+     The frame sits ON TOP of the video, so the window's rounded corners hide the video's square ones. -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Caveat:wght@500;700&family=Courier+Prime:wght@400;700&family=Permanent+Marker&family=Nunito:wght@800;900&family=Playfair+Display:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F5F0E8; --paper-aged: #EDE5D0; --paper-dark: #D4C9A8; --ink: #1A1410; --ink-faded: #4A3F30; --ink-ghost: #7A6E5C;
+    --pink: #D4266A; --cyan: #0B9DAA; --amber: #C68B00; --amber-pale: #FAEEDA; --tape: rgba(247,217,108,0.78); --tape-pink: rgba(232,122,173,0.6); --tape-cyan: rgba(126,205,213,0.7);
+    --serif: 'DM Serif Display', 'Lora', Georgia, serif; --script: 'Caveat', 'Segoe Script', 'Bradley Hand', cursive; --mono: 'Courier Prime', 'DejaVu Sans Mono', monospace; --marker: 'Permanent Marker', 'Caveat', cursive; --sans: 'Nunito', 'Inter', sans-serif;
+    --fancy: 'Playfair Display', 'Lora', Georgia, serif; --garamond: 'Cormorant Garamond', 'Lora', Georgia, serif;
+    --bg: var(--paper); --fg: var(--ink); --accent: var(--pink); --radius: 22px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; }
+  body { font-family: var(--sans); color: var(--fg); -webkit-font-smoothing: antialiased; }
+  .card { position: relative; overflow: hidden; background: transparent; }
+  .bg { position: absolute; inset: 0; background: var(--bg); } /* masked in JS so the window is a real hole */
+  .card.wide { width: 1920px; height: 1080px; }
+  .card.story { width: 720px; height: 1280px; }
+  /* the hole the reel shows through */
+  .window { position: absolute; background: transparent; border-radius: var(--radius); box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 18px 40px rgba(26,20,16,0.18); }
+  .window::before { content: ''; position: absolute; inset: 0; border-radius: var(--radius); box-shadow: inset 0 0 0 10px #fff; pointer-events: none; }
+  .wide .window { left: 695px; top: 70px; width: 530px; height: 942px; }
+  .story .window { left: 30px; top: 46px; width: 660px; height: 1120px; }
+  .grain { position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: multiply; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 300px; }
+  .tape { position: absolute; width: 150px; height: 40px; background: var(--tape); transform: rotate(-4deg); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+  .tape.b { background: var(--tape-cyan); transform: rotate(3deg); } .tape.c { background: var(--tape-pink); transform: rotate(-2deg); }
+  .stamp { position: absolute; width: 150px; height: 180px; background: var(--accent); color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; transform: rotate(4deg); border: 6px solid #fff; outline: 2px dashed rgba(255,255,255,0.6); outline-offset: -14px; box-shadow: 0 6px 14px rgba(0,0,0,0.15); }
+  .stamp b { font-family: var(--serif); font-size: 72px; line-height: 1; } .stamp small { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; text-align: center; line-height: 1.2; }
+  .postmark { position: absolute; width: 170px; height: 170px; border: 3px solid var(--ink-ghost); border-radius: 50%; opacity: 0.55; display: flex; align-items: center; justify-content: center; text-align: center; font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; line-height: 1.4; transform: rotate(-12deg); }
+  .postmark::after { content: ''; position: absolute; inset: 12px; border: 1.5px solid var(--ink-ghost); border-radius: 50%; }
+  .waves { position: absolute; width: 260px; height: 60px; opacity: 0.5; background: repeating-linear-gradient(180deg, transparent 0 10px, var(--ink-ghost) 10px 12px); -webkit-mask: radial-gradient(10px 10px at 10px 10px, #000 60%, transparent 61%) 0 0/20px 20px; }
+  .wordmark { position: absolute; font-family: var(--serif); font-style: italic; font-size: 34px; color: var(--fg); }
+  .wordmark b { color: var(--accent); font-weight: 400; }
+  .cta { position: absolute; font-family: var(--mono); font-size: 14px; letter-spacing: 1.5px; color: var(--ink-faded); text-transform: lowercase; }
+  .eyebrow { font-family: var(--mono); font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-faded); }
+  .title { font-family: var(--serif); font-size: 108px; line-height: 0.95; letter-spacing: -2px; margin-top: 10px; }
+  .sub { font-family: var(--script); font-size: 34px; color: var(--accent); margin-top: 8px; }
+  .asked { font-family: var(--mono); font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-faded); margin-top: 48px; }
+  .prompt { font-family: var(--script); font-size: 34px; line-height: 1.25; margin-top: 10px; max-width: 520px; }
+  .sig { font-family: var(--script); font-size: 30px; color: var(--accent); margin-top: 24px; }
+  .meta { position: absolute; font-family: var(--mono); font-size: 16px; line-height: 2.1; color: var(--ink-faded); }
+  .meta .k { display: inline-block; width: 70px; letter-spacing: 2px; text-transform: uppercase; font-size: 12px; } .meta .v { font-family: var(--script); font-size: 26px; color: var(--fg); border-bottom: 1.5px solid var(--paper-dark); }
+  .left { position: absolute; left: 80px; top: 130px; width: 540px; }
+  .right { position: absolute; left: 1290px; top: 90px; width: 560px; height: 930px; }
+  .edge { position: absolute; inset: 0; pointer-events: none; }
+  .story .edge, .story .left, .story .right, .story .meta, .story .postmark, .story .waves, .story .stamp, .story .stamp2, .story .sticky, .story .asked, .story .prompt, .story .bignum, .story .arrow, .story .manifest, .story .circle, .story .circletext, .story .quote, .story .asked2, .story .flower, .story .note { display: none !important; }
+  .story .wordmark { left: 50%; transform: translateX(-50%); bottom: 22px; font-size: 26px; }
+  .story .tape.t1 { left: 60px; top: 24px; width: 130px; } .story .tape.t2 { right: 60px; top: 26px; width: 130px; }
+  .story .cta { display: none; }
+  .wide .tape.t1 { left: 760px; top: 48px; } .wide .tape.t2 { left: 1060px; top: 52px; width: 120px; }
+  .wide .wordmark { left: 1290px; bottom: 60px; } .wide .cta { left: 1480px; bottom: 68px; }
+
+  /* ── 01 postcard: birthdays & everyday ─────────────────────────────────── */
+  .theme-postcard .edge { border: 14px solid transparent; border-image: repeating-linear-gradient(45deg, var(--pink) 0 22px, #fff 22px 44px, var(--cyan) 44px 66px, #fff 66px 88px) 14; }
+  .theme-postcard.story .edge { display: block; border-width: 12px; }
+  .theme-postcard .stamp { right: 60px; top: 60px; } .theme-postcard .postmark { right: 240px; top: 40px; } .theme-postcard .waves { right: 300px; top: 120px; }
+  .theme-postcard .meta { left: 1310px; top: 420px; }
+  .theme-postcard .cta { left: 1480px; }
+
+  /* ── 02 airmail: welcome home, far away ────────────────────────────────── */
+  .theme-airmail { --accent: #B22222; --bg: #F7F3EA; }
+  .theme-airmail .edge { border: 16px solid transparent; border-image: repeating-linear-gradient(45deg, #B22222 0 26px, #fff 26px 52px, #1F3A93 52px 78px, #fff 78px 104px) 16; }
+  .theme-airmail.story .edge { display: block; border-width: 12px; }
+  .theme-airmail .title { font-size: 96px; } .theme-airmail .eyebrow { color: #1F3A93; border: 1.5px solid #1F3A93; display: inline-block; padding: 4px 10px; }
+  .theme-airmail .stamp { right: 70px; top: 60px; background: #B22222; } .theme-airmail .stamp2 { right: 230px; top: 70px; width: 110px; height: 110px; background: #1F3A93; transform: rotate(-6deg); }
+  .theme-airmail .meta { left: 1310px; top: 400px; }
+
+  /* ── 03 quietnote: get well, hard moments ──────────────────────────────── */
+  .theme-quietnote { --accent: #0B9DAA; --bg: #F3EFE6; --radius: 18px; }
+  .theme-quietnote .bg { background: linear-gradient(90deg, #EFEAE0 0 640px, #F3EFE6 640px 1280px, #EFEAE0 1280px); }
+  .theme-quietnote .title { font-size: 92px; } .theme-quietnote .sub { color: var(--ink-faded); font-family: var(--serif); font-style: italic; font-size: 30px; line-height: 1.4; }
+  .theme-quietnote .prompt { font-family: var(--script); } .theme-quietnote .stamp { display: none; }
+  .theme-quietnote .circle { position: absolute; left: 1310px; top: 470px; width: 110px; height: 110px; border-radius: 50%; border: 2px solid var(--cyan); display: flex; align-items: center; justify-content: center; font-family: var(--serif); font-size: 44px; color: var(--cyan); }
+  .theme-quietnote .circletext { position: absolute; left: 1450px; top: 478px; width: 380px; font-family: var(--serif); font-style: italic; font-size: 30px; line-height: 1.3; }
+  .theme-quietnote .tape { display: none; }
+
+  /* ── 04 kraft: holidays & big groups ───────────────────────────────────── */
+  .theme-kraft { --bg: #C9A678; --fg: #2A1F12; --accent: #2D5A3A; --radius: 10px; }
+  .theme-kraft .note { position: absolute; background: #FBF7EE; padding: 40px 44px; box-shadow: 0 8px 20px rgba(0,0,0,0.18); transform: rotate(-2deg); }
+  .theme-kraft .left { left: 90px; top: 150px; width: 520px; } .theme-kraft .title { font-size: 84px; }
+  .theme-kraft .stamp { right: 60px; top: 60px; background: var(--accent); } .theme-kraft .postmark { right: 240px; top: 60px; border-color: #5A4630; }
+  .theme-kraft .manifest { position: absolute; left: 1310px; top: 440px; width: 500px; background: #FBF7EE; padding: 30px 34px; font-family: var(--mono); font-size: 16px; line-height: 2; transform: rotate(1.5deg); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+  .theme-kraft .manifest .h { letter-spacing: 3px; text-transform: uppercase; font-size: 12px; border-bottom: 1.5px solid #C9A678; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .theme-kraft .manifest .r { display: flex; justify-content: space-between; }
+  .theme-kraft .wordmark { color: #2A1F12; } .theme-kraft .cta { color: #5A4630; }
+
+  /* ── 05 confettipop: kids' birthdays ───────────────────────────────────── */
+  .theme-confettipop { --bg: #FFF8EE; --accent: #D4266A; --radius: 28px; }
+  .theme-confettipop .edge { border: 18px solid var(--pink); background-image: radial-gradient(circle, #fff 3px, transparent 3.5px); background-size: 24px 24px; background-clip: border-box; }
+  .theme-confettipop.story .edge { display: block; border-width: 14px; }
+  .theme-confettipop .window::before { box-shadow: inset 0 0 0 10px #fff, inset 0 0 0 14px var(--pink); }
+  .theme-confettipop .eyebrow { background: #F7D96C; color: var(--ink); padding: 4px 10px; display: inline-block; letter-spacing: 2px; }
+  .theme-confettipop .title { font-family: var(--marker); font-size: 120px; color: var(--pink); letter-spacing: 0; line-height: 1; }
+  .theme-confettipop .sub { font-family: var(--serif); color: var(--ink); font-size: 44px; }
+  .theme-confettipop .stamp { right: 70px; top: 60px; background: var(--cyan); }
+  .theme-confettipop .meta { left: 1310px; top: 400px; }
+
+  /* ── 06 lockernote: teens & friend shout-outs ──────────────────────────── */
+  .theme-lockernote { --bg: #FBFBF9; --accent: #1A1410; --radius: 6px; }
+  .theme-lockernote .lines { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 38px, #CFE0F2 38px 40px); }
+  .theme-lockernote .margin { position: absolute; left: 110px; top: 0; bottom: 0; width: 2px; background: #F2B8C6; }
+  .theme-lockernote .holes { position: absolute; left: 40px; top: 0; bottom: 0; width: 30px; background: radial-gradient(circle, #DADADA 11px, transparent 12px); background-size: 30px 220px; background-position: 0 110px; }
+  .theme-lockernote .window { transform: rotate(-3deg); box-shadow: 0 14px 30px rgba(0,0,0,0.25); }
+  .theme-lockernote .window::before { box-shadow: inset 0 0 0 12px #1A1410; }
+  .theme-lockernote .sticky { position: absolute; left: 160px; top: 300px; width: 420px; background: #F7D96C; padding: 36px; transform: rotate(-4deg); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+  .theme-lockernote .title { font-family: var(--marker); font-size: 84px; color: var(--ink); letter-spacing: 0; }
+  .theme-lockernote .sub { font-family: var(--script); color: var(--ink-faded); }
+  .theme-lockernote .prompt { font-family: var(--script); position: absolute; left: 160px; top: 640px; width: 460px; }
+  .theme-lockernote .asked { position: absolute; left: 160px; top: 590px; margin-top: 0; }
+  .theme-lockernote .stamp { right: 70px; top: 70px; background: #FADCE6; color: var(--ink); border-color: #fff; transform: rotate(6deg); width: 190px; height: 130px; }
+  .theme-lockernote .stamp b { font-family: var(--marker); font-size: 60px; } .theme-lockernote .stamp small { font-family: var(--script); font-size: 22px; letter-spacing: 0; text-transform: none; }
+  .theme-lockernote .arrow { position: absolute; left: 1320px; top: 560px; font-family: var(--script); font-size: 34px; color: var(--ink-faded); }
+  .theme-lockernote .tape { background: repeating-linear-gradient(45deg, #D4266A 0 8px, #fff 8px 16px); opacity: 0.85; }
+
+  /* ── 07 milestonegold: big birthdays & anniversaries ───────────────────── */
+  .theme-milestonegold { --bg: #15120F; --fg: #F2E6CF; --accent: #C9A24C; --radius: 14px; }
+  .theme-milestonegold .edge { border: 2px solid var(--accent); inset: 28px; } .theme-milestonegold .edge2 { position: absolute; inset: 40px; border: 1px solid rgba(201,162,76,0.5); }
+  .theme-milestonegold.story .edge, .theme-milestonegold.story .edge2 { display: block; inset: 14px; } .theme-milestonegold.story .edge2 { inset: 22px; }
+  .theme-milestonegold .window::before { box-shadow: inset 0 0 0 3px var(--accent); } .theme-milestonegold .window { box-shadow: 0 0 60px rgba(201,162,76,0.25); }
+  .theme-milestonegold .bignum { position: absolute; left: 60px; top: 70px; font-family: var(--fancy); font-size: 300px; color: rgba(201,162,76,0.12); line-height: 1; }
+  .theme-milestonegold .eyebrow, .theme-milestonegold .asked { color: var(--accent); } .theme-milestonegold .title { font-family: var(--fancy); color: var(--fg); font-size: 100px; }
+  .theme-milestonegold .sub, .theme-milestonegold .sig { color: var(--accent); font-family: var(--garamond); font-style: italic; }
+  .theme-milestonegold .prompt { font-family: var(--garamond); font-style: italic; font-size: 36px; color: var(--fg); }
+  .theme-milestonegold .stamp { right: 70px; top: 70px; background: transparent; border: 2px solid var(--accent); outline: none; color: var(--accent); border-radius: 50%; width: 170px; height: 170px; transform: none; box-shadow: none; }
+  .theme-milestonegold .stamp b { font-family: var(--fancy); font-size: 64px; } .theme-milestonegold .stamp small { color: var(--accent); }
+  .theme-milestonegold .quote { position: absolute; left: 1310px; top: 460px; width: 500px; font-family: var(--garamond); font-style: italic; font-size: 38px; line-height: 1.3; color: var(--fg); }
+  .theme-milestonegold .meta { left: 1310px; top: 640px; color: rgba(242,230,207,0.6); } .theme-milestonegold .meta .v { color: var(--fg); border-color: rgba(201,162,76,0.4); }
+  .theme-milestonegold .tape { display: none; } .theme-milestonegold .wordmark { color: var(--fg); } .theme-milestonegold .cta { color: rgba(242,230,207,0.6); }
+
+  /* ── 08 pressedflower: sympathy & memorials ────────────────────────────── */
+  .theme-pressedflower { --bg: #F6F2EA; --accent: #4A3F30; --radius: 12px; }
+  .theme-pressedflower .title { font-size: 92px; } .theme-pressedflower .sub { color: var(--ink-ghost); font-family: var(--mono); font-size: 18px; letter-spacing: 2px; }
+  .theme-pressedflower .flower { position: absolute; left: 80px; top: 120px; width: 120px; height: 160px; opacity: 0.6; }
+  .theme-pressedflower .left { top: 330px; } .theme-pressedflower .stamp, .theme-pressedflower .tape, .theme-pressedflower .postmark { display: none; }
+  .theme-pressedflower .quote { position: absolute; left: 1310px; top: 110px; width: 500px; font-family: var(--serif); font-size: 36px; line-height: 1.3; }
+  .theme-pressedflower .asked2 { position: absolute; left: 1310px; top: 470px; width: 500px; } .theme-pressedflower .asked2 .prompt { max-width: 500px; }
+  .theme-pressedflower .wordmark { font-family: var(--mono); font-size: 18px; letter-spacing: 2px; } .theme-pressedflower .wordmark b { color: var(--ink-ghost); }
+</style>
+</head>
+<body>
+<div id="card" class="card"></div>
+<script>
+  // window.CARD is injected by render.js: { theme, size, recipient, first, host, n, prompt, moment, momentLine, seconds, date, totalText }
+  const C = window.CARD || { theme: 'postcard', size: 'wide', first: 'Rosa', host: 'Maria', n: 5, prompt: 'Tell Rosa your favorite memory with her, then wish her happy 60th.', momentLine: 'turning 60', date: 'nov 3', totalText: '48 seconds of them' }
+  const esc = (s) => String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+  const el = document.getElementById('card')
+  el.className = `card ${C.size} theme-${C.theme}`
+  const t = C.theme, first = esc(C.first), host = esc(C.host), n = C.n, prompt = esc(C.prompt), ml = esc(C.momentLine || ''), date = esc(C.date || '')
+  const common = `<div class="bg"><div class="grain"></div></div><div class="window"></div><div class="tape t1"></div><div class="tape b t2"></div><div class="wordmark">churpie<b>.</b></div><div class="cta">make one → churpie.me</div>`
+  const stamp = `<div class="stamp"><b>${n}</b><small>showed<br>up</small></div>`
+  const asked = `<div class="asked">${host} asked ${n} people:</div><div class="prompt">${prompt}</div>`
+  const meta = (rows) => `<div class="meta">${rows.map(([k, v]) => `<div><span class="k">${k}</span> <span class="v">${esc(v)}</span></div>`).join('')}</div>`
+  const layouts = {
+    postcard: `<div class="edge"></div>${common}${stamp}<div class="postmark">churpie post<br>${date}<br>flagstaff az</div><div class="waves"></div>
+      <div class="left"><div class="eyebrow">a card for</div><div class="title">${first}</div><div class="sub">${ml}${date ? ' — ' + date : ''}</div>${asked}<div class="sig">— ${host}</div></div>
+      ${meta([['to', C.first], ['from', `${C.host} + ${Math.max(0, n - 1)} of your people`], ['inside', C.totalText]])}`,
+    airmail: `<div class="edge"></div>${common}${stamp}<div class="stamp stamp2"><b style="font-size:48px">✈</b></div>
+      <div class="left"><div class="eyebrow">par avion · ${ml}</div><div class="title">${first},<br>you're<br>home.</div>${asked}</div>
+      ${meta([['deliver to', C.recipient || C.first], ['c/o', 'everyone who kept a light on'], ['', `${n} messages enclosed`]])}`,
+    quietnote: `${common}<div class="left"><div class="eyebrow">for</div><div class="title">${first}</div><div class="sub">find a quiet moment.<br>take a breath.<br>then press play.</div></div>
+      <div class="right"><div class="asked" style="margin-top:40px">${host} asked ${n} people:</div><div class="prompt">${prompt}</div></div>
+      <div class="circle">${n}</div><div class="circletext">a whole room full of people, even from far away.</div>`,
+    kraft: `${common}${stamp}<div class="postmark">churpie post<br>${date}<br>handle with care</div>
+      <div class="left note"><div class="eyebrow">to</div><div class="title">${first}</div><div class="sub">${ml}</div>${asked}</div>
+      <div class="manifest"><div class="h"><span>contents</span><span>qty</span></div><div class="r"><span>messages from your people</span><span>${n}</span></div><div class="r"><span>seconds of them</span><span>${esc(String(C.seconds || ''))}</span></div><div class="r"><span>open on</span><span>${date}</span></div></div>`,
+    confettipop: `<div class="edge"></div>${common}${stamp}
+      <div class="left"><div class="eyebrow">it's a birthday</div><div class="title">${first}</div><div class="sub">${ml}</div>${asked}</div>
+      ${meta([['to', C.recipient || C.first], ['from', 'your whole crew'], ['', '(turn the volume up)']])}`,
+    lockernote: `<div class="lines"></div><div class="margin"></div><div class="holes"></div>${common}${stamp}
+      <div class="sticky"><div class="eyebrow">for</div><div class="title">${first}</div><div class="sub">${ml}</div></div>
+      <div class="asked">${host} asked ${n} people:</div><div class="prompt">${prompt}</div><div class="arrow">← ok now press play</div>`,
+    milestonegold: `<div class="bignum">${esc(C.bignum || '')}</div><div class="edge"></div><div class="edge2"></div>${common}${stamp}
+      <div class="left"><div class="eyebrow">${ml}</div><div class="title">${first}</div>${asked}</div>
+      ${C.quote ? `<div class="quote">${esc(C.quote)}</div>` : ''}
+      ${meta([['gathered by', `${C.host} · ${C.date || ''}`]])}`,
+    pressedflower: `${common}<svg class="flower" viewBox="0 0 120 160" fill="none" stroke="#4A3F30" stroke-width="1.5"><path d="M60 150 C60 110 58 80 62 40"/><path d="M62 60 C40 55 30 40 32 24 C48 26 60 40 62 60Z"/><path d="M62 85 C84 80 92 66 90 50 C74 52 64 66 62 85Z"/><circle cx="62" cy="30" r="9"/><path d="M62 21 l0-8 M70 24 l6-6 M54 24 l-6-6"/></svg>
+      <div class="left"><div class="eyebrow">in memory of</div><div class="title">${esc(C.recipient || C.first)}</div><div class="sub">${esc(C.dates || '')}</div></div>
+      <div class="quote">the people who loved ${C.pronoun || 'them'}, in their own words.</div>
+      <div class="asked2"><div class="asked">${host} asked ${n} people:</div><div class="prompt">${prompt}</div><div class="asked" style="margin-top:24px">${n} voices</div></div>`,
+  }
+  el.innerHTML = layouts[t] || layouts.postcard
+  if (C.size === 'story') {
+    // the story frame is a matte with a soft window, tape at the top, and a quiet line under it
+    el.insertAdjacentHTML('beforeend', `<div class="story-line" style="position:absolute;left:0;right:0;bottom:66px;text-align:center;font-family:var(--script);font-size:30px;color:var(--fg);opacity:0.85">for ${first} · from ${n} people</div>`)
+  }
+  // punch the window out of the background layer (everything else stays on top of the video)
+  const G = C.size === 'wide' ? { W: 1920, H: 1080, x: 695, y: 70, w: 530, h: 942 } : { W: 720, H: 1280, x: 30, y: 46, w: 660, h: 1120 }
+  const r = parseFloat(getComputedStyle(el).getPropertyValue('--radius')) || 22
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${G.W}' height='${G.H}'><path fill='black' fill-rule='evenodd' d='M0 0H${G.W}V${G.H}H0Z M${G.x + r} ${G.y}H${G.x + G.w - r}A${r} ${r} 0 0 1 ${G.x + G.w} ${G.y + r}V${G.y + G.h - r}A${r} ${r} 0 0 1 ${G.x + G.w - r} ${G.y + G.h}H${G.x + r}A${r} ${r} 0 0 1 ${G.x} ${G.y + G.h - r}V${G.y + r}A${r} ${r} 0 0 1 ${G.x + r} ${G.y}Z'/></svg>`
+  const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`
+  for (const b of el.querySelectorAll('.bg')) { b.style.webkitMaskImage = mask; b.style.maskImage = mask; b.style.webkitMaskSize = '100% 100%'; b.style.maskSize = '100% 100%' }
+  document.fonts?.ready.then(() => { document.body.dataset.ready = '1' })
+</script>
+</body>
+</html>

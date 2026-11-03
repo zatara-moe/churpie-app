@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{og:title}}</title>
+<meta name="robots" content="noindex">
+<meta property="og:title" content="{{og:title}}">
+<meta property="og:description" content="{{og:description}}">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  dialog { border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px); background: #fff; }
+  dialog::backdrop { background: rgba(26,20,16,0.5); }
+  .dlg { padding: 16px; }
+  .tile.dragging { opacity: 0.4; }
+  .tile.over { outline: 3px solid var(--cyan); }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main class="wrap stack" style="padding-bottom: 240px">
+  <div class="topbar">
+    <div style="display: flex; flex-direction: column; line-height: 1.15">
+      <span class="muted">Your card for</span>
+      <strong style="font-size: 24px" id="title">...</strong>
+    </div>
+    <a class="logo" href="/">churpie<b>.</b></a>
+  </div>
+
+  <div class="card stack" id="status">
+    <div class="row between"><strong style="font-size: 18px" id="countLine">...</strong><span class="muted" id="deadline"></span></div>
+    <div class="bar" id="bar"><span style="width: 0%"></span></div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+  <div class="card stack hidden" id="sentBox"></div>
+
+  <div class="card stack" id="introBox">
+    <div class="row between">
+      <div><h3>Explain it in your own voice (optional)</h3><p class="muted">15 seconds. Contributors get a “Hear you” button; it also opens the reel.</p></div>
+    </div>
+    <div class="row">
+      <button class="btn" id="introRecord">Record it</button>
+      <input type="file" id="introFile" accept="video/*" class="hidden"><button class="btn" id="introUpload">Upload it</button>
+    </div>
+    <p class="ghost hidden" id="introDone">Your intro is in. Record again to replace it.</p>
+  </div>
+
+  <div class="grid3" id="grid" aria-label="messages so far"></div>
+  <p class="ghost" style="text-align: center">Tap a message to preview it. Hold and drag to reorder. Hidden messages never reach <span id="firstName2"></span>.</p>
+
+  <div class="card stack hidden" id="replies"><h3>Replies</h3><div id="replyList" class="stack"></div></div>
+</main>
+
+<div class="sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto">
+  <div class="handle"></div>
+  <div class="row" style="margin-bottom: 12px">
+    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Share invite</button>
+    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Preview</button>
+    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>The prompt</button>
+  </div>
+  <div class="stack" id="actions"></div>
+</div>
+
+<dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
+
+<script type="module">
+import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, upload, recorderMime } from '/app.js'
+
+const token = location.pathname.split('/')[2]
+let data = await load()
+const first = firstName(data.card.recipientName)
+$('#firstName2').textContent = first
+try { localStorage.setItem('churpie:last-host', location.href) } catch {}
+
+async function load() { return api(`/api/host/${token}`) }
+
+function render() {
+  const { card, clips } = data
+  const ready = clips.filter((c) => c.status === 'ready')
+  const flagged = ready.filter((c) => c.flags?.length)
+  const hidden = clips.filter((c) => c.status === 'hidden')
+  $('#title').textContent = `${first}`
+  document.title = `your card for ${first} · churpie.`
+  $('#countLine').textContent = `${ready.length} ${ready.length === 1 ? 'person is' : 'people are'} in`
+  $('#deadline').textContent = card.deadlineAt ? `closes ${new Date(card.deadlineAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''
+  $('#bar').firstElementChild.style.width = `${Math.min(100, ready.length * 5)}%`
+  $('#chips').innerHTML = [
+    flagged.length ? `<span class="pill tape">${flagged.length} to check</span>` : '',
+    hidden.length ? `<span class="pill aged">${hidden.length} hidden</span>` : '',
+    `<span class="pill aged">${card.clipSeconds}-second clips</span>`,
+    card.accountType === 'business' ? `<span class="pill cyan">business card</span>` : '',
+  ].join('')
+
+  $('#grid').innerHTML = clips.map((c, i) => {
+    const flag = c.flags?.[0]
+    const flagText = { quiet: 'Bit quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
+    if (c.status === 'hidden') return `<button class="tile hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
+    if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true">“${escapeHtml(c.text.slice(0, 90))}${c.text.length > 90 ? '…' : ''}”<span class="name">${escapeHtml(c.name)}</span></button>`
+    return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="metadata" muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
+  }).join('') + (card.status === 'open' ? `<div class="tile" style="background: transparent; border: 2px dashed var(--paper-dark); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faded); cursor: default; padding: 8px; box-shadow: none">more on the way</div>` : '')
+
+  // actions depend on state
+  const a = $('#actions')
+  if (card.status === 'open') {
+    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Check the ${flagged.length} flagged ${flagged.length === 1 ? 'clip' : 'clips'}</button><button class="btn outline" id="sendBtn">Weave it and send to ${escapeHtml(first)}</button>` : `<button class="btn primary" id="sendBtn" ${ready.length ? '' : 'disabled'}>Weave it and send to ${escapeHtml(first)}</button>`) + `<p class="ghost" style="text-align:center">Stitching takes about 2 minutes. Nothing goes out until you tap send.</p>`
+    $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
+    $('#sendBtn')?.addEventListener('click', confirmSend)
+    $('#sentBox').classList.add('hidden')
+  } else {
+    a.innerHTML = `<button class="btn primary" id="shareWatch" ${card.status === 'ready' || card.status === 'sent' ? '' : 'disabled'}>Share ${escapeHtml(first)}'s link</button><button class="btn quiet" id="copyWatch">Copy the watch link</button>`
+    $('#shareWatch')?.addEventListener('click', () => share({ title: `${first}, people made you something`, text: `${first}, ${ready.length} people made you something. Find a quiet moment.`, url: card.links.watch }))
+    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast('Watch link copied.') })
+    const box = $('#sentBox'); box.classList.remove('hidden')
+    const msgs = {
+      queued: `<h3>Weaving ${ready.length} messages together.</h3><p class="muted">About 2 minutes. This page refreshes itself.</p>`,
+      stitching: `<h3>Weaving ${ready.length} messages together.</h3><p class="muted">Almost there.</p>`,
+      ready: `<h3>It's ready.</h3><p class="muted">Share the watch link with ${escapeHtml(first)} however you like. The reel and every clip disappear in ${fmtDays(card.expiresAt)}; ${escapeHtml(first)} can save it to their phone any time before then.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
+      sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">Disappears in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
+      failed: `<h3>Something hiccuped while stitching.</h3><p class="muted">${escapeHtml(card.stitchError || '')} Nothing was lost. <button class="btn quiet" id="retryBtn">Try again</button></p>`,
+      expired: `<h3>This card has run its course.</h3><p class="muted">The clips and the reel were deleted, as promised.</p>`,
+    }
+    box.innerHTML = msgs[card.status] || ''
+    $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast('30 more days.'); data = await load(); render() })
+    $('#retryBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/send`, { method: 'POST' }); data = await load(); render() })
+    if (card.status === 'queued' || card.status === 'stitching') setTimeout(async () => { data = await load(); render() }, 15000)
+    $('#introBox').classList.add('hidden')
+  }
+  if (card.hasIntro) $('#introDone').classList.remove('hidden')
+}
+render()
+
+// ── preview / hide / unhide ─────────────────────────────────────────────────
+$('#grid').addEventListener('click', (e) => { const t = e.target.closest('.tile[data-id]'); if (t) openClip(t.dataset.id) })
+function openClip(id) {
+  const c = data.clips.find((x) => x.id === id); if (!c) return
+  const flagText = { quiet: 'The stitcher could barely hear this one.', short: 'This one is under 3 seconds.', dark: 'This one is mostly dark.', noname: `We didn't hear “${first}” in this one; it may be off prompt.`, blurry: 'This one looks blurry or shaky.' }
+  $('#dlgBody').innerHTML = `
+    <div class="row between"><strong>${escapeHtml(c.name)}</strong><span class="muted">${c.location ? escapeHtml(c.location) : ''}</span></div>
+    ${c.kind === 'text' ? `<p class="rulebox" style="background: var(--amber-pale); border-radius: 14px; padding: 12px; font-size: 16px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video src="${c.streamUrl}" controls playsinline autoplay></video></div>`}
+    ${(c.flags || []).map((f) => `<p class="pill tape">${escapeHtml(flagText[f] || f)}</p>`).join('')}
+    <div class="row">
+      ${data.card.status === 'open' ? (c.status === 'hidden' ? `<button class="btn" id="dlgUnhide">Show it again</button>` : `<button class="btn" id="dlgHide">Hide from ${escapeHtml(first)}</button>`) : ''}
+      <button class="btn outline" id="dlgClose">Close</button>
+    </div>`
+  $('#dlg').showModal()
+  $('#dlgClose').onclick = () => $('#dlg').close()
+  $('#dlgHide')?.addEventListener('click', async () => { await api(`/api/host/${token}/clips/${id}`, { method: 'POST', body: { status: 'hidden' } }); $('#dlg').close(); toast(`Hidden. ${first} won't see it.`); data = await load(); render() })
+  $('#dlgUnhide')?.addEventListener('click', async () => { await api(`/api/host/${token}/clips/${id}`, { method: 'POST', body: { status: 'ready' } }); $('#dlg').close(); data = await load(); render() })
+}
+$('#dlg').addEventListener('close', () => { $$('#dlgBody video').forEach((v) => v.pause()) })
+
+// ── reorder by drag (desktop) and long-press drag (phones use native drag on most browsers) ─
+let dragId = null
+$('#grid').addEventListener('dragstart', (e) => { const t = e.target.closest('.tile[data-id]'); if (!t) return; dragId = t.dataset.id; t.classList.add('dragging') })
+$('#grid').addEventListener('dragover', (e) => { e.preventDefault(); const t = e.target.closest('.tile[data-id]'); $$('.tile.over').forEach((x) => x.classList.remove('over')); t?.classList.add('over') })
+$('#grid').addEventListener('drop', async (e) => {
+  e.preventDefault()
+  const t = e.target.closest('.tile[data-id]'); $$('.tile.over, .tile.dragging').forEach((x) => x.classList.remove('over', 'dragging'))
+  if (!t || !dragId || t.dataset.id === dragId) return
+  const ids = data.clips.map((c) => c.id)
+  ids.splice(ids.indexOf(dragId), 1); ids.splice(ids.indexOf(t.dataset.id), 0, dragId)
+  await api(`/api/host/${token}/order`, { method: 'POST', body: { order: ids } })
+  data = await load(); render()
+})
+
+// ── send ────────────────────────────────────────────────────────────────────
+function confirmSend() {
+  const ready = data.clips.filter((c) => c.status === 'ready')
+  const flagged = ready.filter((c) => c.flags?.length)
+  $('#dlgBody').innerHTML = `
+    <h2>Send ${escapeHtml(first)} the reel?</h2>
+    <p class="muted">${ready.length} messages go in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'clip is' : 'clips are'} still in; hide them first if you'd rather.` : ''} Anyone who adds a message after this will need a part two.</p>
+    <p class="muted">The reel and every clip disappear 30 days after you send, unless ${escapeHtml(first)} saves it or you extend once.</p>
+    <button class="btn primary" id="dlgSend">Send it</button>
+    <button class="btn outline" id="dlgClose">Not yet</button>`
+  $('#dlg').showModal()
+  $('#dlgClose').onclick = () => $('#dlg').close()
+  $('#dlgSend').onclick = async () => { try { await api(`/api/host/${token}/send`, { method: 'POST' }); $('#dlg').close(); data = await load(); render() } catch (err) { toast(err.message) } }
+}
+
+// ── share, preview, prompt ──────────────────────────────────────────────────
+$('#shareBtn').onclick = () => share({ title: `A video for ${first}`, text: `${data.card.hostName} is making a video for ${first}. You're in ${first}'s corner. Record ${data.card.clipSeconds} seconds, it'll mean everything.`, url: data.card.links.invite })
+$('#previewBtn').onclick = () => {
+  const ready = data.clips.filter((c) => c.status === 'ready')
+  if (!ready.length) return toast('Nothing to preview yet.')
+  let i = 0
+  const play = () => {
+    const c = ready[i]
+    $('#dlgBody').innerHTML = `<div class="row between"><span class="sticker" style="font-size:15px">${escapeHtml(c.name)}</span><span class="muted">${i + 1} of ${ready.length}</span></div>${c.kind === 'text' ? `<p style="background: var(--amber-pale); border-radius: 14px; padding: 16px; font-size: 18px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video id="pv" src="${c.streamUrl}" controls playsinline autoplay></video></div>`}<div class="row"><button class="btn" id="pvNext">Next</button><button class="btn outline" id="dlgClose">Close</button></div>`
+    $('#dlgClose').onclick = () => $('#dlg').close()
+    $('#pvNext').onclick = () => { i = (i + 1) % ready.length; play() }
+    $('#pv')?.addEventListener('ended', () => { i = (i + 1) % ready.length; play() })
+    if (c.kind === 'text') setTimeout(() => { if ($('#dlg').open && $('#pvNext')) { i = (i + 1) % ready.length; play() } }, 8000)
+  }
+  play(); $('#dlg').showModal()
+}
+$('#promptBtn').onclick = () => {
+  $('#dlgBody').innerHTML = `<h3>${escapeHtml(firstName(data.card.hostName))} asks</h3><p style="font-size: 18px">${escapeHtml(data.card.prompt)}</p>${data.card.tone ? `<p class="muted">Tone: ${escapeHtml(data.card.tone)}</p>` : ''}${data.card.rules?.length ? `<p class="muted">${data.card.rules.map(escapeHtml).join(' · ')}</p>` : ''}<p class="ghost">The prompt is locked once people start recording, so everyone answers the same thing.</p><button class="btn outline" id="dlgClose">Close</button>`
+  $('#dlg').showModal(); $('#dlgClose').onclick = () => $('#dlg').close()
+}
+
+// ── intro clip ──────────────────────────────────────────────────────────────
+$('#introUpload').onclick = () => $('#introFile').click()
+$('#introFile').onchange = async () => { const f = $('#introFile').files[0]; if (!f) return; await upload(`/api/host/${token}/intro`, f); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
+$('#introRecord').onclick = async () => {
+  let stream
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) } catch { return toast('Camera blocked. Upload a clip instead.') }
+  $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/14"><video id="iv" autoplay muted playsinline></video></div><p class="muted">Say what you're after, in your own words. 15 seconds.</p><button class="btn primary" id="ivStop">Stop and save</button>`
+  $('#iv').srcObject = stream; $('#dlg').showModal()
+  const chunks = []; const rec = new MediaRecorder(stream, { mimeType: recorderMime() || undefined }); rec.ondataavailable = (e) => chunks.push(e.data)
+  rec.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); $('#dlg').close(); await upload(`/api/host/${token}/intro`, new Blob(chunks, { type: rec.mimeType })); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
+  rec.start(250); const stop = setTimeout(() => rec.state === 'recording' && rec.stop(), 16000)
+  $('#ivStop').onclick = () => { clearTimeout(stop); rec.stop() }
+}
+
+// ── replies ─────────────────────────────────────────────────────────────────
+const { replies } = await api(`/api/host/${token}/replies`).catch(() => ({ replies: [] }))
+if (replies.length) { $('#replies').classList.remove('hidden'); $('#replyList').innerHTML = replies.map((r) => `<p class="card" style="padding: 12px">“${escapeHtml(r.text)}”</p>`).join('') }
+</script>
+</body>
+</html>

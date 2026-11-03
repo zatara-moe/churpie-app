@@ -1,0 +1,19 @@
+{
+  "name": "churpie-stitcher",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pulls queued cards from the churpie app, weaves the reel with FFmpeg, pushes it back. No database, no storage keys.",
+  "scripts": {
+    "start": "node stitch.js",
+    "once": "node stitch.js --once"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "playwright": "1.63.0",
+    "ffmpeg-static": "^5.2.0",
+    "ffprobe-static": "^3.1.0"
+  }
+}

@@ -1,0 +1,47 @@
+/* churpie · live card preview. A small version of the real card each theme renders around the reel. */
+.pv { position: relative; aspect-ratio: 16 / 9; width: 100%; border-radius: 12px; overflow: hidden; background: var(--pv-bg, #F5F0E8); color: var(--pv-fg, #1A1410);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.05), 0 10px 24px rgba(26,20,16,0.14); container-type: inline-size; }
+.pv-edge { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.pv-text { position: absolute; left: 6cqw; top: 9cqw; width: 34cqw; z-index: 2; }
+.pv-eye { font-family: 'Courier Prime', monospace; font-size: 2.1cqw; letter-spacing: 0.4cqw; text-transform: uppercase; opacity: 0.75; }
+.pv-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 9cqw; line-height: 0.95; margin-top: 0.8cqw; overflow-wrap: anywhere; }
+.pv-sub { font-family: 'Caveat', cursive; font-size: 4cqw; color: var(--pv-accent, #D4266A); margin-top: 0.6cqw; }
+.pv-ask { font-family: 'Courier Prime', monospace; font-size: 1.8cqw; letter-spacing: 0.3cqw; text-transform: uppercase; opacity: 0.7; margin-top: 3cqw; }
+.pv-prompt { font-family: 'Caveat', cursive; font-size: 3.6cqw; line-height: 1.1; margin-top: 0.8cqw; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.pv-reel { position: absolute; left: 42cqw; top: 6cqw; width: 24cqw; height: 44cqw; border-radius: 1.6cqw; overflow: hidden; background: #fff; box-shadow: 0 0 0 0.7cqw #fff, 0 1.2cqw 2.4cqw rgba(0,0,0,0.18); z-index: 2; }
+.pv-reel svg { width: 100%; height: 100%; }
+.pv-tape { position: absolute; top: 3.6cqw; width: 9cqw; height: 2.6cqw; background: rgba(247,217,108,0.85); z-index: 4; transform: rotate(-5deg); }
+.pv-tape.a { left: 43cqw; } .pv-tape.b { left: 57cqw; background: rgba(126,205,213,0.85); transform: rotate(4deg); }
+.pv-stamp { position: absolute; right: 6cqw; top: 6cqw; width: 11cqw; height: 13.5cqw; background: var(--pv-accent, #D4266A); color: #fff; border: 0.8cqw solid #fff; z-index: 2;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(5deg); box-shadow: 0 0.8cqw 1.6cqw rgba(0,0,0,0.15); }
+.pv-stamp b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 5.5cqw; line-height: 1; } .pv-stamp small { font-family: 'Courier Prime', monospace; font-size: 1.3cqw; letter-spacing: 0.2cqw; text-transform: uppercase; }
+.pv-meta { position: absolute; left: 71cqw; top: 26cqw; right: 5cqw; font-family: 'Caveat', cursive; font-size: 3cqw; line-height: 1.5; z-index: 2; }
+.pv-meta span { display: block; border-bottom: 0.2cqw solid rgba(0,0,0,0.15); }
+.pv-mark { position: absolute; right: 5cqw; bottom: 4.5cqw; font-family: 'DM Serif Display', serif; font-style: italic; font-size: 3.6cqw; z-index: 2; }
+.pv-mark b { color: var(--pv-accent, #D4266A); font-weight: 400; }
+
+/* themes (mirror stitcher/cards/card.html) */
+.pv.t-postcard { --pv-bg: #F5F0E8; --pv-accent: #D4266A; }
+.pv.t-postcard .pv-edge { border: 1.4cqw solid transparent; border-image: repeating-linear-gradient(45deg, #D4266A 0 2cqw, #fff 2cqw 4cqw, #0B9DAA 4cqw 6cqw, #fff 6cqw 8cqw) 14; }
+.pv.t-airmail { --pv-bg: #F7F3EA; --pv-accent: #B22222; }
+.pv.t-airmail .pv-edge { border: 1.4cqw solid transparent; border-image: repeating-linear-gradient(45deg, #B22222 0 2cqw, #fff 2cqw 4cqw, #1F3A93 4cqw 6cqw, #fff 6cqw 8cqw) 14; }
+.pv.t-quietnote { --pv-bg: #F3EFE6; --pv-accent: #0B9DAA; } .pv.t-quietnote .pv-tape, .pv.t-quietnote .pv-stamp { display: none; }
+.pv.t-quietnote .pv-sub { font-family: 'DM Serif Display', serif; font-style: italic; color: #4A3F30; font-size: 2.8cqw; }
+.pv.t-kraft { --pv-bg: #C9A678; --pv-fg: #2A1F12; --pv-accent: #2D5A3A; }
+.pv.t-kraft .pv-text { background: #FBF7EE; padding: 2.4cqw 2.8cqw; transform: rotate(-2deg); box-shadow: 0 1cqw 2cqw rgba(0,0,0,0.18); left: 5cqw; top: 8cqw; }
+.pv.t-confettipop { --pv-bg: #FFF8EE; --pv-accent: #D4266A; }
+.pv.t-confettipop .pv-edge { border: 1.8cqw solid #D4266A; background: radial-gradient(circle, #fff 0.35cqw, transparent 0.4cqw) 0 0/2.4cqw 2.4cqw; -webkit-mask: linear-gradient(#000 0 0) padding-box exclude, linear-gradient(#000 0 0); }
+.pv.t-confettipop .pv-name { font-family: 'Permanent Marker', cursive; color: #D4266A; } .pv.t-confettipop .pv-stamp { background: #0B9DAA; }
+.pv.t-lockernote { --pv-bg: #FBFBF9; --pv-accent: #1A1410; background-image: repeating-linear-gradient(180deg, transparent 0 3.6cqw, #CFE0F2 3.6cqw 3.8cqw); }
+.pv.t-lockernote .pv-edge { border-left: 0.3cqw solid #F2B8C6; left: 8cqw; }
+.pv.t-lockernote .pv-name { font-family: 'Permanent Marker', cursive; } .pv.t-lockernote .pv-reel { transform: rotate(-3deg); box-shadow: 0 0 0 0.9cqw #1A1410, 0 1.2cqw 2.4cqw rgba(0,0,0,0.25); }
+.pv.t-lockernote .pv-stamp { background: #FADCE6; color: #1A1410; } .pv.t-lockernote .pv-sub { color: #4A3F30; }
+.pv.t-lockernote .pv-text::before { content: ''; position: absolute; inset: -2cqw -2cqw auto -2cqw; height: 18cqw; background: #F7D96C; z-index: -1; transform: rotate(-3deg); }
+.pv.t-milestonegold { --pv-bg: #15120F; --pv-fg: #F2E6CF; --pv-accent: #C9A24C; }
+.pv.t-milestonegold .pv-edge { inset: 2.4cqw; border: 0.25cqw solid #C9A24C; }
+.pv.t-milestonegold .pv-name { font-family: 'Playfair Display', 'DM Serif Display', serif; } .pv.t-milestonegold .pv-reel { box-shadow: 0 0 0 0.35cqw #C9A24C, 0 0 4cqw rgba(201,162,76,0.3); }
+.pv.t-milestonegold .pv-stamp { background: transparent; border: 0.3cqw solid #C9A24C; color: #C9A24C; border-radius: 50%; transform: none; box-shadow: none; height: 11cqw; }
+.pv.t-milestonegold .pv-tape { display: none; } .pv.t-milestonegold .pv-meta span { border-color: rgba(201,162,76,0.4); }
+.pv.t-pressedflower { --pv-bg: #F6F2EA; --pv-accent: #4A3F30; } .pv.t-pressedflower .pv-tape, .pv.t-pressedflower .pv-stamp { display: none; }
+.pv.t-pressedflower .pv-sub { font-family: 'Courier Prime', monospace; font-size: 2cqw; letter-spacing: 0.3cqw; color: #7A6E5C; }
+.pv.t-pressedflower .pv-mark { font-family: 'Courier Prime', monospace; font-size: 2cqw; letter-spacing: 0.3cqw; }

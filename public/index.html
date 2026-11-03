@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>churpie. — a video card from everyone who loves them</title>
+<meta name="description" content="{{og:description}}">
+<meta property="og:title" content="churpie. — a video card from everyone who loves them">
+<meta property="og:description" content="{{og:description}}">
+<meta property="og:image" content="{{og:image}}">
+<meta property="og:url" content="{{og:url}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&family=DM+Serif+Display&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .hero h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1.05; text-align: center; letter-spacing: -0.5px; }
+  .hero .lede { text-align: center; color: var(--ink-faded); font-size: 16px; max-width: 340px; margin: 0 auto; }
+
+  /* the demo: a reel taped inside a postcard, people cycling through */
+  .demo { position: relative; margin: 14px auto 6px; width: 236px; padding: 16px 16px 44px; background: #fff; border-radius: 10px;
+          box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 18px 40px rgba(26,20,16,0.16); transform: rotate(-1deg); }
+  .demo::before { content: ''; position: absolute; inset: 0; border-radius: 10px; padding: 7px; pointer-events: none;
+          background: repeating-linear-gradient(45deg, var(--pink) 0 10px, #fff 10px 20px, var(--cyan) 20px 30px, #fff 30px 40px);
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  .demo .tape { position: absolute; top: 2px; left: 50%; margin-left: -40px; width: 80px; height: 22px; background: rgba(247,217,108,0.8); transform: rotate(-3deg); z-index: 3; }
+  .demo .tape.r { display: none; }
+  .demo .stamp { position: absolute; right: -22px; top: 30px; z-index: 4; width: 58px; height: 70px; background: var(--pink); color: #fff; border: 4px solid #fff;
+          display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(8deg); box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
+  .demo .stamp b { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 30px; line-height: 1; } .demo .stamp small { font-family: 'Courier Prime', monospace; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; text-align: center; line-height: 1.2; margin-top: 2px; }
+  .screen { position: relative; aspect-ratio: 9 / 15; border-radius: 18px; overflow: hidden; background: #fff; box-shadow: inset 0 0 0 6px #fff, 0 2px 0 rgba(0,0,0,0.06); }
+  .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 500ms ease; }
+  .slide.on { opacity: 1; }
+  .slide svg { width: 100%; height: 100%; }
+  .slide .who { position: absolute; left: 12px; top: 26px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .slide .who .n { background: #fff; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+  .slide .who .w { background: var(--cyan-light); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .slide .said { display: none; position: absolute; left: 10px; right: 10px; bottom: 12px; background: rgba(255,255,255,0.94); border-radius: 12px; padding: 7px 10px; font-family: 'Caveat', cursive; font-size: 19px; line-height: 1.1; }
+  .bars { position: absolute; left: 10px; right: 10px; top: 10px; display: flex; gap: 3px; z-index: 2; }
+  .bars span { flex: 1; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.75); overflow: hidden; }
+  .bars span i { display: block; height: 100%; width: 0; background: var(--ink); }
+  .bars span.done i { width: 100%; } .bars span.now i { width: 100%; transition: width 2600ms linear; }
+  .bars span.now.reset i { width: 0; transition: none; }
+  .demo .foot { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-family: 'Caveat', cursive; font-size: 21px; color: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } .bars span.now i { transition: none; } }
+
+  .cta-sub { text-align: center; font-size: 13px; color: var(--ink-faded); font-weight: 600; }
+  .cta-sub span { display: inline-block; margin: 0 6px; }
+
+  /* how it works: every step shows a picture of itself */
+  .steps2 { display: grid; gap: 14px; }
+  .step2 { background: #fff; border-radius: 22px; padding: 16px; display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; box-shadow: 0 3px 0 rgba(0,0,0,0.06); }
+  .step2 .pic { width: 96px; height: 96px; border-radius: 16px; background: var(--paper); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .step2 .num { font-family: 'DM Serif Display', serif; font-style: italic; color: var(--pink); font-size: 24px; line-height: 1; }
+  .step2 strong { display: block; font-size: 17px; margin: 2px 0 4px; }
+  .step2 p { color: var(--ink-faded); font-size: 14px; }
+  .mini-note { background: #FFF6D8; width: 78px; padding: 8px; transform: rotate(-2deg); box-shadow: 0 3px 6px rgba(0,0,0,0.12); font-family: 'Caveat', cursive; font-size: 14px; line-height: 1; }
+  .mini-bubble { background: #E9E9EB; border-radius: 14px; padding: 6px 8px; width: 82px; font-size: 9px; font-weight: 600; line-height: 1.2; }
+  .mini-bubble .lp { background: #fff; border-radius: 8px; margin-top: 4px; overflow: hidden; }
+  .mini-bubble .lp i { display: block; height: 22px; background: repeating-linear-gradient(45deg, var(--pink) 0 5px, #fff 5px 10px, var(--cyan) 10px 15px, #fff 15px 20px); }
+  .mini-bubble .lp b { display: block; padding: 3px 5px; font-size: 8px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(3, 24px); gap: 4px; }
+  .mini-grid div { width: 24px; height: 34px; border-radius: 5px; overflow: hidden; }
+  .mini-env { width: 80px; height: 58px; background: #fff; border-radius: 4px; position: relative; box-shadow: 0 3px 6px rgba(0,0,0,0.12); transform: rotate(-3deg); }
+  .mini-env::before { content: ''; position: absolute; inset: 0; border-radius: 4px; border-top: 4px solid transparent; border-image: repeating-linear-gradient(45deg, var(--pink) 0 5px, #fff 5px 10px, var(--cyan) 10px 15px, #fff 15px 20px) 4; }
+  .mini-env span { position: absolute; left: 8px; top: 16px; font-family: 'DM Serif Display', serif; font-size: 18px; }
+  .mini-env em { position: absolute; right: 6px; top: 8px; width: 16px; height: 20px; background: var(--pink); }
+
+  .moments { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .moments span { background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 0 rgba(0,0,0,0.06); }
+  section.block { padding: 28px 0 0; }
+  section.block h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.1; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<main class="wrap" style="padding-bottom: 48px">
+  <section class="hero stack" style="gap: 14px">
+    <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">my card</a></div>
+    <h1>a video card from everyone who loves them.</h1>
+    <p class="lede">You send one link. Their people each record a few seconds. We stitch it into one reel they'll replay for years.</p>
+
+    <div class="demo" aria-label="Example: a birthday reel for Rosa, with messages from six people">
+      <span class="tape l"></span><span class="tape r"></span>
+      <div class="stamp"><b>38</b><small>showed<br>up</small></div>
+      <div class="screen" id="screen"><video id="demoVid" class="hidden" muted loop playsinline autoplay preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1"></video>
+        <div class="bars" id="bars"></div>
+      </div>
+      <div class="foot">happy 60th, Rosa</div>
+    </div>
+
+    <a class="btn primary" href="/new">Start a card for someone</a>
+    <p class="cta-sub"><span>Free</span>·<span>About a minute</span>·<span>No app, for anyone</span></p>
+  </section>
+
+  <section class="block">
+    <h2>how it works</h2>
+    <div class="steps2">
+      <div class="step2"><div class="pic"><div class="mini-note">tell Rosa your favorite memory…</div></div>
+        <div><span class="num">1</span><strong>Ask one question</strong><p>Their name, the moment, and the one thing you want everyone to say.</p></div></div>
+      <div class="step2"><div class="pic"><div class="mini-bubble">Maria is making a video for Rosa<div class="lp"><i></i><b>add 15 seconds</b></div></div></div>
+        <div><span class="num">2</span><strong>Text the link</strong><p>To the group chat, WhatsApp, email. They tap it, record, done. No sign-up.</p></div></div>
+      <div class="step2"><div class="pic"><div class="mini-grid" id="miniGrid"></div></div>
+        <div><span class="num">3</span><strong>Watch faces arrive</strong><p>Preview every message. Hide any. We level the sound, add music and their names.</p></div></div>
+      <div class="step2"><div class="pic"><div class="mini-env"><span>Rosa</span><em></em></div></div>
+        <div><span class="num">4</span><strong>They open it</strong><p>One link, one reel, their whole corner. They keep it forever; we delete our copy in 30 days.</p></div></div>
+    </div>
+  </section>
+
+  <section class="block stack" style="gap: 14px">
+    <h2>any moment worth gathering for.</h2>
+    <div class="moments"><span>Birthdays</span><span>Graduations</span><span>Welcome home</span><span>Get well</span><span>Retirements</span><span>Thank you</span><span>Team send-offs</span><span>In memory</span></div>
+    <p class="muted" style="text-align:center">(which, it turns out, is most of them.)</p>
+    <a class="btn primary" href="/new">Start a card for someone</a>
+    <p class="ghost" style="text-align: center">Free for people, always. Made in Flagstaff by Hope for Americans.</p>
+  </section>
+</main>
+<script type="module">
+  import { DEMO_PEOPLE, personSVG } from '/people.js'
+  const screen = document.getElementById('screen'), bars = document.getElementById('bars')
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  DEMO_PEOPLE.forEach((p, i) => {
+    screen.insertAdjacentHTML('beforeend', `<div class="slide${i === 0 ? ' on' : ''}">${personSVG(p, { w: 228, h: 380 })}<div class="who"><span class="n">${esc(p.name)}</span><span class="w">${esc(p.where)}</span></div><div class="said">“${esc(p.line)}”</div></div>`)
+    bars.insertAdjacentHTML('beforeend', '<span><i></i></span>')
+  })
+  document.getElementById('miniGrid').innerHTML = DEMO_PEOPLE.map((p) => `<div>${personSVG(p, { w: 24, h: 34 })}</div>`).join('')
+  const slides = [...screen.querySelectorAll('.slide')], segs = [...bars.children]
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  let i = 0
+  function show(n) {
+    slides.forEach((s, k) => s.classList.toggle('on', k === n))
+    segs.forEach((s, k) => { s.className = k < n ? 'done' : k === n ? 'now reset' : '' })
+    requestAnimationFrame(() => requestAnimationFrame(() => segs[n].classList.remove('reset')))
+  }
+  show(0)
+  if (!still) setInterval(() => { i = (i + 1) % slides.length; show(i) }, 2800)
+  // a real churpie reel, once we have one: drop it at /demo/reel.mp4 and it replaces the placeholder
+  fetch('/demo/reel.mp4', { method: 'HEAD' }).then((r) => { if (r.ok && (r.headers.get('content-type') || '').startsWith('video')) { const v = document.getElementById('demoVid'); v.src = '/demo/reel.mp4'; v.classList.remove('hidden'); bars.classList.add('hidden') } }).catch(() => {})
+  try { const h = localStorage.getItem('churpie:last-host'); const a = document.getElementById('myBoard'); if (h) a.href = h; else a.remove() } catch {}
+</script>
+</body>
+</html>
