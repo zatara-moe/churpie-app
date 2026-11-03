@@ -23,6 +23,17 @@
   .who-in { display: flex; flex-wrap: wrap; gap: 6px; }
   .who-in span { background: var(--paper); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
   .who-in span.more { background: transparent; color: var(--ink-faded); font-weight: 600; padding-left: 0; }
+  .hostSheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto; }
+  @media (min-width: 960px) {
+    main.wrap { max-width: 1200px; padding: 0 40px 48px !important; display: grid !important; grid-template-columns: minmax(0, 1fr) 360px; column-gap: 40px; align-items: start; }
+    main.wrap > .topbar { grid-column: 1 / -1; }
+    main.wrap > .side { grid-column: 2; grid-row: 2 / span 6; position: sticky; top: 24px; }
+    main.wrap > :not(.topbar):not(.side) { grid-column: 1; }
+    .grid3 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+    .hostSheet { position: static; max-width: none; border-radius: 20px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 8px 24px rgba(26,20,16,0.05); padding: 16px; }
+    .hostSheet .handle { display: none; }
+    .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; }
+  }
 </style>
 </head>
 <body>
@@ -36,6 +47,7 @@
     <a class="logo" href="/">churpie<b>.</b></a>
   </div>
 
+  <aside class="side stack">
   <div class="card stack" id="status">
     <div class="row between"><strong style="font-size: 18px" id="countLine">...</strong><span class="muted" id="deadline"></span></div>
     <div class="who-in" id="whoIn"></div>
@@ -43,6 +55,16 @@
   </div>
 
   <div class="card stack hidden" id="sentBox"></div>
+  <div class="sheet hostSheet">
+  <div class="handle"></div>
+  <div class="row" style="margin-bottom: 12px">
+    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Invite more</button>
+    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Watch so far</button>
+    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Your question</button>
+  </div>
+  <div class="stack" id="actions"></div>
+</div>
+  </aside>
 
   <div class="grid3" id="grid" aria-label="messages so far"></div>
   <p class="ghost" style="text-align: center">Tap a message to watch it. Hold and drag to change the order. Hidden messages never reach <span id="firstName2"></span>.</p>
@@ -60,16 +82,6 @@
 
   <div class="card stack hidden" id="replies"><h3 id="repliesTitle">Notes back</h3><div id="replyList" class="stack"></div></div>
 </main>
-
-<div class="sheet" style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto">
-  <div class="handle"></div>
-  <div class="row" style="margin-bottom: 12px">
-    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Invite more</button>
-    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Watch so far</button>
-    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Your question</button>
-  </div>
-  <div class="stack" id="actions"></div>
-</div>
 
 <dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
 

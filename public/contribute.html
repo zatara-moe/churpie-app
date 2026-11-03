@@ -15,6 +15,16 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&family=DM+Serif+Display&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
+  @media (min-width: 960px) {
+    #app { max-width: 1080px; padding: 0 40px 40px; display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 48px; row-gap: 14px; align-items: start; }
+    #app > .topbar { grid-column: 1 / -1; }
+    #app > .note, #app > #introVid, #app > .steps, #app > .howto { grid-column: 1; }
+    #app > section { grid-column: 2; grid-row: 2 / span 5; }
+    #app > .note .q { font-size: 36px; }
+    #app #record .video.cam:not(.live) { height: 380px; }
+    #app #record .video.cam.live { max-height: 68vh; }
+    .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; }
+  }
   .cam { position: relative; }
   /* keep Record on the first screen of a phone: the camera gives up height, never the button */
   #record .video.cam:not(.live) { aspect-ratio: auto; height: 190px; }
@@ -344,7 +354,7 @@ if ($('#retake')) $('#retake').onclick = () => { blob = null; step(1); show('rec
 $('#checkForm [name=name]').addEventListener('input', (e) => { $('#tagName').textContent = e.target.value.trim() || 'Your name' })
 $('#checkForm [name=location]').addEventListener('input', (e) => { const t = e.target.value.trim(); $('#tagPlace').textContent = t; $('#tagPlace').classList.toggle('hidden', !t) })
 // fold the tips away once someone starts, and remember they've seen them
-try { if (localStorage.getItem('churpie:tips-seen')) $('#howto').open = false } catch {}
+try { if (localStorage.getItem('churpie:tips-seen')) $('#howto').open = false; else if (matchMedia('(min-width: 960px)').matches) $('#howto').open = true } catch {}
 const seenTips = () => { try { localStorage.setItem('churpie:tips-seen', '1') } catch {} }
 
 $('#checkForm').addEventListener('submit', async (e) => {

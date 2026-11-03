@@ -24,6 +24,7 @@
   .lines { margin-top: 26px; display: flex; flex-direction: column; gap: 8px; } .lines span { height: 2px; background: var(--paper-dark); display: block; }
   @media (prefers-reduced-motion: reduce) { .postcard { transform: none; } }
   .people { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--paper); max-height: 70vh; overflow: auto; }
+  @media (min-width: 960px) { #envelope { max-width: 560px; } .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; } }
 </style>
 </head>
 <body>
