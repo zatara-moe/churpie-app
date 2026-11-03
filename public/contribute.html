@@ -267,7 +267,13 @@ if (card.status !== 'open') {
 
 // ── state ────────────────────────────────────────────────────────────────────
 let stream = null, recorder = null, chunks = [], blob = null, facing = 'user', timerHidden = false, tick = null, startedAt = 0
-const show = (id) => { ['record', 'check', 'write', 'done', 'edit'].forEach((s) => $(`#${s}`).classList.toggle('hidden', s !== id)); window.scrollTo({ top: 0 }) }
+// switching screens: fold the tips away and bring the new screen into view, so it never opens below the fold
+const show = (id) => {
+  ['record', 'check', 'write', 'done', 'edit'].forEach((s) => $(`#${s}`).classList.toggle('hidden', s !== id))
+  if (id !== 'record' && $('#howto')) $('#howto').open = false
+  if (id === 'record') window.scrollTo({ top: 0 })
+  else requestAnimationFrame(() => $(`#${id}`).scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }))
+}
 const step = (n) => [1, 2, 3].forEach((i) => $(`#st${i}`).classList.toggle('on', i <= n))
 
 async function openCamera() {

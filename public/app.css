@@ -96,8 +96,9 @@ textarea { min-height: 88px; resize: vertical; }
 .grid3 > .tile .name { position: absolute; left: 6px; bottom: 6px; background: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grid3 > .tile .flag { position: absolute; left: 6px; right: 6px; top: 6px; background: var(--tape); font-size: 10px; font-weight: 700; padding: 3px 6px; border-radius: 999px; text-align: center; }
 .grid3 > .tile.flagged { box-shadow: 0 0 0 3px var(--tape), 0 3px 0 rgba(0,0,0,0.06); }
-.grid3 > .tile.hidden { background: var(--paper-aged); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-faded); font-size: 11px; font-weight: 700; }
-.grid3 > .tile.text { background: #fff; padding: 10px; display: flex; align-items: center; font-size: 12px; font-weight: 600; line-height: 1.3; }
+.grid3 > .tile.is-hidden { background: var(--paper-aged); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--ink-faded); font-size: 11px; font-weight: 700; }
+.grid3 > .tile.text { background: #fff; padding: 10px 10px 34px; display: block; font-size: 12px; font-weight: 600; line-height: 1.3; overflow: hidden; }
+.grid3 > .tile.text .q { display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; }
 .grid3 > .tile .you { position: absolute; left: 6px; top: 6px; background: var(--pink); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
 
 .toast { position: fixed; left: 16px; right: 16px; bottom: 24px; background: var(--ink); color: #fff; padding: 14px 18px; border-radius: 16px; font-weight: 600; text-align: center; z-index: 50; }

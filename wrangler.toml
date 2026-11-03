@@ -10,7 +10,7 @@ binding = "ASSETS"
 not_found_handling = "none"
 
 [vars]
-APP_URL = "https://churpie.mmajdali.workers.dev"
+APP_URL = "https://churpie.me"
 CLIP_LIFETIME_DAYS = "30"
 MAX_CLIPS_PER_CARD = "50"
 MAX_UPLOAD_MB = "200"

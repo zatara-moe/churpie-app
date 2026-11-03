@@ -117,13 +117,14 @@ function render() {
   $('#grid').innerHTML = clips.map((c, i) => {
     const flag = c.flags?.[0]
     const flagText = { quiet: 'Quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
-    if (c.status === 'hidden') return `<button class="tile hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
-    if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true">“${escapeHtml(c.text.slice(0, 90))}${c.text.length > 90 ? '…' : ''}”<span class="name">${escapeHtml(c.name)}</span></button>`
+    if (c.status === 'hidden') return `<button class="tile is-hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
+    if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true"><span class="q">“${escapeHtml(c.text)}”</span><span class="name">${escapeHtml(c.name)}</span></button>`
     return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="metadata" muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
   }).join('') + (card.status === 'open' ? `<div class="tile" style="background: transparent; border: 2px dashed var(--paper-dark); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faded); cursor: default; padding: 8px; box-shadow: none">more on the way</div>` : '')
 
   // actions depend on state
   const a = $('#actions')
+  $('#shareBtn').classList.toggle('hidden', card.status !== 'open') // no inviting once the card is closed
   if (card.status === 'open') {
     a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `It takes about 2 minutes. ${escapeHtml(first)} sees nothing until you share the link.`}</p>`
     $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
@@ -135,8 +136,8 @@ function render() {
     $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s link copied.`) })
     const box = $('#sentBox'); box.classList.remove('hidden')
     const msgs = {
-      queued: `<h3>Putting ${ready.length} messages together.</h3><p class="muted">About 2 minutes. You can stay here; this page updates on its own.</p>`,
-      stitching: `<h3>Putting ${ready.length} messages together.</h3><p class="muted">Almost there.</p>`,
+      queued: `<h3>Putting ${ready.length} ${ready.length === 1 ? 'message' : 'messages'} together.</h3><p class="muted">About 2 minutes. You can stay here; this page updates on its own.</p>`,
+      stitching: `<h3>Putting ${ready.length} ${ready.length === 1 ? 'message' : 'messages'} together.</h3><p class="muted">Almost there.</p>`,
       ready: `<h3>It's ready.</h3><p class="muted">Send ${escapeHtml(first)} the link however you like: a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
       sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
       failed: `<h3>Something hiccuped while we put it together.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}. <button class="btn quiet" id="retryBtn">Try again</button></p>`,
