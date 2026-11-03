@@ -13,7 +13,7 @@ import os from 'node:os'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
-import { renderFrames, WINDOWS } from './render.js'
+import { renderFrames, openPainter, WINDOWS } from './render.js'
 
 const run = promisify(execFile)
 // FFmpeg: use the system one if installed, otherwise the copy npm brought (ffmpeg-static / ffprobe-static). No Homebrew needed.
@@ -30,7 +30,6 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 const APP_URL = process.env.APP_URL?.replace(/\/$/, '')
 const TOKEN = process.env.STITCH_TOKEN
 const POLL_MS = Number(process.env.POLL_SECONDS || 20) * 1000
-const FONT = process.env.FONT_FILE || firstExisting(['/usr/share/fonts/truetype/nunito/Nunito-ExtraBold.ttf', path.join(HERE, 'fonts/Nunito-ExtraBold.ttf'), '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', '/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf'])
 const W = 720, H = 1280, FPS = 30
 const PAPER = '0xF5F0E8', INK = '0x1A1410', PINK = '0xD4266A'
 
@@ -112,46 +111,39 @@ function wrap(text, max = 26) {
   for (const w of words) { if ((cur + ' ' + w).trim().length > max) { lines.push(cur.trim()); cur = w } else cur += ' ' + w }
   if (cur.trim()) lines.push(cur.trim()); return lines
 }
-function drawLines(lines, { size = 44, color = INK, y = 'h*0.42', lineGap = 1.25, box = false, boxColor = '0xFFFFFF' } = {}) {
-  const lh = Math.round(size * lineGap)
-  return lines.map((l, i) => `drawtext=fontfile='${FONT}':text='${esc(l)}':fontsize=${size}:fontcolor=${color}:x=(w-text_w)/2:y=${y}+${i * lh}${box ? `:box=1:boxcolor=${boxColor}:boxborderw=18` : ''}`).join(',')
-}
-// name sticker, top-left, white box with ink text (the postcard sticker)
-function nameSticker(name, location) {
-  const parts = [`drawtext=fontfile='${FONT}':text='${esc(name)}':fontsize=40:fontcolor=${INK}:x=40:y=120:box=1:boxcolor=0xFFFFFF:boxborderw=16`]
-  if (location) parts.push(`drawtext=fontfile='${FONT}':text='${esc(location)}':fontsize=24:fontcolor=${INK}:x=44:y=200:box=1:boxcolor=0x7ECDD5:boxborderw=10`)
-  return parts.join(',')
-}
 const stripe = `drawbox=x=0:y=0:w=iw:h=10:color=${PINK}:t=fill`
 
 // Normalize one clip: 720x1280, blurred fill (no black bars), 30fps, trimmed, EBU R128 loudness, name sticker, silent track if the phone gave none.
-async function normalizeClip(src, dst, { seconds, name, location, hasAudio }) {
+// Audio glue: every room sounds different, so each clip gets the same gentle treatment before it meets the others:
+//   rumble and hiss filtered out, light noise reduction (hum, fridge, traffic), one loudness, and soft 0.12 s / 0.18 s edges
+//   so room sound never snaps on or off between people. The music bed underneath covers what's left.
+async function normalizeClip(src, dst, { seconds, hasAudio, duration, sticker }) {
+  const out = Math.max(0.5, Math.min(duration || seconds + 1, seconds + 1))
+  const glue = `highpass=f=80,lowpass=f=12000,afftdn=nr=10:nf=-40:tn=1,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,afade=t=in:st=0:d=0.12,afade=t=out:st=${(out - 0.18).toFixed(2)}:d=0.18`
   const vf = [
     'split=2[fg][bg]',
     `[bg]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},gblur=sigma=24[bgd]`,
     `[fg]scale=${W}:${H}:force_original_aspect_ratio=decrease[fgd]`,
-    `[bgd][fgd]overlay=(W-w)/2:(H-h)/2,${nameSticker(name, location)},${stripe},fps=${FPS},format=yuv420p[v]`,
+    `[bgd][fgd]overlay=(W-w)/2:(H-h)/2[base]`,
+    `[base][1:v]overlay=0:0,${stripe},fps=${FPS},format=yuv420p[v]`,
   ].join(';')
-  const audioIn = hasAudio ? '[0:a]' : '[1:a]'
+  const audioIn = hasAudio ? '[0:a]' : '[2:a]'
   const extra = hasAudio ? [] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
   await ffmpeg([
-    '-i', src, ...extra,
-    '-filter_complex', `${vf};${audioIn}loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`,
-    '-map', '[v]', '-map', '[a]', '-t', String(seconds + 1),
+    '-i', src, '-i', sticker, ...extra,
+    '-filter_complex', `${vf};${audioIn}${glue}[a]`,
+    '-map', '[v]', '-map', '[a]', '-t', out.toFixed(2),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
   ])
 }
 
-// A still card (title, text message, end card): paper background, wrapped text, silence.
-async function makeCard(dst, { seconds, lines, sub, vibe, big = false }) {
-  const paper = VIBE_PAPER[vibe] || PAPER, ink = VIBE_INK[vibe] || INK
-  const main = drawLines(lines, { size: big ? 84 : 42, color: ink, y: 'h*0.34' })
-  const subf = sub?.length ? ',' + drawLines(sub, { size: 34, color: ink, y: `h*0.34+${lines.length * (big ? 105 : 60) + 70}` }) : ''
+// A still card (title, written message, end card): painted as a PNG in churpie's fonts, held for a few seconds, silent.
+async function makeCard(dst, png, seconds) {
   await ffmpeg([
-    '-f', 'lavfi', '-i', `color=c=${paper}:s=${W}x${H}:r=${FPS}:d=${seconds}`,
+    '-loop', '1', '-framerate', String(FPS), '-i', png,
     '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
-    '-vf', `${main}${subf},${stripe},format=yuv420p`, '-t', String(seconds),
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
+    '-vf', `scale=${W}:${H},fps=${FPS},format=yuv420p`, '-t', String(seconds),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
   ])
 }
 
@@ -165,8 +157,9 @@ async function finalize(parts, dst, { music, withMusic }) {
   let fc = '', mapA = '0:a', mapV = '0:v'
   if (musicFile) {
     inputs.push('-stream_loop', '-1', '-i', musicFile)
-    // music at -22 dB, ducked a further ~12 dB whenever someone is speaking, 0.6 s release so it swells back between people
-    fc += `[1:a]volume=0.14,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.02:ratio=6:attack=30:release=600:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
+    // the glue: music sits ~11 dB under voices between people (clearly there, holding it together),
+    // dips to ~19 dB under while someone speaks (felt, not heard), and swells back over 0.6 s. Measured, not guessed.
+    fc += `[1:a]volume=0.8,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.025:ratio=3.5:attack=30:release=600:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
     mapA = '[a]'
   }
   if (wm) {
@@ -178,37 +171,6 @@ async function finalize(parts, dst, { music, withMusic }) {
   await ffmpeg([...inputs, ...(fc ? ['-filter_complex', fc] : []), '-map', mapV, '-map', mapA, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-shortest', dst], 15 * 60 * 1000)
 }
 
-
-// Wide export (1920x1080): the vertical reel in the middle, postcard panels either side. For laptops, TVs, YouTube, Facebook.
-// The brand covers what would otherwise be black. Same audio, no re-mix.
-async function makeWide(verticalFile, dst, job) {
-  const first = job.recipientName.split(' ')[0]
-  const paper = VIBE_PAPER[job.vibe] || PAPER, ink = VIBE_INK[job.vibe] || INK
-  const n = job.clips.length
-  const prompt = wrap(job.prompt, 24)
-  const left = [
-    `drawtext=fontfile='${FONT}':text='for':fontsize=40:fontcolor=${ink}:x=96:y=300`,
-    `drawtext=fontfile='${FONT}':text='${esc(first)}':fontsize=110:fontcolor=${ink}:x=92:y=340`,
-    `drawtext=fontfile='${FONT}':text='${esc(job.hostName + ' asked ' + n + ' people:')}':fontsize=30:fontcolor=${ink}:x=96:y=500`,
-    ...prompt.map((l, i) => `drawtext=fontfile='${FONT}':text='${esc(l)}':fontsize=34:fontcolor=${ink}:x=96:y=${560 + i * 46}`),
-  ]
-  const right = [
-    // stamp
-    `drawbox=x=1500:y=160:w=300:h=360:color=0xC68B00:t=4`,
-    `drawbox=x=1512:y=172:w=276:h=336:color=0xFAEEDA:t=fill`,
-    `drawtext=fontfile='${FONT}':text='${n}':fontsize=140:fontcolor=${INK}:x=1650-text_w/2:y=230`,
-    `drawtext=fontfile='${FONT}':text='people':fontsize=34:fontcolor=${INK}:x=1650-text_w/2:y=390`,
-    `drawtext=fontfile='${FONT}':text='showed up':fontsize=34:fontcolor=${INK}:x=1650-text_w/2:y=430`,
-    `drawtext=fontfile='${FONT}':text='made on churpie.':fontsize=40:fontcolor=${ink}:x=1340:y=900`,
-    `drawtext=fontfile='${FONT}':text='churpie.me':fontsize=30:fontcolor=${PINK}:x=1340:y=955`,
-  ]
-  const panel = `color=c=${paper}:s=1920x1080:r=${FPS},drawbox=x=0:y=0:w=iw:h=14:color=${PINK}:t=fill,drawbox=x=0:y=14:w=iw:h=6:color=0x0B9DAA:t=fill,${left.join(',')},${right.join(',')}`
-  await ffmpeg([
-    '-f', 'lavfi', '-i', panel, '-i', verticalFile,
-    '-filter_complex', `[1:v]scale=608:1080[reel];[0:v][reel]overlay=656:0:shortest=1,format=yuv420p[v]`,
-    '-map', '[v]', '-map', '1:a', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'copy', '-movflags', '+faststart', dst,
-  ], 15 * 60 * 1000)
-}
 
 // Put the inner reel inside a rendered card frame. The frame PNG sits on top, so its rounded window hides the video's corners.
 async function frameReel(inner, framePng, dst, size, theme) {
@@ -226,6 +188,9 @@ async function frameReel(inner, framePng, dst, size, theme) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags = async () => {} }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `churpie-${job.cardId}-`))
+  const painter = await openPainter()
+  const theme = job.theme || 'postcard'
+  const png = (n) => path.join(tmp, `${n}.png`)
   try {
     const first = job.recipientName.split(' ')[0]
     const parts = [], manifest = []
@@ -234,7 +199,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
 
     // 1. title card: the prompt everyone answered
     const title = path.join(tmp, 'title.mp4')
-    await makeCard(title, { seconds: 4, vibe: job.vibe, big: true, lines: [`for ${first}`], sub: [`${job.hostName} asked ${job.clips.length} people:`, ...wrap(job.prompt, 34)] })
+    await makeCard(title, await painter.card('title', { first, host: job.hostName, n: job.clips.length, prompt: job.prompt }, theme, png('title')), 4)
     await push(title, { kind: 'title', name: 'churpie', clipId: null })
 
     // 2. the host's own voice, if they recorded one
@@ -242,7 +207,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       const raw = path.join(tmp, 'intro-raw'), norm = path.join(tmp, 'intro.mp4')
       await fetchClip(job.introKey, raw)
       const info = await probe(raw)
-      await normalizeClip(raw, norm, { seconds: 20, name: job.hostName, location: null, hasAudio: info.hasAudio })
+      await normalizeClip(raw, norm, { seconds: 20, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(job.hostName, null, png('intro-sticker')) })
       await push(norm, { kind: 'intro', name: job.hostName, clipId: null })
     }
 
@@ -252,7 +217,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       i++
       const norm = path.join(tmp, `clip-${i}.mp4`)
       if (clip.kind === 'text') {
-        await makeCard(norm, { seconds: 8, vibe: job.vibe, lines: wrap(clip.text, 24), sub: [`— ${clip.name}${clip.location ? `, ${clip.location}` : ''}`] })
+        await makeCard(norm, await painter.card('text', { text: clip.text, name: clip.name, location: clip.location }, theme, png(`text-${i}`)), 8)
         await push(norm, { kind: 'text', name: clip.name, location: clip.location, clipId: clip.id })
         continue
       }
@@ -262,20 +227,19 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       const info = await probe(raw)
       const { flags } = await analyze(raw, info)
       await onFlags(clip.id, flags, info.duration)
-      await normalizeClip(raw, norm, { seconds: job.clipSeconds, name: clip.name, location: clip.location, hasAudio: info.hasAudio })
+      await normalizeClip(raw, norm, { seconds: job.clipSeconds, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(clip.name, clip.location, png(`sticker-${i}`)) })
       await push(norm, { kind: 'video', name: clip.name, location: clip.location, clipId: clip.id, flags })
       fs.rmSync(raw, { force: true })
     }
 
     // 4. end card: the growth loop
     const end = path.join(tmp, 'end.mp4')
-    await makeCard(end, { seconds: 5, vibe: job.vibe, lines: [`${job.clips.length} ${job.clips.length === 1 ? 'person' : 'people'}`, 'showed up for you.'], sub: ['churpie.me'] })
+    await makeCard(end, await painter.card('end', { n: job.clips.length }, theme, png('end')), 5)
     await push(end, { kind: 'end', name: 'churpie', clipId: null })
 
     // 5. weave
     log(`[${job.cardId}] weaving ${parts.length} parts, ${Math.round(t)}s`)
     const inner = path.join(tmp, 'inner.mp4')
-    const theme = job.theme || 'postcard'
     await finalize(parts, inner, { music: THEME_MUSIC[theme] || VIBE_MUSIC[job.vibe] || 'gentle-piano', withMusic: true })
     // 6. the card: render the frames, then tape the reel inside each
     log(`[${job.cardId}] card frames (${theme})`)
@@ -284,6 +248,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
     if (wideFile) { log(`[${job.cardId}] wide card`); await frameReel(inner, frames.wide, wideFile, 'wide', theme) }
     return manifest
   } finally {
+    await painter.close().catch(() => {})
     fs.rmSync(tmp, { recursive: true, force: true })
   }
 }
@@ -320,7 +285,6 @@ if (argv[0] === '--local') {
   log('wrote', argv[2])
 } else if (import.meta.url === `file://${process.argv[1]}`) {
   if (!APP_URL || !TOKEN) { console.error('Set APP_URL and STITCH_TOKEN'); process.exit(1) }
-  if (!FONT) console.warn('No font file found; text cards will fail. Install fonts-dejavu-core or set FONT_FILE.')
   if (argv[0] === '--once') { await processOne(); process.exit(0) }
   log(`churpie stitcher · polling ${APP_URL} every ${POLL_MS / 1000}s`)
   for (;;) {
