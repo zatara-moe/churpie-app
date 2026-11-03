@@ -155,7 +155,8 @@ app.get('/api/cards/:id/public', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
   if (!card) return bad(c, "This card isn't here anymore.", 404)
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status = 'ready'`).bind(card.id).first()
-  return c.json(publicCard(card, count))
+  // full is checked up front, so nobody records a message that can't go in
+  return c.json({ ...publicCard(card, count), full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50) })
 })
 
 app.get('/api/cards/:id/intro', async (c) => {
@@ -179,7 +180,7 @@ app.post('/api/cards/:id/clips', async (c) => {
   if (kind === 'text' && !text) return bad(c, 'Write a few words first.')
 
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status IN ('ready','uploading','hidden')`).bind(card.id).first()
-  if (count >= Number(c.env.MAX_CLIPS_PER_CARD || 50)) return bad(c, `This card is full. Let ${card.host_name} know; they can start a part two.`, 409)
+  if (count >= Number(c.env.MAX_CLIPS_PER_CARD || 50)) return bad(c, `This card is full. You can still start a card of your own for ${card.recipient_name} from this page.`, 409)
 
   const clipId = newId(10)
   const editToken = newToken()

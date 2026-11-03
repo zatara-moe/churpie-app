@@ -11,7 +11,7 @@ src/            the whole app: one Cloudflare Worker (pages + API + nightly swee
 public/         the pages: index, new, contribute, host, watch, gone  (plain HTML/JS, no build step)
 migrations/     the D1 database schema (3 tables + events)
 stitcher/       the FFmpeg worker: one Node file + Dockerfile. Runs anywhere.
-DEPLOY.md       Mo's step-by-step setup guide
+DEPLOY.md       Step-by-step setup guide
 ```
 
 ## Run it on your laptop in two minutes

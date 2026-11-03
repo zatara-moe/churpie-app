@@ -193,7 +193,7 @@ function confirmSend() {
   const flagged = ready.filter((c) => c.flags?.length)
   $('#dlgBody').innerHTML = `
     <h2>Make ${escapeHtml(first)}'s reel now?</h2>
-    <p class="muted">${ready.length} ${ready.length === 1 ? 'message goes' : 'messages go'} in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'one is' : 'ones are'} still in; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} After this the card closes, so anyone who's late will need a part two.</p>
+    <p class="muted">${ready.length} ${ready.length === 1 ? 'message goes' : 'messages go'} in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'one is' : 'ones are'} still in; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} After this the card closes. Anyone who opens the invite later can start a card of their own for ${escapeHtml(first)} right from it.</p>
     <p class="muted">${escapeHtml(first)} can save the reel to keep forever. We delete our copy 30 days after it's made (you can add 30 more days once).</p>
     <button class="btn primary" id="dlgSend">Make it</button>
     <button class="btn outline" id="dlgClose">Not yet</button>`

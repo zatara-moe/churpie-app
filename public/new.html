@@ -165,6 +165,9 @@ const { moments, vibes } = await api('/api/catalog')
 // arriving from a moment on the home page (/new?moment=getwell) preselects it and its card
 const picked = moments.find((m) => m.id === new URLSearchParams(location.search).get('moment'))
 if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
+// arriving from a closed or full card (/new?for=Rosa) starts a card for the same person
+const forName = new URLSearchParams(location.search).get('for')
+if (forName) $('#step1 [name=recipientName]').value = forName.slice(0, 60)
 const TONES = [['funny', 'Light', 'make them laugh'], ['heartfelt', 'Warm', 'say the real thing'], ['hype', 'Loud', 'big energy, say their name'], ['quiet', 'Gentle', 'slow down, plain words']]
 const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
 

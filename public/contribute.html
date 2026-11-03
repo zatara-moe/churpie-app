@@ -261,8 +261,14 @@ if (card.hasIntro) {
   $('#hearBtn').onclick = () => { const v = $('#introVid'); v.src = `/api/cards/${cardId}/intro`; v.classList.toggle('hidden'); if (!v.classList.contains('hidden')) v.play() }
 }
 $('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
-if (card.status !== 'open') {
-  $('#record').innerHTML = `<div class="card"><h2>${escapeHtml(card.hostName)} already sent this card.</h2><p class="muted">If you missed it, ${escapeHtml(firstName(card.hostName))} can start a part two.</p></div>`
+// closed or full: never a dead end, and never "go ask someone". Offer a card of their own for the same person.
+if (card.status !== 'open' || card.full) {
+  const own = `/new?for=${encodeURIComponent(card.recipientName)}&moment=${encodeURIComponent(card.moment || '')}`
+  const [h, p] = card.status !== 'open'
+    ? [`${escapeHtml(first)}'s reel is already made.`, `This card is closed, so new messages can't go in. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
+    : [`${escapeHtml(first)}'s card is full.`, `${card.clipCount} people have already said something, which is as many as one reel can hold. You can still start a card of your own for ${escapeHtml(first)}.`]
+  $('#howto').classList.add('hidden')
+  $('#record').innerHTML = `<div class="card stack"><h2>${h}</h2><p class="muted">${p}</p><a class="btn primary" href="${own}">Start a card for ${escapeHtml(first)}</a></div>`
 }
 
 // ── state ────────────────────────────────────────────────────────────────────
