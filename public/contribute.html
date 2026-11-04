@@ -250,6 +250,15 @@ const LIMIT = card.clipSeconds
 // the host going first from their own board: their name is already filled in, and "done" leads back to the board
 const myBoard = myBoards().find((b) => b.id === cardId)
 if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
+// opened over the board (a sheet) or on its own: either way the host always has a way back
+const embedded = window.self !== window.top
+if (myBoard && !embedded) {
+  const bar = document.createElement('a')
+  bar.href = myBoard.url
+  bar.textContent = '← Back to your board'
+  bar.setAttribute('style', 'display:block; background:#fff; color:var(--pink-deep); font-weight:700; padding:12px 16px; text-decoration:none; box-shadow:0 1px 0 var(--paper-aged)')
+  document.body.insertBefore(bar, document.body.firstChild)
+}
 
 // ── the brief ────────────────────────────────────────────────────────────────
 $('#hostLine').textContent = `${card.hostName} is making this for`
@@ -434,6 +443,7 @@ function finish(reg, name) {
   $('#editText').href = `sms:?&body=${encodeURIComponent(`My churpie message for ${first} (to redo it): ${reg.editUrl}`)}`
   $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
   try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {}
+  if (embedded) { try { parent.postMessage({ churpie: 'added' }, location.origin) } catch {} }
   if (myBoard) {
     // the host is done with this page; the next job (inviting people) lives on the board
     $('#shareOn').textContent = 'Back to your board'
