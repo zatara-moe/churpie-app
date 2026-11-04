@@ -14,7 +14,7 @@ APP_URL = "https://churpie.me"
 CLIP_LIFETIME_DAYS = "30"
 MAX_CLIPS_PER_CARD = "50"
 # The reel maker on Google Cloud Run (its https://... address). Empty = reels wait for a reel maker that polls on its own.
-STITCHER_URL = ""
+STITCHER_URL = "https://churpie-stitcher-wo5tv7wzna-uw.a.run.app"
 MAX_UPLOAD_MB = "300"  # whole video; anything over 90 MB goes up in pieces (Cloudflare refuses single requests over 100 MB)
 
 # Secrets (set with `wrangler secret put NAME`, never in this file):
