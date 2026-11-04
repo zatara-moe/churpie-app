@@ -27,6 +27,10 @@ TURNSTILE_SITE_KEY = ""  # whole video; anything over 90 MB goes up in pieces (C
 #                   Without it, the board link shows on screen and no email is sent.
 #   TURNSTILE_SECRET optional bot check on making cards and sending messages (with TURNSTILE_SITE_KEY above)
 
+# Workers Logs (free: 200,000 events a day, kept 3 days): shows which requests use the most CPU or fail
+[observability]
+enabled = true
+
 [[d1_databases]]
 binding = "DB"
 database_name = "churpie"
