@@ -1,0 +1,30 @@
+/* occasion and compare pages: same paper, same voice as the home page */
+.occ { padding-top: 8px; padding-bottom: 40px; }
+.occ h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 40px; line-height: 1.05; margin: 8px 0 0; }
+.occ h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 26px; line-height: 1.1; margin: 0; }
+.occ .lede { font-size: 17px; color: var(--ink-faded); }
+.occ .hero-card { width: 100%; height: auto; border-radius: 18px; box-shadow: 0 14px 34px rgba(26,20,16,0.14); transform: rotate(-1deg); }
+.occ .cta-sub { text-align: center; font-size: 13px; color: var(--ink-faded); font-weight: 600; }
+.occ .cta-sub span { display: inline-block; margin: 0 6px; }
+.occ .steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.occ .steps li { counter-increment: s; background: #fff; border-radius: 16px; padding: 14px 16px 14px 56px; position: relative; display: flex; flex-direction: column; gap: 2px; box-shadow: inset 0 0 0 1px var(--paper-dark); }
+.occ .steps li::before { content: counter(s); position: absolute; left: 16px; top: 14px; width: 28px; height: 28px; border-radius: 50%; background: var(--pink); color: #fff; font-weight: 700; display: grid; place-items: center; }
+.occ .steps span { color: var(--ink-faded); background: none; padding: 0; border-radius: 0; box-shadow: none; display: block; }
+.occ .prompts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.occ .prompts li { background: var(--amber-pale); border-radius: 14px; padding: 12px 14px; font-family: 'Caveat', cursive; font-size: 24px; line-height: 1.15; }
+.occ .tips { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--ink-faded); }
+.occ .qa { background: #fff; border-radius: 16px; padding: 14px 16px; box-shadow: inset 0 0 0 1px var(--paper-dark); }
+.occ .qa summary { font-weight: 700; cursor: pointer; }
+.occ .qa p { margin: 8px 0 0; color: var(--ink-faded); }
+.occ .more a { color: var(--ink); font-weight: 700; text-decoration: none; padding: 6px 0; }
+.occ .more a:hover { color: var(--pink); }
+.occ .cmp-wrap { overflow-x: auto; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--paper-dark); background: #fff; }
+.occ .cmp { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+.occ .cmp th, .occ .cmp td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--paper-aged); }
+.occ .cmp thead th { font-weight: 700; background: var(--paper-aged); }
+.occ .cmp thead th:nth-child(2), .occ .cmp td:nth-child(2) { background: var(--pink-pale); }
+.occ .cmp tbody th { font-weight: 700; color: var(--ink-faded); width: 28%; }
+.occ-foot { max-width: 480px; margin: 0 auto; padding: 20px 16px 36px; border-top: 1px solid var(--paper-dark); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; font-size: 13px; color: var(--ink-ghost); }
+.occ-foot a { color: var(--ink-faded); }
+@media (min-width: 720px) { .occ, .occ-foot { max-width: 680px; } .occ h1 { font-size: 52px; } }
+@media (min-width: 720px) { .occ .cmp-hint { display: none; } }
