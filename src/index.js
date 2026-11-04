@@ -258,6 +258,50 @@ app.put('/api/clips/:clipId/upload', async (c) => {
   return c.json({ ok: true, bytes: obj.size })
 })
 
+// Big videos (a phone's own camera can make 100+ MB) go up in pieces. Cloudflare turns away any single
+// request over 100 MB before the Worker sees it, so one file is sent as several smaller requests and
+// R2 joins them back together. Same clip, same key, same "ready" at the end as the one-request path above.
+async function videoClip(c) {
+  const clip = await c.env.DB.prepare(`SELECT * FROM clips WHERE id = ?`).bind(c.req.param('clipId')).first()
+  if (!clip) return { error: c.notFound() }
+  if (clip.edit_token !== c.req.query('edit')) return { error: bad(c, "That link doesn't match this message. Use the private link you saved.", 403) }
+  if (clip.kind !== 'video') return { error: bad(c, 'Written messages have nothing to upload.') }
+  return { clip }
+}
+
+app.post('/api/clips/:clipId/parts', async (c) => {
+  const { clip, error } = await videoClip(c); if (error) return error
+  const b = await c.req.json().catch(() => ({}))
+  const maxBytes = Number(c.env.MAX_UPLOAD_MB || 300) * 1024 * 1024
+  if (Number(b.size) > maxBytes) return bad(c, `That video is over ${c.env.MAX_UPLOAD_MB || 300} MB. Record it here instead, or trim it on your phone first.`, 413)
+  const contentType = String(b.contentType || clip.content_type || 'video/mp4')
+  const mpu = await c.env.CLIPS.createMultipartUpload(clip.storage_key, { httpMetadata: { contentType: contentType.startsWith('video/') ? contentType : 'video/mp4' } })
+  return c.json({ uploadId: mpu.uploadId })
+})
+
+app.put('/api/clips/:clipId/parts/:n', async (c) => {
+  const { clip, error } = await videoClip(c); if (error) return error
+  const n = Number(c.req.param('n'))
+  if (!Number.isInteger(n) || n < 1 || n > 100) return bad(c, 'That piece of the video is out of order. Try once more.')
+  const mpu = c.env.CLIPS.resumeMultipartUpload(clip.storage_key, c.req.query('uploadId'))
+  const part = await mpu.uploadPart(n, c.req.raw.body)
+  return c.json(part) // { partNumber, etag }
+})
+
+app.post('/api/clips/:clipId/parts/done', async (c) => {
+  const { clip, error } = await videoClip(c); if (error) return error
+  const b = await c.req.json().catch(() => ({}))
+  const parts = Array.isArray(b.parts) ? b.parts.map((p) => ({ partNumber: Number(p.partNumber), etag: String(p.etag) })) : []
+  if (!parts.length) return bad(c, "The video didn't arrive. Try once more.")
+  const mpu = c.env.CLIPS.resumeMultipartUpload(clip.storage_key, String(b.uploadId || ''))
+  const obj = await mpu.complete(parts)
+  await c.env.DB.prepare(`UPDATE clips SET status = 'ready', bytes = ?, content_type = ?, flags = NULL WHERE id = ?`)
+    .bind(obj.size, obj.httpMetadata?.contentType || clip.content_type || 'video/mp4', clip.id)
+    .run()
+  await logEvent(c.env.DB, clip.card_id, 'clip')
+  return c.json({ ok: true, bytes: obj.size })
+})
+
 app.get('/api/clips/by-edit/:token', async (c) => {
   const clip = await c.env.DB.prepare(`SELECT id FROM clips WHERE edit_token = ? AND status != 'removed'`).bind(c.req.param('token')).first()
   return c.json({ clipId: clip?.id || null })

@@ -159,6 +159,7 @@
     <div class="controls">
       <button class="side" id="uploadBtn" type="button"><span style="background: var(--amber-pale)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></span>Upload a video</button>
       <input type="file" id="file" accept="video/*" class="hidden">
+      <input type="file" id="nativeCam" accept="video/*" capture="user" class="hidden">
       <button class="rec" id="recBtn" type="button" aria-label="Record. The ring fills as the seconds pass.">
         <svg width="98" height="98" viewBox="0 0 98 98" aria-hidden="true"><circle cx="49" cy="49" r="45" fill="none" stroke="#EDE5D0" stroke-width="6"/><circle id="ring" cx="49" cy="49" r="45" fill="none" stroke="#D4266A" stroke-width="6" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" transform="rotate(-90 49 49)"/></svg>
         <span class="dot" id="recLabel">Record</span>
@@ -238,7 +239,7 @@
 </main>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, upload } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo } from '/app.js'
 
 const cardId = location.pathname.split('/')[2]
 const editToken = new URLSearchParams(location.search).get('edit')
@@ -293,25 +294,15 @@ async function openCamera() {
   $('#camPlaceholder').classList.add('hidden')
   $('.video.cam').classList.add('live')
 }
-// Links opened inside Instagram, Facebook, TikTok, Snapchat and similar apps run in their own browser,
-// which often blocks the camera. Those people need to open the link in Safari or Chrome instead.
-const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Line\/|Pinterest|Twitter/i.test(navigator.userAgent)
-const OPEN_IN_BROWSER = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-  ? 'Tap the ••• or share button at the top or bottom of this screen, then choose <strong>Open in Safari</strong> (or Open in browser).'
-  : 'Tap the ⋮ menu at the top of this screen, then choose <strong>Open in Chrome</strong> (or Open in browser).'
-function inAppHelp() {
+// One answer for every phone: if the camera can't start here, for any reason (an app's built-in browser,
+// a blocked permission, an older phone), the same button opens the phone's own camera app instead.
+// Whatever they record comes back to the same "check it" screen, and goes up the same way.
+function cameraHelp() {
   $('#camPlaceholder').classList.remove('hidden')
-  $('#camPlaceholder').innerHTML = `<strong>To record, open this in your phone's browser.</strong><span>This app's built-in browser can block the camera. ${OPEN_IN_BROWSER}</span><button class="btn" type="button" id="copyInvite" style="width: auto">Copy this link</button><span>Or write a message instead. That works right here.</span>`
-  $('#copyInvite').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('Link copied. Paste it into Safari or Chrome.') } catch { toast(location.href) } }
+  $('#camPlaceholder').innerHTML = `<strong>Your camera didn't open here.</strong><span>No problem. Use your phone's camera instead.</span><button class="btn primary" type="button" id="nativeCamBtn" style="width: auto">Open my camera</button>`
+  $('#nativeCamBtn').onclick = () => $('#nativeCam').click()
 }
-function cameraHelp(err) {
-  if (IN_APP) return inAppHelp()
-  $('#camPlaceholder').classList.remove('hidden')
-  $('#camPlaceholder').innerHTML = err && err.name !== 'NotAllowedError' && err.name !== 'SecurityError'
-    ? `<strong>We couldn't start your camera.</strong><span>Close any other app using the camera and try again, or tap <strong>Upload a video</strong> below.</span>`
-    : `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or tap <strong>Upload a video</strong> below.</span>`
-}
-if (IN_APP && $('#camPlaceholder')) inAppHelp() // not on a closed or full card, where the recorder is replaced
+const canRecordHere = !!(navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined')
 
 if ($('#flip')) $('#flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; if (stream) await openCamera().catch(cameraHelp) }
 if ($('#timerToggle')) $('#timerToggle').onclick = () => {
@@ -323,7 +314,7 @@ if ($('#timerToggle')) $('#timerToggle').onclick = () => {
 
 async function startRecording() {
   seenTips(); $('#howto').open = false
-  try { if (!stream) await openCamera() } catch (err) { cameraHelp(err); return }
+  try { if (!stream) await openCamera() } catch { cameraHelp(); return }
   // 3-2-1 so nobody starts mid-sentence
   const count = $('#count'); count.classList.remove('hidden')
   for (const n of [3, 2, 1]) { count.textContent = n; await new Promise((r) => setTimeout(r, 800)) }
@@ -353,7 +344,9 @@ function onStopped() {
   blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' })
   reviewBlob(blob, (Date.now() - startedAt) / 1000)
 }
-if ($('#recBtn')) $('#recBtn').onclick = () => (recorder && recorder.state === 'recording' ? stopRecording() : startRecording())
+// no in-page recorder on this phone: Record opens the phone's camera app straight away (same tap, same next screen)
+if ($('#recBtn')) $('#recBtn').onclick = () => (!canRecordHere ? (seenTips(), $('#nativeCam').click()) : recorder && recorder.state === 'recording' ? stopRecording() : startRecording())
+if ($('#nativeCam')) $('#nativeCam').onchange = () => { const f = $('#nativeCam').files[0]; if (f) { blob = f; reviewBlob(f, null) } }
 
 if ($('#uploadBtn')) $('#uploadBtn').onclick = () => { seenTips(); $('#file').click() }
 if ($('#file')) $('#file').onchange = async () => {
@@ -362,7 +355,7 @@ if ($('#file')) $('#file').onchange = async () => {
   reviewBlob(f, null)
 }
 
-const MAX_MB = 95
+const MAX_MB = 300
 let tooBig = false
 function reviewBlob(b, seconds) {
   const url = URL.createObjectURL(b)
@@ -375,7 +368,7 @@ function reviewBlob(b, seconds) {
   const notes = []
   if (seconds !== null && seconds < 3) notes.push('That was very short. Want another go?')
   tooBig = b.size > MAX_MB * 1024 * 1024
-  if (tooBig) notes.push(`That video is ${Math.round(b.size / 1048576)} MB, and the most we can take is ${MAX_MB} MB. Tap Retake and record it here instead (it's quicker), or trim it in your camera roll first.`)
+  if (tooBig) notes.push(`That video is over ${MAX_MB} MB, which is more than one message can hold. Tap Retake and record a shorter one.`)
   $('#sendClip').disabled = tooBig
   $('#checkNotes').innerHTML = notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('')
   v.onloadedmetadata = () => {
@@ -401,7 +394,7 @@ $('#checkForm').addEventListener('submit', async (e) => {
   const bar = $('#upbar'); bar.classList.remove('hidden')
   try {
     const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'video', contentType: blob.type || 'video/mp4' } })
-    await upload(reg.uploadUrl, blob, (p) => { bar.firstElementChild.style.width = `${Math.round(p * 100)}%` })
+    await uploadVideo(reg, blob, (p) => { bar.firstElementChild.style.width = `${Math.round(p * 100)}%` })
     finish(reg, f.get('name'))
   } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Send it'; bar.classList.add('hidden') }
 })

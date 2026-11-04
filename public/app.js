@@ -65,7 +65,7 @@ export function upload(url, blob, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total) }
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText || '{}'))
-      else if (xhr.status === 413) reject(new Error('That video is too big to send. Record it here instead (it’s quicker), or trim it in your camera roll first.'))
+      else if (xhr.status === 413) reject(new Error("That video is too big to send. Record it here instead, or trim it on your phone first."))
       else { let msg = "That didn't go through. Try once more."; try { msg = JSON.parse(xhr.responseText).error || msg } catch {} reject(new Error(msg)) }
     }
     xhr.onerror = () => reject(new Error('Your connection blinked. Your video is still on your phone, so try once more.'))
@@ -111,4 +111,31 @@ export function forgetBoard(url) {
 // "Fri, Nov 6, 3 PM" in the viewer's own time
 export function fmtWhen(iso) {
   return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+// Every contributor's video goes through here, whatever the phone. Small files go up in one request;
+// big ones (a phone's own camera can make 100+ MB) go up in 50 MB pieces, because Cloudflare refuses
+// any single request over 100 MB. Each piece gets two retries, so a blip on a phone connection
+// doesn't lose the whole video. The person just sees one progress bar.
+const ONE_SHOT = 90 * 1024 * 1024
+const PIECE = 50 * 1024 * 1024
+export async function uploadVideo(reg, blob, onProgress) {
+  if (blob.size <= ONE_SHOT) return upload(reg.uploadUrl, blob, onProgress)
+  const edit = new URL(reg.uploadUrl, location.href).searchParams.get('edit')
+  const clipPath = `/api/clips/${reg.clipId}/parts`
+  const { uploadId } = await api(`${clipPath}?edit=${encodeURIComponent(edit)}`, { method: 'POST', body: { size: blob.size, contentType: blob.type || 'video/mp4' } })
+  const parts = []
+  const count = Math.ceil(blob.size / PIECE)
+  for (let i = 0; i < count; i++) {
+    const piece = blob.slice(i * PIECE, Math.min(blob.size, (i + 1) * PIECE), blob.type)
+    const url = `${clipPath}/${i + 1}?edit=${encodeURIComponent(edit)}&uploadId=${encodeURIComponent(uploadId)}`
+    let tries = 0
+    for (;;) {
+      try {
+        parts.push(await upload(url, piece, (p) => onProgress?.((i + p) / count)))
+        break
+      } catch (e) { if (++tries > 2) throw e; await new Promise((r) => setTimeout(r, 1500 * tries)) }
+    }
+  }
+  return api(`${clipPath}/done?edit=${encodeURIComponent(edit)}`, { method: 'POST', body: { uploadId, parts } })
 }
