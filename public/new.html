@@ -126,7 +126,13 @@
     <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
     <h1>Check your email.</h1>
     <p class="muted">We sent your board for <span id="checkFirst"></span> to <b id="checkTo"></b>. Open it to get your invite link.</p>
-    <p class="ghost">Nothing there in a minute? Check spam, or <a href="/new">start over with a different email</a>.</p>
+    <p class="muted">It can take a minute. If it's not in your inbox, look in Spam or Promotions.</p>
+    <div class="row" style="width: 100%">
+      <a class="btn outline" href="https://mail.google.com/mail/u/0/#search/from%3Achurpie.me" target="_blank" rel="noopener">Open Gmail</a>
+      <a class="btn outline" href="https://outlook.live.com/mail/0/" target="_blank" rel="noopener">Open Outlook</a>
+    </div>
+    <button class="btn quiet" type="button" id="resendBtn">Send it again</button>
+    <p class="ghost">Wrong address? <a href="/new">Start over with a different email</a>.</p>
   </section>
 
   <section id="done" class="stack hidden" style="gap: 16px">
@@ -272,6 +278,12 @@ $('#step3').addEventListener('submit', async (e) => {
       $('#checkEmail').classList.remove('hidden')
       $('#checkTo').textContent = res.email
       $('#checkFirst').textContent = first
+      $('#resendBtn').onclick = async () => {
+        $('#resendBtn').disabled = true
+        try { await api('/api/lost', { method: 'POST', body: { email: res.email, turnstile: await botCheck() } }); toast('Sent again. Give it a minute.') }
+        catch (err) { toast(err.message) }
+        setTimeout(() => { $('#resendBtn').disabled = false }, 30000)
+      }
       window.scrollTo({ top: 0 })
       return
     }

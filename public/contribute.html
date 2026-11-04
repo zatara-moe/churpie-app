@@ -249,6 +249,17 @@ const first = firstName(card.recipientName)
 const LIMIT = card.clipSeconds
 // the host going first from their own board: their name is already filled in, and "done" leads back to the board
 const myBoard = myBoards().find((b) => b.id === cardId)
+// the crowd, before you record: their names, never their messages
+if (card.clipCount && card.names?.length && !editToken) {
+  const n = card.clipCount, shown = card.names.slice(0, n > 3 ? 2 : 3)
+  const others = n - shown.length
+  const who = others > 0 ? `${shown.join(', ')} and ${others} ${others === 1 ? 'other' : 'others'}` : shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0]
+  const row = document.createElement('p')
+  row.className = 'muted'
+  row.setAttribute('style', 'text-align:center; margin: 2px 0 -4px')
+  row.innerHTML = `<b style="color:var(--ink)">${escapeHtml(who)}</b> ${n === 1 ? 'is' : 'are'} already in`
+  $('#record')?.prepend(row)
+}
 if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
 // opened over the board (a sheet) or on its own: either way the host always has a way back
 const embedded = window.self !== window.top
@@ -274,7 +285,7 @@ if (card.hasIntro) {
   $('#hearBtn').classList.remove('hidden'); $('#hearBtn').lastChild.textContent = `Hear ${hostFirst}`
   $('#hearBtn').onclick = () => { const v = $('#introVid'); v.src = `/api/cards/${cardId}/intro`; v.classList.toggle('hidden'); if (!v.classList.contains('hidden')) v.play() }
 }
-$('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
+$('#footnote').textContent = card.clipCount && !card.names?.length ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
 // closed or full: never a dead end, and never "go ask someone". Offer a card of their own for the same person.
 if (card.notYet) {
   $('#howto').classList.add('hidden')

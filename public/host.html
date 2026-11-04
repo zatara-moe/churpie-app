@@ -158,7 +158,8 @@
 <div class="stripe"></div>
 <main class="wrap stack board">
   <div class="hb-top">
-    <div class="for"><span id="forLine">Your card for</span><strong id="title">…</strong></div>
+    <div style="display: flex; align-items: center; gap: 14px; min-width: 0"><a class="logo" href="/" aria-label="churpie home" style="font-size: 22px">churpie<b>.</b></a><span style="width: 1px; height: 32px; background: var(--paper-dark)"></span>
+    <div class="for"><span id="forLine">Your card for</span><strong id="title">…</strong></div></div>
     <span class="chip hidden" id="topChip"></span>
   </div>
   <div id="stage" class="stack" aria-live="polite"></div>
@@ -247,7 +248,9 @@ function placeDock() {
 matchMedia('(min-width: 960px)').addEventListener?.('change', placeDock)
 
 // ── shares ──────────────────────────────────────────────────────────────────
-const inviteText = () => `${data.card.hostName} is making a surprise video for ${first}, and you're one of ${first}'s people. Tap, record ${data.card.clipSeconds} seconds, done. (Shh, don't tell ${first}.)`
+const inviteText = () => memorial
+  ? `I'm gathering memories of ${first} into one video, and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds. No app needed.`
+  : `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds, done. No app needed. (Shh, don't tell ${first}.)`
 function nudgeText() {
   const c = data.card
   const left = c.deadlineAt && !c.deadlinePassed ? fmtDays(c.deadlineAt) : ''
@@ -397,7 +400,7 @@ function collecting() {
         ${!ready.length ? `<div class="invite-card stack" style="gap: 10px">
           <p class="ghost" style="text-transform: uppercase; letter-spacing: 1px">What they'll get</p>
           <p class="bubble">${esc(inviteText())}</p>
-          <div class="row"><button class="btn line" data-act="invite">${ICON.share}Invite</button><button class="btn soft" data-act="preview">${ICON.eye}Preview</button></div>
+          <button class="btn quiet" data-act="preview" style="align-self: flex-start; min-height: 0; padding: 0; color: var(--pink-deep)">${ICON.eye}See what they'll see</button>
         </div>` : ''}
         ${canInvite && ready.length ? `<div class="panel stack" style="gap: 10px">
           <div class="row between"><strong>Nudge the group</strong><span class="ghost">a ready message</span></div>
@@ -410,11 +413,11 @@ function collecting() {
       </div>
     </div>`
   const enough = ready.length >= 3 || card.deadlinePassed || left === 0
-  const make = `<button class="btn ${enough ? 'primary big' : 'line'}" data-act="make" ${ready.length ? '' : 'disabled'}>Make ${F}'s reel${enough ? '' : ' now'}</button>`
+  const make = enough ? `<button class="btn primary big" data-act="make">Make ${F}'s reel</button>` : `<button class="btn quiet" data-act="make" style="min-height: 40px">Make the reel now</button>`
   const inv = `<button class="btn ${enough ? 'line' : 'primary big'}" data-act="invite">${ICON.share}Invite more people</button>`
   const rec = `<button class="btn soft" data-act="record">Record yours</button>`
   if (!ready.length) dock(`<button class="btn primary big" data-act="invite">${ICON.share}Invite people</button>${mine ? '' : rec}`)
-  else dock(!canInvite ? make : (enough ? make + inv : inv + make) + (mine ? '' : rec))
+  else dock(!canInvite ? make.replace('btn quiet', 'btn primary big') : enough ? make + inv : inv + make)
   if (ready.length) $('#dock').insertAdjacentHTML('beforeend', `<p class="ghost">${ready.length < 3 ? `Only ${ready.length} so far. Most reels have 5 or more.` : `${F} sees nothing until you send it.`}</p>`)
   allMessages()
   moreBox()

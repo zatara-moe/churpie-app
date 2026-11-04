@@ -249,8 +249,11 @@ app.get('/api/cards/:id/public', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
   if (!card) return bad(c, "This card isn't here anymore.", 404)
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status = 'ready'`).bind(card.id).first()
+  // who's already in, names as they typed them, so a guest can see the crowd (never the messages)
+  const { results: inRows } = await c.env.DB.prepare(`SELECT contributor_name FROM clips WHERE card_id = ? AND status = 'ready' ORDER BY created_at DESC LIMIT 5`).bind(card.id).all()
+  const names = inRows.map((r) => String(r.contributor_name || '').trim().slice(0, 24)).filter(Boolean)
   // full is checked up front, so nobody records a message that can't go in
-  return c.json({ ...publicCard(card, count), full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50), notYet: await needsVerify(c.env.DB, card.id) })
+  return c.json({ ...publicCard(card, count), names, full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50), notYet: await needsVerify(c.env.DB, card.id) })
 })
 
 app.get('/api/cards/:id/intro', async (c) => {
