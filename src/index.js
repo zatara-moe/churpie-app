@@ -122,7 +122,22 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4') {
 // Catalog (moments, vibes, ready-made prompts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES }))
+app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null }))
+
+// Cloudflare Turnstile: an invisible "are you a person" check on making cards and sending messages.
+// Off until both TURNSTILE_SITE_KEY (variable) and TURNSTILE_SECRET (secret) are set.
+async function isPerson(c, token) {
+  if (!c.env.TURNSTILE_SECRET || !c.env.TURNSTILE_SITE_KEY) return true
+  if (!token) return false
+  const form = new FormData()
+  form.append('secret', c.env.TURNSTILE_SECRET)
+  form.append('response', String(token))
+  const ip = c.req.header('cf-connecting-ip'); if (ip) form.append('remoteip', ip)
+  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form }).then((x) => x.json()).catch(() => ({ success: false }))
+  return !!r.success
+}
+const NOT_A_PERSON = "We couldn't confirm you're a person. Refresh the page and try once more."
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Host: create a card
@@ -130,6 +145,7 @@ app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES }))
 
 app.post('/api/cards', async (c) => {
   const b = await c.req.json().catch(() => ({}))
+  if (!(await isPerson(c, b.turnstile))) return bad(c, NOT_A_PERSON, 403)
   const recipientName = sanitize(b.recipientName, 60)
   const hostName = sanitize(b.hostName, 60)
   const prompt = sanitize(b.prompt, 240)
@@ -201,6 +217,7 @@ app.post('/api/cards/:id/clips', async (c) => {
   if (pastDeadline(card)) return bad(c, `The last day to add a message for ${card.recipient_name} has passed.`, 409)
 
   const b = await c.req.json().catch(() => ({}))
+  if (!(await isPerson(c, b.turnstile))) return bad(c, NOT_A_PERSON, 403)
   const name = sanitize(b.name, 40)
   const location = sanitize(b.location, 40) || null
   const kind = b.kind === 'text' ? 'text' : 'video'
@@ -354,6 +371,7 @@ app.get('/api/host/:token', async (c) => {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
       hostEmail: card.host_email,
       maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
+      hasReel: !!card.final_key,
       accountType: card.account_type,
       sentAt: card.sent_at,
       expiresAt: card.expires_at,
@@ -456,6 +474,22 @@ app.post('/api/host/:token/keep', async (c) => {
   await c.env.DB.prepare(`UPDATE cards SET expires_at = NULL WHERE id = ?`).bind(card.id).run()
   await logEvent(c.env.DB, card.id, 'kept')
   return c.json({ ok: true })
+})
+
+// "Delete this card": everything goes now, not in 30 days
+app.post('/api/host/:token/delete', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (card.status === 'stitching') return bad(c, "The reel is being made right this minute. Try again in a minute or two.", 409)
+  await expireCard(c.env, card.id, 'deleted')
+  return c.json({ ok: true })
+})
+
+// "Watch it first": the host's own preview of the finished reel. Doesn't mark it opened.
+app.get('/api/host/:token/reel.mp4', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card?.final_key) return c.notFound()
+  return streamObject(c, card.final_key)
 })
 
 app.post('/api/host/:token/extend', async (c) => {
@@ -686,6 +720,18 @@ app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore"
 // Nightly sweep: delete what has expired, and raw clips 48h after a reel exists
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Deletes every file a card has (messages, intro, reels) and marks it finished. Used by the nightly sweep
+// and by the host's "Delete this card".
+async function expireCard(env, id, why) {
+  const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
+  const finals = await env.CLIPS.list({ prefix: `finals/${id}/` })
+  const keys = [...listed.objects, ...finals.objects].map((o) => o.key)
+  if (keys.length) await env.CLIPS.delete(keys)
+  await env.DB.prepare(`UPDATE cards SET status = 'expired', final_key = NULL, final_wide_key = NULL, host_intro_key = NULL, expires_at = COALESCE(expires_at, ?) WHERE id = ?`).bind(nowIso(), id).run()
+  await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
+  await logEvent(env.DB, id, why)
+}
+
 async function sweep(env) {
   await recoverStale(env.DB)
   const now = nowIso()
@@ -706,15 +752,7 @@ async function sweep(env) {
   const { results: expired } = await env.DB.prepare(
     `SELECT id FROM cards WHERE expires_at IS NOT NULL AND expires_at < ? AND status != 'expired'`
   ).bind(now).all()
-  for (const { id } of expired) {
-    const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
-    const finals = await env.CLIPS.list({ prefix: `finals/${id}/` })
-    const keys = [...listed.objects, ...finals.objects].map((o) => o.key)
-    if (keys.length) await env.CLIPS.delete(keys)
-    await env.DB.prepare(`UPDATE cards SET status = 'expired', final_key = NULL, final_wide_key = NULL, host_intro_key = NULL WHERE id = ?`).bind(id).run()
-    await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
-    await logEvent(env.DB, id, 'expired')
-  }
+  for (const { id } of expired) await expireCard(env, id, 'expired')
   // raw clips for reels older than 48 hours
   const cutoff = new Date(Date.now() - 48 * 3600000).toISOString()
   const { results: done } = await env.DB.prepare(

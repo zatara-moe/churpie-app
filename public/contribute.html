@@ -13,7 +13,7 @@
 <link rel="icon" href="/favicon.svg">
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&family=DM+Serif+Display&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Caveat:wght@600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
   @media (min-width: 960px) {
@@ -240,7 +240,7 @@
 </main>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo, botCheck } from '/app.js'
 
 const cardId = location.pathname.split('/')[2]
 const editToken = new URLSearchParams(location.search).get('edit')
@@ -268,8 +268,10 @@ if (card.status !== 'open' || card.full || card.deadlinePassed) {
   const own = `/new?for=${encodeURIComponent(card.recipientName)}&moment=${encodeURIComponent(card.moment || '')}`
   const [h, p] = card.deadlinePassed
     ? [`The last day for ${escapeHtml(first)}'s card has passed.`, `New messages can't go in now. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
+    : card.status === 'expired'
+    ? [`${escapeHtml(first)}'s card is finished.`, `New messages can't go in now. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
     : card.status !== 'open'
-    ? (['ready', 'sent', 'expired'].includes(card.status)
+    ? (['ready', 'sent'].includes(card.status)
       ? [`${escapeHtml(first)}'s reel is already made.`, `This card is closed, so new messages can't go in. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
       : [`Messages are closed for now.`, `${escapeHtml(hostFirst)} is putting ${escapeHtml(first)}'s reel together right now. You can still start a card of your own for ${escapeHtml(first)}.`])
     : [`${escapeHtml(first)}'s card is full.`, `${card.clipCount} people have already said something, which is as many as one reel can hold. You can still start a card of your own for ${escapeHtml(first)}.`]
@@ -394,7 +396,7 @@ $('#checkForm').addEventListener('submit', async (e) => {
   const btn = $('#sendClip'); btn.disabled = true; btn.textContent = 'Sending...'
   const bar = $('#upbar'); bar.classList.remove('hidden')
   try {
-    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'video', contentType: blob.type || 'video/mp4' } })
+    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'video', contentType: blob.type || 'video/mp4', turnstile: await botCheck() } })
     await uploadVideo(reg, blob, (p) => { bar.firstElementChild.style.width = `${Math.round(p * 100)}%` })
     finish(reg, f.get('name'))
   } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Send it'; bar.classList.add('hidden') }
@@ -406,13 +408,14 @@ $('#writeForm').addEventListener('submit', async (e) => {
   e.preventDefault()
   const f = new FormData(e.target)
   try {
-    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'text', text: f.get('text') } })
+    const reg = await api(`/api/cards/${cardId}/clips`, { method: 'POST', body: { name: f.get('name'), location: f.get('location'), kind: 'text', text: f.get('text'), turnstile: await botCheck() } })
     finish(reg, f.get('name'))
   } catch (err) { toast(err.message) }
 })
 
 function finish(reg, name) {
   if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null }
+  $('#howto')?.classList.add('hidden') // the recording tips are done their job
   step(3)
   $('#doneTitle').textContent = `Thank you, ${firstName(name)}.`
   $('#youAre').textContent = `#${(card.clipCount || 0) + 1}`

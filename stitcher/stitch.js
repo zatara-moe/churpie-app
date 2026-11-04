@@ -179,7 +179,8 @@ async function frameReel(inner, framePng, dst, size, theme) {
   await ffmpeg([
     '-i', inner, '-i', framePng,
     '-filter_complex', `color=c=${bg}:s=${g.W}x${g.H}:r=${FPS}[bg];[0:v]scale=${g.w}:${g.h}:flags=lanczos[reel];[bg][reel]overlay=${g.x}:${g.y}:shortest=1[a];[a][1:v]overlay=0:0:format=auto,format=yuv420p[v]`,
-    '-map', '[v]', '-map', '0:a', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-c:a', 'copy', '-movflags', '+faststart', dst,
+    // quality-first (crf 21), but never above ~2.5 Mbps, so a reel stays about 19 MB a minute at most
+    '-map', '[v]', '-map', '0:a', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '21', '-maxrate', '2500k', '-bufsize', '5000k', '-c:a', 'copy', '-movflags', '+faststart', dst,
   ], 15 * 60 * 1000)
 }
 
@@ -262,17 +263,19 @@ export async function processOne() {
   if (!job) return false
   log(`[${job.cardId}] claimed · ${job.clips.length} clips for ${job.recipientName}`)
   const out = path.join(os.tmpdir(), `churpie-${job.cardId}-reel.mp4`)
-  const wide = path.join(os.tmpdir(), `churpie-${job.cardId}-reel-wide.mp4`)
+  // one reel per card: computers show it inside the card frame on the watch page. The wide (16:9) export
+  // doubled render time and storage, so it only happens when WIDE_REEL=1 is set on the reel maker.
+  const wide = process.env.WIDE_REEL === '1' ? path.join(os.tmpdir(), `churpie-${job.cardId}-reel-wide.mp4`) : null
   try {
     const manifest = await stitch(job, { fetchClip: download, outFile: out, wideFile: wide, onFlags: postFlags })
     // wide first, so the card only turns "ready" once both files exist
-    if (fs.existsSync(wide)) await uploadFinal(job.cardId, wide, manifest, 'wide')
+    if (wide && fs.existsSync(wide)) await uploadFinal(job.cardId, wide, manifest, 'wide')
     const r = await uploadFinal(job.cardId, out, manifest)
     log(`[${job.cardId}] done → ${r.watch}`)
   } catch (e) {
     log(`[${job.cardId}] FAILED ${e.message}`)
     await markFailed(job.cardId, e.message)
-  } finally { fs.rmSync(out, { force: true }); fs.rmSync(wide, { force: true }) }
+  } finally { fs.rmSync(out, { force: true }); if (wide) fs.rmSync(wide, { force: true }) }
   return true
 }
 

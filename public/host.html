@@ -11,7 +11,7 @@
 <link rel="icon" href="/favicon.svg">
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
   .chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -81,20 +81,40 @@
   </div>
 
   <div class="card stack hidden" id="replies"><h3 id="repliesTitle">Notes back</h3><div id="replyList" class="stack"></div></div>
+  <p style="text-align: center"><button class="btn quiet" id="deleteCard" type="button" style="width: auto">Delete this card</button></p>
 </main>
 
 <dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload, recorderMime, rememberBoard } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
 let data = await load()
 const first = firstName(data.card.recipientName)
 $('#firstName2').textContent = first
+$('#deleteCard').onclick = confirmDelete
 const memorial = data.card.moment === 'memory'
 
 async function load() { return api(`/api/host/${token}`) }
+
+const seen = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => entries.forEach((e) => {
+  if (!e.isIntersecting) return
+  const v = e.target; seen.unobserve(v); v.preload = 'metadata'; v.load()
+}), { rootMargin: '200px' }) : null
+function lazyTiles() { $$('#grid video[data-lazy]').forEach((v) => { v.removeAttribute('data-lazy'); if (seen) seen.observe(v); else { v.preload = 'metadata'; v.load() } }) }
+
+// "Delete this card": gone now, for everyone, not in 30 days
+function confirmDelete() {
+  $('#dlgBody').innerHTML = `<h2>Delete ${escapeHtml(first)}'s card?</h2><p class="muted">Every message and the reel are deleted now, for everyone, and its links stop working. This can't be undone.</p><button class="btn" id="dlgDelete" style="background: var(--red, #B22222); color: #fff">Delete it</button><button class="btn outline" id="dlgClose">Keep it</button>`
+  $('#dlgClose').onclick = () => $('#dlg').close()
+  $('#dlgDelete').onclick = async () => {
+    try { await api(`/api/host/${token}/delete`, { method: 'POST' }) } catch (e) { toast(e.message); return }
+    forgetBoard(location.origin + location.pathname)
+    $('#dlg').close(); toast('Deleted.'); data = await load(); render()
+  }
+  $('#dlg').showModal()
+}
 
 function render() {
   const { card, clips } = data
@@ -124,9 +144,11 @@ function render() {
     const flagText = { quiet: 'Quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
     if (c.status === 'hidden') return `<button class="tile is-hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
     if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true"><span class="q">“${escapeHtml(c.text)}”</span><span class="name">${escapeHtml(c.name)}</span></button>`
-    return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="metadata" muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
+    return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="none" data-lazy muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
   }).join('') + (card.status === 'open' ? `<div class="tile" style="background: transparent; border: 2px dashed var(--paper-dark); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faded); cursor: default; padding: 8px; box-shadow: none">more on the way</div>` : '')
 
+  lazyTiles()
+  $('#deleteCard').parentElement.classList.toggle('hidden', card.status === 'expired')
   // actions depend on state
   const a = $('#actions')
   $('#shareBtn').classList.toggle('hidden', card.status !== 'open') // no inviting once the card is closed
@@ -161,14 +183,18 @@ function render() {
         ? `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Usually a few minutes. You can stay here; this page updates on its own.</p>`
         : `<h3>It's taking longer than usual.</h3><p class="muted">Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page and come back; it keeps going without you.</p>${keep}`,
       stitching: `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Almost there. This page updates on its own.</p>`,
-      ready: `<h3>It's ready.</h3><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
-      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
+      ready: `<h3>It's ready.</h3><button class="btn" id="previewReel">Watch it first</button><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
+      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><button class="btn quiet" id="previewReel">Watch it again</button><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
       failed: timedOut
         ? `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again in a few minutes.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
         : `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`,
-      expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message were deleted after 30 days, as promised. The copies that remain are the ones people saved.</p>`,
+      expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message have been deleted, as promised. The copies that remain are the ones people saved.</p>`,
     }
     box.innerHTML = msgs[card.status] || ''
+    $('#previewReel')?.addEventListener('click', () => {
+      $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/16; max-height: 70vh"><video src="/api/host/${token}/reel.mp4" controls playsinline autoplay></video></div><p class="ghost" style="text-align:center">Only you can see this. ${escapeHtml(first)} sees nothing until you send the link.</p><button class="btn outline" id="dlgClose">Close</button>`
+      $('#dlgClose').onclick = () => $('#dlg').close(); $('#dlg').showModal()
+    })
     $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast('30 more days.'); data = await load(); render() })
     $('#reopenBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/reopen`, { method: 'POST' }); toast(`Open again. People can keep adding messages.`); data = await load(); render() })
     $('#retryBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/send`, { method: 'POST' }); data = await load(); render() })

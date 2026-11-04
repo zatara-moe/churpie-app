@@ -139,3 +139,31 @@ export async function uploadVideo(reg, blob, onProgress) {
   }
   return api(`${clipPath}/done?edit=${encodeURIComponent(edit)}`, { method: 'POST', body: { uploadId, parts } })
 }
+
+// ── bot check (Cloudflare Turnstile) ────────────────────────────────────────
+// Invisible for nearly everyone; only shows a quick checkbox if Cloudflare is unsure. Returns null when the
+// check is switched off, so pages work the same either way.
+let ts = null
+export async function botCheck() {
+  if (!ts) ts = (async () => {
+    const { turnstile: key } = await api('/api/catalog').catch(() => ({}))
+    if (!key) return null
+    await new Promise((resolve, reject) => {
+      if (window.turnstile) return resolve()
+      const s = document.createElement('script')
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
+      s.onload = resolve; s.onerror = () => reject(new Error('The person check didn’t load. Check your connection and try again.'))
+      document.head.appendChild(s)
+    })
+    const box = document.createElement('div'); box.style.cssText = 'display:flex;justify-content:center;margin:8px 0'
+    document.body.appendChild(box)
+    return { key, box, id: null }
+  })()
+  const t = await ts
+  if (!t) return null
+  return new Promise((resolve, reject) => {
+    const opts = { sitekey: t.key, appearance: 'interaction-only', callback: resolve, 'error-callback': () => reject(new Error('We couldn’t confirm you’re a person. Try once more.')) }
+    if (t.id === null) t.id = window.turnstile.render(t.box, opts)
+    else { window.turnstile.reset(t.id) }
+  })
+}
