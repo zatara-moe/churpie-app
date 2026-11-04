@@ -3,7 +3,7 @@
 
 import { Hono } from 'hono'
 import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml } from './lib.js'
-import { MOMENTS, VIBES } from './catalog.js'
+import { MOMENTS, VIBES, vibesFor } from './catalog.js'
 
 const app = new Hono()
 
@@ -31,6 +31,18 @@ function parseClip(row) {
 
 async function logEvent(db, cardId, type) {
   await db.prepare(`INSERT INTO events (card_id, type) VALUES (?, ?)`).bind(cardId, type).run()
+}
+
+// When the card last went into the queue, and when a reel maker last picked it up.
+// Read from the events log, so no schema change is needed.
+async function queueTimes(db, cardId) {
+  // claims count only since the host last pressed "make the reel", so a fresh try starts fresh
+  const row = await db.prepare(
+    `WITH q AS (SELECT MAX(at) AS queuedAt FROM events WHERE card_id = ?1 AND type = 'sent')
+     SELECT q.queuedAt, MAX(e.at) AS claimedAt, COUNT(e.id) AS claims
+       FROM q LEFT JOIN events e ON e.card_id = ?1 AND e.type = 'claimed' AND e.at >= q.queuedAt`
+  ).bind(cardId).first()
+  return { queuedAt: row?.queuedAt || null, claimedAt: row?.claimedAt || null, claims: Number(row?.claims || 0) }
 }
 
 function publicCard(card, clipCount) {
@@ -110,8 +122,11 @@ app.post('/api/cards', async (c) => {
   const hostName = sanitize(b.hostName, 60)
   const prompt = sanitize(b.prompt, 240)
   const moment = MOMENTS.find((m) => m.id === b.moment) ? b.moment : 'birthday'
-  const vibe = VIBES.find((v) => v.id === b.vibe) ? b.vibe : 'postcard'
-  const tone = ['funny', 'heartfelt', 'hype', 'quiet'].includes(b.tone) ? b.tone : null
+  // only a theme that suits the moment; anything else falls back to the moment's own
+  const fits = vibesFor(moment)
+  const vibe = fits.find((v) => v.id === b.vibe) ? b.vibe : (fits[0]?.id || 'postcard')
+  let tone = ['funny', 'heartfelt', 'hype', 'quiet'].includes(b.tone) ? b.tone : null
+  if (moment === 'memory' && tone === 'hype') tone = 'quiet' // big energy never fits a memorial
   const rules = Array.isArray(b.rules) ? b.rules.map((r) => sanitize(r, 80)).filter(Boolean).slice(0, 5) : []
   const clipSeconds = Number(b.clipSeconds) === 30 ? 30 : 15
   const hostEmail = sanitize(b.hostEmail, 120) || null
@@ -169,7 +184,7 @@ app.get('/api/cards/:id/intro', async (c) => {
 app.post('/api/cards/:id/clips', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
   if (!card) return bad(c, "This card isn't here anymore.", 404)
-  if (card.status !== 'open') return bad(c, `${card.host_name} already made the reel, so this card is closed.`, 409)
+  if (card.status !== 'open') return bad(c, card.status === 'ready' || card.status === 'sent' || card.status === 'expired' ? `${card.host_name} already made the reel, so this card is closed.` : `${card.host_name} closed messages to make the reel.`, 409)
 
   const b = await c.req.json().catch(() => ({}))
   const name = sanitize(b.name, 40)
@@ -273,6 +288,7 @@ app.get('/api/host/:token', async (c) => {
   if (!card) return bad(c, "We can't find a board at this link. Check that you copied all of it.", 404)
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
+  const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
   return c.json({
     card: {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
@@ -282,6 +298,9 @@ app.get('/api/host/:token', async (c) => {
       expiresAt: card.expires_at,
       extended: !!card.extended,
       stitchError: card.stitch_error,
+      queuedAt: times.queuedAt || null,
+      claimedAt: times.claimedAt || null,
+      now: nowIso(),
       links: { invite: `${base}/c/${card.id}`, watch: `${base}/w/${card.watch_token}`, host: `${base}/h/${card.host_token}` },
     },
     clips: clips.map((x) => ({
@@ -296,7 +315,8 @@ app.get('/api/host/:token', async (c) => {
 app.post('/api/host/:token/clips/:clipId', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
-  if (card.status !== 'open') return bad(c, 'The reel is already made, so this card is closed.', 409)
+  // hiding is allowed while collecting, and after a failed reel so the host can drop a message and try again
+  if (card.status !== 'open' && card.status !== 'failed') return bad(c, 'The reel is already made, so this card is closed.', 409)
   const b = await c.req.json().catch(() => ({}))
   const sets = []
   const vals = []
@@ -341,6 +361,16 @@ app.post('/api/host/:token/send', async (c) => {
   await c.env.DB.prepare(`UPDATE cards SET status = 'queued', stitch_error = NULL, expires_at = ? WHERE id = ?`).bind(expiresAt, card.id).run()
   await logEvent(c.env.DB, card.id, 'sent')
   return c.json({ ok: true, status: 'queued', expiresAt })
+})
+
+// Still in line and no reel maker has picked it up: the host can reopen the card and keep collecting.
+app.post('/api/host/:token/reopen', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (card.status !== 'queued' && card.status !== 'failed') return bad(c, "It's already being put together, so it can't be reopened now.", 409)
+  await c.env.DB.prepare(`UPDATE cards SET status = 'open', expires_at = NULL, stitch_error = NULL WHERE id = ? AND status IN ('queued','failed')`).bind(card.id).run()
+  await logEvent(c.env.DB, card.id, 'reopened')
+  return c.json({ ok: true, status: 'open' })
 })
 
 app.post('/api/host/:token/extend', async (c) => {
@@ -428,11 +458,31 @@ app.use('/api/stitch/*', async (c, next) => {
 })
 
 // Claim the next queued card. Returns null when nothing is waiting.
+const STALE_MINUTES = 20 // a reel takes a few minutes; past this, the reel maker that claimed it is gone
+const MAX_CLAIMS = 2      // after two tries, stop and tell the host instead of looping
+
+async function recoverStale(db) {
+  const cutoff = new Date(Date.now() - STALE_MINUTES * 60000).toISOString()
+  const { results } = await db.prepare(`SELECT id FROM cards WHERE status = 'stitching'`).all()
+  for (const { id } of results) {
+    const t = await queueTimes(db, id)
+    if (t.claimedAt && t.claimedAt > cutoff) continue
+    if (t.claims >= MAX_CLAIMS) {
+      await db.prepare(`UPDATE cards SET status = 'failed', stitch_error = ? WHERE id = ? AND status = 'stitching'`)
+        .bind(`timed out after ${t.claims} tries`, id).run()
+    } else {
+      await db.prepare(`UPDATE cards SET status = 'queued' WHERE id = ? AND status = 'stitching'`).bind(id).run()
+    }
+  }
+}
+
 app.post('/api/stitch/next', async (c) => {
+  await recoverStale(c.env.DB)
   const card = await c.env.DB.prepare(`SELECT * FROM cards WHERE status = 'queued' ORDER BY created_at LIMIT 1`).first()
   if (!card) return c.json({ job: null })
   const res = await c.env.DB.prepare(`UPDATE cards SET status = 'stitching' WHERE id = ? AND status = 'queued'`).bind(card.id).run()
   if (!res.meta.changes) return c.json({ job: null })
+  await logEvent(c.env.DB, card.id, 'claimed')
   const clips = await listClips(c.env.DB, card.id)
   return c.json({
     job: {
@@ -548,6 +598,7 @@ app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore"
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function sweep(env) {
+  await recoverStale(env.DB)
   const now = nowIso()
   const { results: expired } = await env.DB.prepare(
     `SELECT id FROM cards WHERE expires_at IS NOT NULL AND expires_at < ? AND status != 'expired'`

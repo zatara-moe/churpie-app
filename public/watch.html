@@ -35,7 +35,7 @@
   <div class="topbar"><span></span><a class="logo" href="/">churpie<b>.</b></a></div>
   <div class="postcard">
     <div class="edge"></div>
-    <div class="stamp"><b id="stampN">…</b><small>people<br>showed up</small></div>
+    <div class="stamp"><b id="stampN">…</b><small id="stampWord">people<br>showed up</small></div>
     <div class="addr"><span class="muted">Made for</span><span class="serif name" id="recName">…</span><span class="muted" id="momentLine"></span></div>
     <div class="lines" aria-hidden="true"><span style="width:100%"></span><span style="width:80%"></span><span style="width:60%"></span></div>
     <p style="margin-top: 22px; font-size: 13px" id="fromLine"></p>
@@ -99,12 +99,17 @@ const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) 
 const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '' }
 
 $('#stampN').textContent = n
+$('#stampWord').innerHTML = `${n === 1 ? 'person' : 'people'}<br>showed up`
 $('#replyNote').textContent = `${firstName(card.hostName)} gets this and can pass it on to everyone.`
 $('#recName').textContent = first
 $('#momentLine').textContent = MOMENT[card.moment] || ''
 $('#fromLine').textContent = `From ${card.hostName}${n > 1 ? ` and ${n - 1} more` : ''}`
-$('#quietLine').textContent = `Find a quiet moment. This is about ${Math.max(1, Math.round(totalSec / 60))} ${Math.round(totalSec / 60) === 1 ? 'minute' : 'minutes'} of people who love you.`
-$('#whatChips').innerHTML = [`${n} short ${n === 1 ? 'video' : 'videos'}`, 'Music plays', 'Captions on'].map((t) => `<span class="pill">${t}</span>`).join('')
+const mins = Math.max(1, Math.round(totalSec / 60))
+$('#quietLine').textContent = `Find a quiet moment. This is about ${mins === 1 ? 'a minute' : `${mins} minutes`} of people who love you.`
+// videos and written notes are counted apart, so one written note never reads as "1 short video"
+const notes = people.filter((p) => p.kind === 'text').length, vids = n - notes
+const parts = [vids ? `${vids} short ${vids === 1 ? 'video' : 'videos'}` : '', notes ? `${notes} ${notes === 1 ? 'note' : 'notes'}` : ''].filter(Boolean)
+$('#whatChips').innerHTML = [...parts, 'Music plays', 'Captions on'].map((t) => `<span class="pill">${t}</span>`).join('')
 $('#footLine').textContent = card.expiresAt ? `You can pause, skip, or come back any time for ${fmtDays(card.expiresAt)}.` : 'You can pause, skip, or come back any time.'
 
 if (!data.ready) {

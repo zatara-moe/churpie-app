@@ -265,7 +265,9 @@ $('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCo
 if (card.status !== 'open' || card.full) {
   const own = `/new?for=${encodeURIComponent(card.recipientName)}&moment=${encodeURIComponent(card.moment || '')}`
   const [h, p] = card.status !== 'open'
-    ? [`${escapeHtml(first)}'s reel is already made.`, `This card is closed, so new messages can't go in. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
+    ? (['ready', 'sent', 'expired'].includes(card.status)
+      ? [`${escapeHtml(first)}'s reel is already made.`, `This card is closed, so new messages can't go in. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
+      : [`Messages are closed for now.`, `${escapeHtml(hostFirst)} is making ${escapeHtml(first)}'s reel. If ${escapeHtml(hostFirst)} opens the card again, this link will take your message. You can also start a card of your own for ${escapeHtml(first)}.`])
     : [`${escapeHtml(first)}'s card is full.`, `${card.clipCount} people have already said something, which is as many as one reel can hold. You can still start a card of your own for ${escapeHtml(first)}.`]
   $('#howto').classList.add('hidden')
   $('#record').innerHTML = `<div class="card stack"><h2>${h}</h2><p class="muted">${p}</p><a class="btn primary" href="${own}">Start a card for ${escapeHtml(first)}</a></div>`

@@ -38,9 +38,9 @@ export function cardPreview({ theme = 'postcard', first = '', host = '', n = nul
   const eye = theme === 'pressedflower' ? 'in memory of' : theme === 'airmail' ? 'par avion' : 'a card for'
   return `<div class="pv t-${e(theme)}"><div class="pv-edge"></div><span class="pv-tape a"></span><span class="pv-tape b"></span>
     <div class="pv-text"><div class="pv-eye">${eye}</div><div class="pv-name">${e(name)}</div><div class="pv-sub">${e(SUBLINE[moment] || '')}</div>
-      <div class="pv-ask">${e(host || 'you')} asks:</div><div class="pv-prompt">${e(prompt || 'the one thing you want everyone to say')}</div></div>
+      <div class="pv-ask">${host ? `${e(host)} asks:` : 'your question:'}</div><div class="pv-prompt">${e(prompt || 'the one thing you want everyone to say')}</div></div>
     <div class="pv-reel">${personSVG(DEMO_PEOPLE[person % DEMO_PEOPLE.length], { w: 100, h: 156 })}</div>
     <div class="pv-stamp"><b>${n ?? '?'}</b><small>showed up</small></div>
-    <div class="pv-meta"><span>to ${e(name)}</span><span>from ${e(host || 'you')} + your people</span></div>
+    <div class="pv-meta"><span>to ${e(name)}</span><span>from ${e(host || 'you')} and friends</span></div>
     <div class="pv-mark">churpie<b>.</b></div></div>`
 }

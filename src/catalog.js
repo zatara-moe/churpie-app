@@ -12,16 +12,17 @@ export const MOMENTS = [
   { id: 'brand', label: 'For a business', prompt: "Tell your first-day story, and say where you're from.", tone: 'heartfelt', vibe: 'postcard' },
 ]
 
+// Each theme lists the moments it suits, so an "in memory" frame can never sit on a birthday (and confetti never on a memorial).
 // A card theme sets the frame around the reel (both the story and the wide file), the stickers and the music. One choice, not three.
 export const VIBES = [
-  { id: 'postcard', label: 'Postcard', for: 'birthdays and everyday', music: 'uplifting' },
-  { id: 'milestonegold', label: 'Milestone gold', for: 'big birthdays and anniversaries', music: 'warm-acoustic' },
-  { id: 'airmail', label: 'Airmail', for: 'welcome home, far away', music: 'warm-acoustic' },
-  { id: 'quietnote', label: 'Quiet note', for: 'get well, hard moments', music: 'gentle-piano' },
-  { id: 'kraft', label: 'Kraft parcel', for: 'holidays and big groups', music: 'warm-acoustic' },
-  { id: 'pressedflower', label: 'Pressed flower', for: 'in memory', music: 'gentle-piano' },
-  { id: 'confettipop', label: 'Confetti pop', for: "kids' birthdays", music: 'uplifting' },
-  { id: 'lockernote', label: 'Locker note', for: 'teens and friend shout-outs', music: 'uplifting' },
+  { id: 'postcard', label: 'Postcard', for: 'birthdays and everyday', music: 'uplifting', moments: ['birthday', 'congrats', 'thankyou', 'getwell', 'missyou', 'team', 'brand'] },
+  { id: 'milestonegold', label: 'Milestone gold', for: 'big birthdays and anniversaries', music: 'warm-acoustic', moments: ['birthday', 'congrats', 'thankyou', 'team', 'brand'] },
+  { id: 'airmail', label: 'Airmail', for: 'welcome home, far away', music: 'warm-acoustic', moments: ['birthday', 'thankyou', 'getwell', 'missyou', 'team'] },
+  { id: 'quietnote', label: 'Quiet note', for: 'get well, hard moments', music: 'gentle-piano', moments: ['thankyou', 'getwell', 'missyou', 'memory'] },
+  { id: 'kraft', label: 'Kraft parcel', for: 'holidays and big groups', music: 'warm-acoustic', moments: ['birthday', 'congrats', 'thankyou', 'missyou', 'team', 'brand'] },
+  { id: 'pressedflower', label: 'Pressed flower', for: 'in memory', music: 'gentle-piano', moments: ['memory'] },
+  { id: 'confettipop', label: 'Confetti pop', for: "kids' birthdays", music: 'uplifting', moments: ['birthday', 'congrats'] },
+  { id: 'lockernote', label: 'Locker note', for: 'teens and friend shout-outs', music: 'uplifting', moments: ['birthday', 'congrats', 'thankyou', 'getwell', 'missyou'] },
 ]
 
 export const TONES = [
@@ -32,3 +33,10 @@ export const TONES = [
 ]
 
 export const RULE_SUGGESTIONS = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Wear something red', 'Kids welcome']
+
+// The themes that suit a moment, the moment's own default first.
+export function vibesFor(momentId) {
+  const m = MOMENTS.find((x) => x.id === momentId)
+  const fits = VIBES.filter((v) => v.moments.includes(momentId))
+  return m ? [...fits.filter((v) => v.id === m.vibe), ...fits.filter((v) => v.id !== m.vibe)] : fits
+}

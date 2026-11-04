@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>churpie. — a video card from everyone who loves them</title>
-<meta name="description" content="{{og:description}}">
+<meta name="description" content="A video card from everyone who loves them. One link, a few seconds each, one reel to keep. Free.">
 <meta property="og:title" content="churpie. — a video card from everyone who loves them">
-<meta property="og:description" content="{{og:description}}">
-<meta property="og:image" content="{{og:image}}">
-<meta property="og:url" content="{{og:url}}">
+<meta property="og:description" content="A video card from everyone who loves them. One link, a few seconds each, one reel to keep. Free.">
+<meta property="og:image" content="https://churpie.me/og/postcard.png">
+<meta property="og:url" content="https://churpie.me/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#F5F0E8">
 <link rel="icon" href="/favicon.svg">
@@ -122,7 +122,7 @@
 <div class="stripe"></div>
 <main class="wrap" style="padding-bottom: 56px">
   <section class="hero stack" style="gap: 14px">
-    <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">My board</a></div>
+    <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">Start a card</a></div>
     <h1>a video card from everyone who loves them.</h1>
     <p class="lede">Send one link. Everyone who loves them records a few seconds. We put it all together into one reel they'll play again and again.</p>
 
@@ -229,7 +229,7 @@
   if (!still) setInterval(() => { i = (i + 1) % slides.length; show(i) }, 2800)
   // a real churpie reel, once we have one: drop it at /demo/reel.mp4 and it replaces the placeholder
   fetch('/demo/reel.mp4', { method: 'HEAD' }).then((r) => { if (r.ok && (r.headers.get('content-type') || '').startsWith('video')) { const v = document.getElementById('demoVid'); v.src = '/demo/reel.mp4'; v.classList.remove('hidden'); bars.classList.add('hidden') } }).catch(() => {})
-  try { const h = localStorage.getItem('churpie:last-host'); const a = document.getElementById('myBoard'); if (h) a.href = h; else a.remove() } catch {}
+  try { const h = localStorage.getItem('churpie:last-host'); const a = document.getElementById('myBoard'); if (h) { a.href = h; a.textContent = 'My board' } else a.remove() } catch {}
 </script>
 </body>
 </html>

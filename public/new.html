@@ -144,7 +144,7 @@
     <div class="host-card">
       <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
       <div class="stack" style="gap: 10px">
-        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages come in, hide any you like, and send <span id="firstName3"></span> the finished reel. Save this link. It's the only way back in.</p></div>
+        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages come in, hide any you like, and send <span id="firstName3"></span> the finished reel. It's private to you, and it's the only way back in, so text it to yourself or copy it somewhere safe.</p></div>
         <a class="btn outline" id="hostLink" href="#">Open my board</a>
         <div class="row">
           <a class="btn" id="hostText" href="#">Text me</a>
@@ -194,9 +194,23 @@ function choiceButtons(root, items, key, render, cls = 'choice') {
 }
 choiceButtons($('#moments'), moments, 'moment', (m) => escapeHtml(m.label))
 choiceButtons($('#tones'), TONES.map(([id, label, hint]) => ({ id, label, hint })), 'tone', (t) => `${t.label}<small>${t.hint}</small>`)
+// "Loud" never fits a memorial
+function fitTones() {
+  const loud = $('#tones [data-id="hype"]'); if (!loud) return
+  const off = state.moment === 'memory'
+  loud.hidden = off
+  if (off && state.tone === 'hype') { state.tone = 'quiet'; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === 'quiet')) }
+}
+$('#moments').addEventListener('click', fitTones)
+fitTones()
 function renderThemes() {
   const c = current()
-  $('#themes').innerHTML = vibes.map((v, i) => `<button type="button" class="theme" data-id="${v.id}" aria-pressed="${state.vibe === v.id}">${cardPreview({ ...c, theme: v.id, person: i })}<strong>${escapeHtml(v.label)}</strong><small>${escapeHtml(v.for)}</small></button>`).join('')
+  // only the themes that suit this moment, its own default first
+  const m = moments.find((x) => x.id === state.moment)
+  const fits = vibes.filter((v) => !v.moments || v.moments.includes(state.moment))
+  const list = [...fits.filter((v) => v.id === m?.vibe), ...fits.filter((v) => v.id !== m?.vibe)]
+  if (!list.some((v) => v.id === state.vibe)) state.vibe = list[0]?.id || 'postcard'
+  $('#themes').innerHTML = list.map((v, i) => `<button type="button" class="theme" data-id="${v.id}" aria-pressed="${state.vibe === v.id}">${cardPreview({ ...c, theme: v.id, person: i })}<strong>${escapeHtml(v.label)}</strong><small>${escapeHtml(v.for)}</small></button>`).join('')
 }
 function markTheme() { $$('#themes .theme').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === state.vibe)) }
 $('#themes').addEventListener('click', (e) => { const b = e.target.closest('.theme'); if (!b) return; state.vibe = b.dataset.id; markTheme(); paint() })

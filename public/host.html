@@ -126,25 +126,37 @@ function render() {
   const a = $('#actions')
   $('#shareBtn').classList.toggle('hidden', card.status !== 'open') // no inviting once the card is closed
   if (card.status === 'open') {
-    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `It takes about 2 minutes. ${escapeHtml(first)} sees nothing until you share the link.`}</p>`
+    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `Usually ready in a few minutes. ${escapeHtml(first)} sees nothing until you send it.`}</p>`
     $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
     $('#sendBtn')?.addEventListener('click', confirmSend)
     $('#sentBox').classList.add('hidden')
   } else {
-    a.innerHTML = `<button class="btn primary" id="shareWatch" ${card.status === 'ready' || card.status === 'sent' ? '' : 'disabled'}>Share ${escapeHtml(first)}'s link</button><button class="btn quiet" id="copyWatch">Copy ${escapeHtml(first)}'s link</button>`
+    // the reel link only exists for the host once there's a reel behind it, so it can't reach the recipient early
+    const reelReady = card.status === 'ready' || card.status === 'sent'
+    a.innerHTML = reelReady ? `<button class="btn primary" id="shareWatch">Send ${escapeHtml(first)} the reel</button><button class="btn quiet" id="copyWatch">Copy ${escapeHtml(first)}'s reel link</button>` : ''
     $('#shareWatch')?.addEventListener('click', () => share({ title: `${first}, people made you something`, text: `${first}, ${ready.length} people made you something. Find a quiet moment.`, url: card.links.watch }))
-    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s link copied.`) })
+    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s reel link copied.`) })
+    // how long it has been waiting, by the server's clock
+    const waitedMin = card.queuedAt ? (new Date(card.now).getTime() - new Date(card.queuedAt).getTime()) / 60000 : 0
+    const n = `${ready.length} ${ready.length === 1 ? 'message' : 'messages'}`
+    const keep = `<button class="btn quiet" id="reopenBtn">Keep collecting while you wait</button>`
+    const timedOut = /^timed out/.test(card.stitchError || '')
     const box = $('#sentBox'); box.classList.remove('hidden')
     const msgs = {
-      queued: `<h3>Putting ${ready.length} ${ready.length === 1 ? 'message' : 'messages'} together.</h3><p class="muted">About 2 minutes. You can stay here; this page updates on its own.</p>`,
-      stitching: `<h3>Putting ${ready.length} ${ready.length === 1 ? 'message' : 'messages'} together.</h3><p class="muted">Almost there.</p>`,
+      queued: waitedMin < 5
+        ? `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Usually a few minutes. You can stay here; this page updates on its own.</p>`
+        : `<h3>${escapeHtml(first)}'s reel is still in line.</h3><p class="muted">The reel maker hasn't picked it up yet. Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page; your place in line stays.</p>${keep}`,
+      stitching: `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Almost there. This page updates on its own.</p>`,
       ready: `<h3>It's ready.</h3><p class="muted">Send ${escapeHtml(first)} the link however you like: a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
       sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
-      failed: `<h3>Something hiccuped while we put it together.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}. <button class="btn quiet" id="retryBtn">Try again</button></p>`,
+      failed: timedOut
+        ? `<h3>The reel couldn't be made.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again, or hide any message you're unsure about first.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
+        : `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`,
       expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message were deleted after 30 days, as promised. The copies that remain are the ones people saved.</p>`,
     }
     box.innerHTML = msgs[card.status] || ''
     $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast('30 more days.'); data = await load(); render() })
+    $('#reopenBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/reopen`, { method: 'POST' }); toast(`Open again. People can keep adding messages.`); data = await load(); render() })
     $('#retryBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/send`, { method: 'POST' }); data = await load(); render() })
     if (card.status === 'queued' || card.status === 'stitching') setTimeout(async () => { data = await load(); render() }, 15000)
     $('#introBox').classList.add('hidden')
@@ -163,7 +175,7 @@ function openClip(id) {
     ${c.kind === 'text' ? `<p class="rulebox" style="background: var(--amber-pale); border-radius: 14px; padding: 12px; font-size: 16px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video src="${c.streamUrl}" controls playsinline autoplay></video></div>`}
     ${(c.flags || []).map((f) => `<p class="pill tape">${escapeHtml(flagText[f] || f)}</p>`).join('')}
     <div class="row">
-      ${data.card.status === 'open' ? (c.status === 'hidden' ? `<button class="btn" id="dlgUnhide">Show it again</button>` : `<button class="btn" id="dlgHide">Hide from ${escapeHtml(first)}</button>`) : ''}
+      ${data.card.status === 'open' || data.card.status === 'failed' ? (c.status === 'hidden' ? `<button class="btn" id="dlgUnhide">Show it again</button>` : `<button class="btn" id="dlgHide">Hide from ${escapeHtml(first)}</button>`) : ''}
       <button class="btn outline" id="dlgClose">Close</button>
     </div>`
   $('#dlg').showModal()
