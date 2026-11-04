@@ -123,7 +123,7 @@ $('#footLine').textContent = card.expiresAt ? `You can pause, skip, or come back
 if (!data.ready) {
   $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden')
   $('#notReadyBody').innerHTML = data.expired
-    ? `<h2>This reel isn't here anymore.</h2><p class="muted">${escapeHtml(card.hostName)}${n > 1 ? ` and ${n - 1} others` : ''} made it ${memorial ? 'in memory of' : 'for'} ${escapeHtml(first)}. We delete every reel after 30 days, as promised, so the copies that remain are the ones people saved.</p>`
+    ? `<h2>This reel isn't here anymore.</h2><p class="muted">${escapeHtml(card.hostName)}${n > 1 ? ` and ${n - 1} others` : ''} made it ${memorial ? 'in memory of' : 'for'} ${escapeHtml(first)}. We delete every reel after 14 days, as promised, so the copies that remain are the ones people saved.</p>`
     : `<h2>${escapeHtml(card.hostName)} is still putting this together.</h2><p class="muted">It's almost ready. Come back a little later.</p>`
 }
 

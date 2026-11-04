@@ -5,12 +5,13 @@
 ## Facts
 
 - Price: free for people, always. No ads, no per-card fees, no trial.
-- Accounts: none, for anyone. The host gets a private board link; contributors just tap the invite link.
+- Accounts: none. The host gives an email, where the private board link and the finished reel are sent; contributors just tap the invite link.
+- Delivery: the finished reel is a video file to download and keep. Churpie is not a place to store videos: everything is deleted 14 days after the reel is made.
 - Recording: in the phone's browser, with the phone's own camera app, or by uploading a saved video. Written notes work too.
 - Message length: about 15 seconds each (or 30, if the host chooses). Up to 50 people per card.
 - Host controls: watch messages as they arrive, reorder them, hide any, set a last day to add messages, then make the reel.
 - Occasions: birthdays (kids, teens, milestone birthdays), graduations, retirements, team send-offs, get well soon, welcome home, thank yous, and memorials. Each card has a look and music that suit the moment; memorial cards are quiet and never use party themes.
-- Privacy: invites, boards and reels are private links and are not indexed. The reel and all messages are deleted 30 days after the reel is made (the host can add 30 days once). Unfinished cards with no new messages for 30 days are deleted 14 days later.
+- Privacy: invites, boards and reels are private links and are not indexed. The reel and all messages are deleted 14 days after the reel is made (the host can add 30 days once). Unfinished cards with no new messages for 30 days are deleted 14 days later.
 - Best for: groups of friends, families, classmates, teammates and coworkers who want one shared video for a person, without paying or signing anyone up.
 - Not for: long video editing, live video calls, or hosting videos long-term.
 

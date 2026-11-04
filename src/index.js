@@ -122,7 +122,41 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4') {
 // Catalog (moments, vibes, ready-made prompts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null }))
+app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null, email: emailOn(c.env), keepDays: LIFETIME(c.env) }))
+
+// ── email: the host's board link, the finished reel, and a reminder before it's deleted ─────────────
+// Sent through Resend. Off until RESEND_API_KEY (secret) is set; then hosts give a verified email.
+const emailOn = (env) => !!env.RESEND_API_KEY
+const LIFETIME = (env) => Number(env.CLIP_LIFETIME_DAYS || 14)
+const looksLikeEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e || '')
+
+async function sendEmail(env, { to, subject, lines, button, after = [] }) {
+  if (!emailOn(env) || !to) return { skipped: true }
+  const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
+  const p = (t) => `<p style="margin:0 0 14px;font:16px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1A1410">${esc(t)}</p>`
+  const html = `<div style="background:#F5F0E8;padding:28px 16px"><div style="max-width:480px;margin:0 auto;background:#fff;border-radius:18px;padding:28px 24px">`
+    + `<p style="margin:0 0 18px;font:italic 26px Georgia,serif;color:#1A1410">churpie<span style="color:#D4266A">.</span></p>`
+    + lines.map(p).join('')
+    + (button ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="display:inline-block;background:#D4266A;color:#fff;text-decoration:none;font:700 16px -apple-system,Segoe UI,Helvetica,Arial,sans-serif;padding:14px 22px;border-radius:999px">${esc(button.label)}</a></p>` : '')
+    + after.map(p).join('')
+    + `<p style="margin:18px 0 0;font:13px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#7A6E5C">Made by Sherwood Digital in Flagstaff, Arizona. You're getting this because you made a card on churpie.me.</p></div></div>`
+  const text = [...lines, ...(button ? [`${button.label}: ${button.url}`] : []), ...after].join('\n\n')
+  const r = await fetch(env.RESEND_URL || 'https://api.resend.com/emails', { // RESEND_URL only for local testing
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ from: env.EMAIL_FROM || 'churpie <cards@churpie.me>', to: [to], subject, html, text }),
+  }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }))
+  if (!r.ok) console.error('email failed', r.status, await r.text().catch(() => ''))
+  return { ok: r.ok }
+}
+
+// A card made with email on stays closed to messages until the host opens the board link from their email.
+async function needsVerify(db, cardId) {
+  const row = await db.prepare(`SELECT
+      EXISTS(SELECT 1 FROM events WHERE card_id = ?1 AND type = 'needs_verify') AS needs,
+      EXISTS(SELECT 1 FROM events WHERE card_id = ?1 AND type = 'verified') AS done`).bind(cardId).first()
+  return !!row?.needs && !row?.done
+}
 
 // Cloudflare Turnstile: an invisible "are you a person" check on making cards and sending messages.
 // Off until both TURNSTILE_SITE_KEY (variable) and TURNSTILE_SECRET (secret) are set.
@@ -157,12 +191,13 @@ app.post('/api/cards', async (c) => {
   if (moment === 'memory' && tone === 'hype') tone = 'quiet' // big energy never fits a memorial
   const rules = Array.isArray(b.rules) ? b.rules.map((r) => sanitize(r, 80)).filter(Boolean).slice(0, 5) : []
   const clipSeconds = Number(b.clipSeconds) === 30 ? 30 : 15
-  const hostEmail = sanitize(b.hostEmail, 120) || null
+  const hostEmail = sanitize(b.hostEmail, 120)?.toLowerCase() || null
   const deadlineAt = b.deadlineAt ? new Date(b.deadlineAt).toISOString() : null
 
   if (!recipientName) return bad(c, "Who's it for? Even just a first name.")
   if (!hostName) return bad(c, "Add your name so people know who's asking.")
   if (!prompt) return bad(c, 'Write the one question everyone will answer.')
+  if (emailOn(c.env) && !looksLikeEmail(hostEmail)) return bad(c, "Add your email. It's where your board link and the finished reel go.")
 
   const id = newId(8)
   const hostToken = newToken()
@@ -178,6 +213,20 @@ app.post('/api/cards', async (c) => {
   await logEvent(c.env.DB, id, 'created')
 
   const base = c.env.APP_URL
+  if (emailOn(c.env)) {
+    // the board link is the key, so it only goes to the inbox; opening it confirms the email and opens the card
+    await logEvent(c.env.DB, id, 'needs_verify')
+    const first = recipientName.split(' ')[0]
+    const sent = await sendEmail(c.env, {
+      to: hostEmail,
+      subject: `Your card for ${first}: open it to get your invite link`,
+      lines: [`Hi ${hostName.split(' ')[0]},`, `Your card for ${first} is ready to go. Open your board to get the invite link, then send it to everyone who loves ${first}.`],
+      button: { label: 'Open my board', url: `${base}/h/${hostToken}` },
+      after: ['Keep this email. The board is private to you, and this link is how you get back to it from any phone or computer.'],
+    })
+    if (!sent.ok) return bad(c, "We couldn't send the email. Check the address and try once more.", 502)
+    return c.json({ id, checkEmail: true, email: hostEmail })
+  }
   return c.json({
     id,
     hostToken,
@@ -199,7 +248,7 @@ app.get('/api/cards/:id/public', async (c) => {
   if (!card) return bad(c, "This card isn't here anymore.", 404)
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status = 'ready'`).bind(card.id).first()
   // full is checked up front, so nobody records a message that can't go in
-  return c.json({ ...publicCard(card, count), full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50) })
+  return c.json({ ...publicCard(card, count), full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50), notYet: await needsVerify(c.env.DB, card.id) })
 })
 
 app.get('/api/cards/:id/intro', async (c) => {
@@ -215,6 +264,7 @@ app.post('/api/cards/:id/clips', async (c) => {
   if (card.status !== 'open') return bad(c, card.status === 'ready' || card.status === 'sent' || card.status === 'expired' ? `${card.host_name} already made the reel, so this card is closed.` : `${card.host_name} closed messages to make the reel.`, 409)
 
   if (pastDeadline(card)) return bad(c, `The last day to add a message for ${card.recipient_name} has passed.`, 409)
+  if (await needsVerify(c.env.DB, card.id)) return bad(c, `${card.host_name} hasn't opened this card yet. Try again a little later.`, 409)
 
   const b = await c.req.json().catch(() => ({}))
   if (!(await isPerson(c, b.turnstile))) return bad(c, NOT_A_PERSON, 403)
@@ -363,6 +413,7 @@ app.get('/api/clips/:clipId/stream', async (c) => {
 app.get('/api/host/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return bad(c, "We can't find a board at this link. Check that you copied all of it.", 404)
+  if (await needsVerify(c.env.DB, card.id)) await logEvent(c.env.DB, card.id, 'verified')
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
   const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
@@ -372,6 +423,7 @@ app.get('/api/host/:token', async (c) => {
       hostEmail: card.host_email,
       maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
       hasReel: !!card.final_key,
+      keepDays: LIFETIME(c.env),
       accountType: card.account_type,
       sentAt: card.sent_at,
       expiresAt: card.expires_at,
@@ -476,7 +528,25 @@ app.post('/api/host/:token/keep', async (c) => {
   return c.json({ ok: true })
 })
 
-// "Delete this card": everything goes now, not in 30 days
+// "Lost your board?": email every card this address has, with its board link
+app.post('/api/lost', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!(await isPerson(c, b.turnstile))) return bad(c, NOT_A_PERSON, 403)
+  const email = sanitize(b.email, 120)?.toLowerCase()
+  if (!looksLikeEmail(email)) return bad(c, 'Check the email address.')
+  const { results } = await c.env.DB.prepare(`SELECT recipient_name, host_token, status FROM cards WHERE host_email = ? ORDER BY created_at DESC LIMIT 20`).bind(email).all()
+  if (results.length) {
+    c.executionCtx.waitUntil(sendEmail(c.env, {
+      to: email,
+      subject: results.length === 1 ? `Your churpie board for ${results[0].recipient_name.split(' ')[0]}` : 'Your churpie boards',
+      lines: ['Here are the cards made with this email:', ...results.map((r) => `${r.recipient_name}: ${c.env.APP_URL}/h/${r.host_token}`)],
+      after: ['Keep this email. Each link is private to you.'],
+    }))
+  }
+  return c.json({ ok: true })
+})
+
+// "Delete this card": everything goes now, not when the window ends
 app.post('/api/host/:token/delete', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
@@ -495,9 +565,9 @@ app.get('/api/host/:token/reel.mp4', async (c) => {
 app.post('/api/host/:token/extend', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
-  if (card.extended) return bad(c, 'This card already got its 30 extra days.', 409)
+  if (card.extended) return bad(c, `This card already got its ${LIFETIME(c.env)} extra days.`, 409)
   if (!card.expires_at) return bad(c, 'Make the reel first, then you can add days.')
-  const next = new Date(new Date(card.expires_at).getTime() + 30 * 86400000).toISOString()
+  const next = new Date(new Date(card.expires_at).getTime() + LIFETIME(c.env) * 86400000).toISOString()
   await c.env.DB.prepare(`UPDATE cards SET expires_at = ?, extended = 1 WHERE id = ?`).bind(next, card.id).run()
   await logEvent(c.env.DB, card.id, 'extended')
   return c.json({ ok: true, expiresAt: next })
@@ -514,6 +584,7 @@ app.get('/api/watch/:token', async (c) => {
   const ready = card.status === 'ready' || card.status === 'sent'
   if (ready && card.status === 'ready') {
     await c.env.DB.prepare(`UPDATE cards SET status = 'sent' WHERE id = ?`).bind(card.id).run()
+    c.executionCtx.waitUntil(deleteOriginals(c.env, card.id))
   }
   await logEvent(c.env.DB, card.id, 'opened')
   const manifest = card.manifest ? JSON.parse(card.manifest) : null
@@ -646,7 +717,15 @@ app.put('/api/stitch/final/:cardId', async (c) => {
   await c.env.DB.prepare(`UPDATE cards SET status = 'ready', final_key = ?, manifest = ?, sent_at = ? WHERE id = ?`)
     .bind(key, manifest ? decodeURIComponent(manifest) : null, nowIso(), cardId)
     .run()
-  // raw clips are no longer needed once the reel exists; the sweep removes them after 48h
+  // originals stay until the reel is sent (or 3 days), so the host can still fix something after watching it first
+  const first = card.recipient_name.split(' ')[0]
+  c.executionCtx.waitUntil(sendEmail(c.env, {
+    to: card.host_email,
+    subject: `${first}'s reel is ready`,
+    lines: [`${first}'s reel is ready. Watch it first, then send ${first} the link, or download it to keep.`],
+    button: { label: 'Watch and send it', url: `${c.env.APP_URL}/h/${card.host_token}` },
+    after: [`You have ${LIFETIME(c.env)} days to save it. After that, churpie deletes the reel and every message, as promised.`],
+  }))
   return c.json({ ok: true, watch: `${c.env.APP_URL}/w/${card.watch_token}` })
 })
 
@@ -684,6 +763,7 @@ async function page(c, file, meta, status = 200) {
 
 app.get('/', (c) => page(c, 'index.html', {}))
 app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }))
+app.get('/lost', (c) => page(c, 'lost.html', { title: 'Find your board · churpie.' }))
 
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
@@ -727,9 +807,21 @@ async function expireCard(env, id, why) {
   const finals = await env.CLIPS.list({ prefix: `finals/${id}/` })
   const keys = [...listed.objects, ...finals.objects].map((o) => o.key)
   if (keys.length) await env.CLIPS.delete(keys)
-  await env.DB.prepare(`UPDATE cards SET status = 'expired', final_key = NULL, final_wide_key = NULL, host_intro_key = NULL, expires_at = COALESCE(expires_at, ?) WHERE id = ?`).bind(nowIso(), id).run()
-  await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
+  // names, notes, the question and the email go too; only the anonymous event log remains (counts, dates)
+  await env.DB.batch([
+    env.DB.prepare(`DELETE FROM replies WHERE card_id = ?`).bind(id),
+    env.DB.prepare(`DELETE FROM clips WHERE card_id = ?`).bind(id),
+    env.DB.prepare(`DELETE FROM cards WHERE id = ?`).bind(id),
+  ])
   await logEvent(env.DB, id, why)
+}
+
+// The original uploads, once the reel exists and has been sent (or after 3 days)
+async function deleteOriginals(env, id) {
+  const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
+  const keys = listed.objects.map((o) => o.key)
+  if (keys.length) await env.CLIPS.delete(keys)
+  await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
 }
 
 async function sweep(env) {
@@ -753,18 +845,30 @@ async function sweep(env) {
     `SELECT id FROM cards WHERE expires_at IS NOT NULL AND expires_at < ? AND status != 'expired'`
   ).bind(now).all()
   for (const { id } of expired) await expireCard(env, id, 'expired')
-  // raw clips for reels older than 48 hours
-  const cutoff = new Date(Date.now() - 48 * 3600000).toISOString()
+  // originals: gone once the reel has been sent, or 3 days after it was made
+  const cutoff = new Date(Date.now() - 3 * 86400000).toISOString()
   const { results: done } = await env.DB.prepare(
-    `SELECT c.id FROM cards c WHERE c.final_key IS NOT NULL AND c.sent_at < ? AND EXISTS (SELECT 1 FROM clips k WHERE k.card_id = c.id AND k.storage_key IS NOT NULL)`
+    `SELECT c.id FROM cards c WHERE c.final_key IS NOT NULL AND (c.status = 'sent' OR c.sent_at < ?) AND EXISTS (SELECT 1 FROM clips k WHERE k.card_id = c.id AND k.storage_key IS NOT NULL)`
   ).bind(cutoff).all()
-  for (const { id } of done) {
-    const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
-    const keys = listed.objects.map((o) => o.key)
-    if (keys.length) await env.CLIPS.delete(keys)
-    await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
+  for (const { id } of done) await deleteOriginals(env, id)
+
+  // a reminder 2 days before the reel is deleted, once
+  const soon = new Date(Date.now() + 2 * 86400000).toISOString()
+  const { results: remind } = await env.DB.prepare(
+    `SELECT c.* FROM cards c WHERE c.status IN ('ready','sent') AND c.host_email IS NOT NULL AND c.expires_at IS NOT NULL AND c.expires_at <= ? AND c.expires_at > ?
+       AND NOT EXISTS (SELECT 1 FROM events e WHERE e.card_id = c.id AND e.type = 'reminded')`
+  ).bind(soon, now).all()
+  for (const card of remind) {
+    const first = card.recipient_name.split(' ')[0]
+    await sendEmail(env, {
+      to: card.host_email,
+      subject: `${first}'s reel is deleted in 2 days`,
+      lines: [`A reminder: churpie deletes ${first}'s reel and every message in 2 days, as promised.`, `If you haven't yet, download it to keep it forever.`],
+      button: { label: 'Open the board to download it', url: `${env.APP_URL}/h/${card.host_token}` },
+    })
+    await logEvent(env.DB, card.id, 'reminded')
   }
-  return { quiet: quiet.length, expired: expired.length, rawsCleared: done.length }
+  return { quiet: quiet.length, expired: expired.length, originalsCleared: done.length, reminded: remind.length }
 }
 
 app.post('/api/stitch/sweep', async (c) => c.json(await sweep(c.env)))

@@ -58,6 +58,11 @@ gcloud run deploy "$SERVICE" --source "$HERE" --region "$REGION" \
 gcloud artifacts repositories set-cleanup-policies cloud-run-source-deploy --location "$REGION" --quiet \
   --policy=<(printf '[{"name":"keep-newest","action":{"type":"Keep"},"mostRecentVersions":{"keepCount":1}},{"name":"delete-rest","action":{"type":"Delete"},"condition":{"tagState":"any"}}]') >/dev/null 2>&1 || true
 
+# the code Google keeps from each update: delete after 7 days, so nothing piles up
+for B in "gs://run-sources-${PROJECT}-${REGION}" "gs://${PROJECT}_cloudbuild"; do
+  gcloud storage buckets update "$B" --lifecycle-file=<(printf '{"rule":[{"action":{"type":"Delete"},"condition":{"age":7}}]}') --quiet >/dev/null 2>&1 || true
+done
+
 URL="$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
 STATUS="$(curl -s "$URL/" || true)"
 printf '\n\033[1mDone.\033[0m The reel maker is asleep at:\n\n    %s\n\n(check: %s)\nSend that address to Claude. Nothing else to do here.\n\n' "$URL" "$STATUS"

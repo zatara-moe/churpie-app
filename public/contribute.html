@@ -264,7 +264,10 @@ if (card.hasIntro) {
 }
 $('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
 // closed or full: never a dead end, and never "go ask someone". Offer a card of their own for the same person.
-if (card.status !== 'open' || card.full || card.deadlinePassed) {
+if (card.notYet) {
+  $('#howto').classList.add('hidden')
+  $('#record').innerHTML = `<div class="card stack"><h2>Almost open.</h2><p class="muted">${escapeHtml(hostFirst)} is just finishing setting up ${escapeHtml(first)}'s card. Try this link again in a few minutes.</p></div>`
+} else if (card.status !== 'open' || card.full || card.deadlinePassed) {
   const own = `/new?for=${encodeURIComponent(card.recipientName)}&moment=${encodeURIComponent(card.moment || '')}`
   const [h, p] = card.deadlinePassed
     ? [`The last day for ${escapeHtml(first)}'s card has passed.`, `New messages can't go in now. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]

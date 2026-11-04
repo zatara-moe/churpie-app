@@ -113,7 +113,8 @@
     <p class="muted">Every message gets taped inside it. It sets the music, too.</p>
     <div class="themes" id="themes" role="group" aria-label="card"></div>
     <label class="field">Last day to add a message (optional)<input type="datetime-local" name="deadlineAt"></label>
-    <label class="field">Making this for a business? Your work email (optional)<input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com"></label>
+    <label class="field"><span id="emailLabel">Your email</span><input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com" autocomplete="email"></label>
+    <p class="ghost" id="emailNote" style="margin-top: -6px">Your private board link and the finished reel come here. No account, no newsletter.</p>
     <div class="row">
       <button class="btn outline" type="button" id="back3">Back</button>
       <button class="btn primary" type="submit" id="makeBtn">Make the card</button>
@@ -121,6 +122,13 @@
   </form>
 
   <!-- done: the share moment -->
+  <section id="checkEmail" class="stack hidden card" style="gap: 12px; text-align: center; align-items: center; padding: 32px 20px">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+    <h1>Check your email.</h1>
+    <p class="muted">We sent your board for <span id="checkFirst"></span> to <b id="checkTo"></b>. Open it to get your invite link.</p>
+    <p class="ghost">Nothing there in a minute? Check spam, or <a href="/new">start over with a different email</a>.</p>
+  </section>
+
   <section id="done" class="stack hidden" style="gap: 16px">
     <div class="done-hero stack" style="gap: 6px">
       <h1 id="doneTitle"></h1>
@@ -164,7 +172,10 @@ import { api, $, $$, toast, share, escapeHtml, firstName, rememberBoard, botChec
 import { cardPreview } from '/people.js'
 
 const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
-const { moments, vibes } = await api('/api/catalog')
+const { moments, vibes, email: emailOn, keepDays } = await api('/api/catalog')
+// with email on, the email is required: it's where the board link and the finished reel go
+if (emailOn) $('#step3 [name=hostEmail]').required = true
+else { $('#emailLabel').textContent = 'Making this for a business? Your work email (optional)'; $('#emailNote').classList.add('hidden') }
 // arriving from a moment on the home page (/new?moment=getwell) preselects it and its card
 const picked = moments.find((m) => m.id === new URLSearchParams(location.search).get('moment'))
 if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
@@ -254,6 +265,16 @@ $('#step3').addEventListener('submit', async (e) => {
       turnstile: await botCheck(), clipSeconds: secs, vibe: state.vibe, deadlineAt: f3.get('deadlineAt') ? new Date(f3.get('deadlineAt')).toISOString() : null, hostEmail: f3.get('hostEmail') || null,
     } })
     const first = firstName(f1.get('recipientName')), host = firstName(f1.get('hostName'))
+    if (res.checkEmail) {
+      // the board link only travels by email; opening it confirms the address and opens the card
+      ;[1, 2, 3].forEach((i) => $(`#step${i}`).classList.add('hidden'))
+      $('#live').classList.add('hidden'); $('#stepLabel').textContent = 'Check your email'
+      $('#checkEmail').classList.remove('hidden')
+      $('#checkTo').textContent = res.email
+      $('#checkFirst').textContent = first
+      window.scrollTo({ top: 0 })
+      return
+    }
     const invite = res.links.invite
     $('#doneTitle').textContent = `${first}'s card is ready.`
     $('#doneSub').textContent = `Now send it to everyone who loves ${first}. Each person adds a few seconds.`

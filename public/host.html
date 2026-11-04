@@ -104,14 +104,16 @@ const seen = 'IntersectionObserver' in window ? new IntersectionObserver((entrie
 }), { rootMargin: '200px' }) : null
 function lazyTiles() { $$('#grid video[data-lazy]').forEach((v) => { v.removeAttribute('data-lazy'); if (seen) seen.observe(v); else { v.preload = 'metadata'; v.load() } }) }
 
-// "Delete this card": gone now, for everyone, not in 30 days
+// "Delete this card": gone now, for everyone, not when the window ends
 function confirmDelete() {
   $('#dlgBody').innerHTML = `<h2>Delete ${escapeHtml(first)}'s card?</h2><p class="muted">Every message and the reel are deleted now, for everyone, and its links stop working. This can't be undone.</p><button class="btn" id="dlgDelete" style="background: var(--red, #B22222); color: #fff">Delete it</button><button class="btn outline" id="dlgClose">Keep it</button>`
   $('#dlgClose').onclick = () => $('#dlg').close()
   $('#dlgDelete').onclick = async () => {
     try { await api(`/api/host/${token}/delete`, { method: 'POST' }) } catch (e) { toast(e.message); return }
     forgetBoard(location.origin + location.pathname)
-    $('#dlg').close(); toast('Deleted.'); data = await load(); render()
+    $('#dlg').close()
+    // nothing is left to show: the card, its messages and its reel are gone
+    document.querySelector('main').innerHTML = `<div class="topbar"><a class="logo" href="/">churpie<b>.</b></a></div><div class="card stack" style="text-align: center; padding: 32px 20px"><h2>Deleted.</h2><p class="muted">${escapeHtml(first)}'s card, every message and the reel are gone, and its links no longer work.</p><a class="btn primary" href="/new">Start a new card</a></div>`
   }
   $('#dlg').showModal()
 }
@@ -183,8 +185,8 @@ function render() {
         ? `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Usually a few minutes. You can stay here; this page updates on its own.</p>`
         : `<h3>It's taking longer than usual.</h3><p class="muted">Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page and come back; it keeps going without you.</p>${keep}`,
       stitching: `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Almost there. This page updates on its own.</p>`,
-      ready: `<h3>It's ready.</h3><button class="btn" id="previewReel">Watch it first</button><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
-      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><button class="btn quiet" id="previewReel">Watch it again</button><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
+      ready: `<h3>It's ready.</h3><button class="btn" id="previewReel">Watch it first</button><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it ${card.keepDays} more days</button>'}`,
+      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><button class="btn quiet" id="previewReel">Watch it again</button><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it ${card.keepDays} more days</button>'}</p>`,
       failed: timedOut
         ? `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again in a few minutes.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
         : `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`,
@@ -195,7 +197,7 @@ function render() {
       $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/16; max-height: 70vh"><video src="/api/host/${token}/reel.mp4" controls playsinline autoplay></video></div><p class="ghost" style="text-align:center">Only you can see this. ${escapeHtml(first)} sees nothing until you send the link.</p><button class="btn outline" id="dlgClose">Close</button>`
       $('#dlgClose').onclick = () => $('#dlg').close(); $('#dlg').showModal()
     })
-    $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast('30 more days.'); data = await load(); render() })
+    $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast(`${data.card.keepDays} more days.`); data = await load(); render() })
     $('#reopenBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/reopen`, { method: 'POST' }); toast(`Open again. People can keep adding messages.`); data = await load(); render() })
     $('#retryBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/send`, { method: 'POST' }); data = await load(); render() })
     if (card.status === 'queued' || card.status === 'stitching') setTimeout(async () => { data = await load(); render() }, 15000)
@@ -246,7 +248,7 @@ function confirmSend() {
   $('#dlgBody').innerHTML = `
     <h2>Make ${escapeHtml(first)}'s reel now?</h2>
     <p class="muted">${ready.length} ${ready.length === 1 ? 'message goes' : 'messages go'} in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'one is' : 'ones are'} still in; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} After this the card closes. Anyone who opens the invite later can start a card of their own for ${escapeHtml(first)} right from it.</p>
-    <p class="muted">${escapeHtml(first)} can save the reel to keep forever. We delete our copy 30 days after it's made (you can add 30 more days once).</p>
+    <p class="muted">${escapeHtml(first)} can save the reel to keep forever. Download it to keep it. We delete our copy ${data.card.keepDays} days after it's made, and we'll email you a reminder 2 days before.</p>
     <button class="btn primary" id="dlgSend">Make it</button>
     <button class="btn outline" id="dlgClose">Not yet</button>`
   $('#dlg').showModal()
