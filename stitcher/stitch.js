@@ -257,7 +257,7 @@ const round = (x) => Math.round(x * 100) / 100
 // ─────────────────────────────────────────────────────────────────────────────
 // Modes
 // ─────────────────────────────────────────────────────────────────────────────
-async function processOne() {
+export async function processOne() {
   const job = await claimJob()
   if (!job) return false
   log(`[${job.cardId}] claimed · ${job.clips.length} clips for ${job.recipientName}`)

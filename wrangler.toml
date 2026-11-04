@@ -13,6 +13,8 @@ not_found_handling = "none"
 APP_URL = "https://churpie.me"
 CLIP_LIFETIME_DAYS = "30"
 MAX_CLIPS_PER_CARD = "50"
+# The reel maker on Google Cloud Run (its https://... address). Empty = reels wait for a reel maker that polls on its own.
+STITCHER_URL = ""
 MAX_UPLOAD_MB = "300"  # whole video; anything over 90 MB goes up in pieces (Cloudflare refuses single requests over 100 MB)
 
 # Secrets (set with `wrangler secret put NAME`, never in this file):
@@ -31,5 +33,6 @@ binding = "CLIPS"
 bucket_name = "churpie-clips"
 
 # Daily sweep: delete clips and reels whose card has expired.
+# Every minute: if a reel is waiting, wake the reel maker (see STITCHER_URL). No reel waiting = nothing happens.
 [triggers]
-crons = ["17 9 * * *"]
+crons = ["17 9 * * *", "* * * * *"]

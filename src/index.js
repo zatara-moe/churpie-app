@@ -731,7 +731,19 @@ async function sweep(env) {
 
 app.post('/api/stitch/sweep', async (c) => c.json(await sweep(c.env)))
 
+// Every minute: if a reel is waiting, wake the reel maker in the cloud (Google Cloud Run) and wait while it
+// makes it. Nothing waiting = no call at all, so the reel maker stays asleep and free. Waiting on the call
+// isn't Worker CPU time, and a cron run may wait up to 15 minutes.
+async function wakeStitcher(env) {
+  if (!env.STITCHER_URL || !env.STITCH_TOKEN) return { skipped: 'no reel maker set' }
+  await recoverStale(env.DB)
+  const waiting = await env.DB.prepare(`SELECT 1 FROM cards WHERE status = 'queued' LIMIT 1`).first()
+  if (!waiting) return { waiting: 0 }
+  const r = await fetch(`${env.STITCHER_URL.replace(/\/$/, '')}/run`, { method: 'POST', headers: { authorization: `Bearer ${env.STITCH_TOKEN}` } })
+  return { waiting: 1, status: r.status, body: await r.text().catch(() => '') }
+}
+
 export default {
   fetch: app.fetch,
-  scheduled: (event, env, ctx) => ctx.waitUntil(sweep(env)),
+  scheduled: (event, env, ctx) => ctx.waitUntil(event.cron === '* * * * *' ? wakeStitcher(env) : sweep(env)),
 }
