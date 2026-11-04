@@ -82,7 +82,7 @@ function stitchAuth(c) {
 }
 
 // Streams an R2 object with HTTP range support (video scrubbing on phones needs it).
-async function streamObject(c, key, contentTypeFallback = 'video/mp4') {
+async function streamObject(c, key, contentTypeFallback = 'video/mp4', extra = {}) {
   const range = c.req.header('range')
   let obj
   if (range) {
@@ -102,6 +102,7 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4') {
           'content-length': String(length),
           'accept-ranges': 'bytes',
           'cache-control': 'private, max-age=3600',
+          ...extra,
         },
       })
     }
@@ -114,6 +115,7 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4') {
       'content-length': String(obj.size),
       'accept-ranges': 'bytes',
       'cache-control': 'private, max-age=3600',
+      ...extra,
     },
   })
 }
@@ -417,6 +419,9 @@ app.get('/api/host/:token', async (c) => {
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
   const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
+  const opened = card.status === 'sent' ? await c.env.DB.prepare(`SELECT MIN(at) AS at FROM events WHERE card_id = ? AND type = 'opened'`).bind(card.id).first() : null
+  let reelSeconds = null
+  try { const m = card.manifest ? JSON.parse(card.manifest) : null; if (m?.length) reelSeconds = Math.round(m[m.length - 1].end) } catch {}
   return c.json({
     card: {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
@@ -432,6 +437,10 @@ app.get('/api/host/:token', async (c) => {
       queuedAt: times.queuedAt || null,
       claimedAt: times.claimedAt || null,
       now: nowIso(),
+      openedAt: opened?.at || null,
+      reelSeconds,
+      // "Edit" after watching it first: only while every original video is still here to remake it from
+      canEdit: canRemake(card, clips),
       links: { invite: `${base}/c/${card.id}`, watch: `${base}/w/${card.watch_token}`, host: `${base}/h/${card.host_token}` },
     },
     clips: clips.map((x) => ({
@@ -498,6 +507,16 @@ app.post('/api/host/:token/send', async (c) => {
 app.post('/api/host/:token/reopen', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return c.notFound()
+  if (card.status === 'ready') {
+    // "Edit": the host watched it first and wants to change something. The old reel goes; the messages stay.
+    if (!canRemake(card, await listClips(c.env.DB, card.id, { includeHidden: true }))) return bad(c, 'The original messages are already cleared, so this reel can only be saved as it is.', 409)
+    const listed = await c.env.CLIPS.list({ prefix: `finals/${card.id}/` })
+    if (listed.objects.length) await c.env.CLIPS.delete(listed.objects.map((o) => o.key))
+    await c.env.DB.prepare(`UPDATE cards SET status = 'open', expires_at = NULL, stitch_error = NULL, final_key = NULL, final_wide_key = NULL, manifest = NULL, sent_at = NULL, extended = 0 WHERE id = ? AND status = 'ready'`).bind(card.id).run()
+    await logEvent(c.env.DB, card.id, 'reopened')
+    return c.json({ ok: true, status: 'open' })
+  }
+  if (card.status === 'sent') return bad(c, 'The reel has already been opened, so it stays as it is.', 409)
   if (card.status !== 'queued' && card.status !== 'failed') return bad(c, "It's already being put together, so it can't be reopened now.", 409)
   await c.env.DB.prepare(`UPDATE cards SET status = 'open', expires_at = NULL, stitch_error = NULL WHERE id = ? AND status IN ('queued','failed')`).bind(card.id).run()
   await logEvent(c.env.DB, card.id, 'reopened')
@@ -559,7 +578,9 @@ app.post('/api/host/:token/delete', async (c) => {
 app.get('/api/host/:token/reel.mp4', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card?.final_key) return c.notFound()
-  return streamObject(c, card.final_key)
+  // "Save video": the same file, as a download with a name people recognize in their Files app
+  const name = `${card.recipient_name.split(' ')[0].replace(/[^\w-]+/g, '') || 'churpie'}-churpie.mp4`
+  return streamObject(c, card.final_key, 'video/mp4', c.req.query('download') ? { 'content-disposition': `attachment; filename="${name}"` } : {})
 })
 
 app.post('/api/host/:token/extend', async (c) => {
@@ -817,6 +838,10 @@ async function expireCard(env, id, why) {
 }
 
 // The original uploads, once the reel exists and has been sent (or after 3 days)
+function canRemake(card, clips) {
+  return card.status === 'ready' && clips.every((x) => x.kind === 'text' || x.storage_key)
+}
+
 async function deleteOriginals(env, id) {
   const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
   const keys = listed.objects.map((o) => o.key)

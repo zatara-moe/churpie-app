@@ -11,289 +11,616 @@
 <link rel="icon" href="/favicon.svg">
 <link rel="manifest" href="/manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
-  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  /* one screen, one job, one big button */
+  .hb-top { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 4px; gap: 12px; }
+  .hb-top .for { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
+  .hb-top .for span { font-size: 13px; color: var(--ink-faded); font-weight: 600; }
+  .hb-top .for strong { font-size: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip { background: var(--amber-pale); color: var(--ink-faded); font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 999px; white-space: nowrap; }
+  .chip.dark { background: var(--ink); color: #fff; }
+  .chip.tight { align-self: flex-start; }
+  .hero { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1.05; letter-spacing: -0.3px; }
+  .sub { color: var(--ink-faded); line-height: 1.45; }
+  .hand { font-family: 'Caveat', cursive; font-weight: 700; }
+  .panel { background: #fff; border-radius: 24px; padding: 18px; position: relative; }
+  .tape { position: absolute; top: -10px; left: 50%; margin-left: -30px; width: 60px; height: 20px; background: rgba(247,217,108,0.85); transform: rotate(-3deg); }
+  .tape.pink { background: rgba(232,122,173,0.55); }
+  .center { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+
+  /* the Stories row */
+  .faces { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 6px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .faces::-webkit-scrollbar { display: none; }
+  .face { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 66px; flex-shrink: 0; scroll-snap-align: start; }
+  .face:focus-visible .ring { outline: 3px solid var(--cyan); outline-offset: 2px; }
+  .ring { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--paper-dark); padding: 2px; position: relative; }
+  .face.new .ring { border-color: var(--pink); }
+  .ring > * { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; object-fit: cover; overflow: hidden; background: var(--paper-aged); }
+  .ring .dot { position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); border: 2px solid var(--paper); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .face .nm { font-size: 11px; font-weight: 700; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .face:not(.new) .nm { color: var(--ink-faded); font-weight: 600; }
+  .face.add .ring { border-style: dashed; }
+  .face.add .ring > * { background: transparent; color: var(--pink); }
+  .stack-faces { display: flex; }
+  .stack-faces span { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--paper); margin-left: -10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+  .stack-faces span:first-child { margin-left: 0; }
+
+  .note { display: flex; gap: 10px; align-items: flex-start; background: var(--amber-pale); border-radius: 16px; padding: 12px 14px; font-size: 14px; line-height: 1.4; }
+  .note .tag { background: var(--tape); border-radius: 8px; font-size: 11px; font-weight: 700; padding: 3px 7px; white-space: nowrap; }
+  .note button.link { all: unset; cursor: pointer; font-weight: 700; color: var(--pink-deep); text-decoration: underline; }
+  .bubble { background: #E9F2FF; border-radius: 16px 16px 16px 4px; padding: 10px 12px; font-size: 14px; line-height: 1.35; word-break: break-word; }
+
+  /* the dock: the one big button */
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto; background: #fff; border-radius: 26px 26px 0 0; padding: 10px 16px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(26,20,16,0.08); display: flex; flex-direction: column; gap: 10px; }
+  .dock:empty { display: none; }
+  .dock .handle { margin: 0 auto; width: 40px; height: 4px; border-radius: 4px; background: var(--paper-aged); align-self: center; }
+  .dock .two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .btn.big { min-height: 56px; border-radius: 999px; font-size: 17px; }
+  .btn.line { background: #fff; box-shadow: inset 0 0 0 1.5px var(--ink); border-radius: 999px; }
+  .btn.soft { background: transparent; box-shadow: inset 0 0 0 1.5px var(--paper-aged); color: var(--ink-faded); border-radius: 999px; }
+  .dock .ghost { text-align: center; }
+
+  /* the reel, taped in */
+  .hreel { aspect-ratio: 9 / 16; height: 46vh; width: auto; max-width: 100%; margin: 8px auto 0; border-radius: 30px; background: #fff; padding: 8px; position: relative; box-shadow: 0 18px 40px rgba(26,20,16,0.14); }
+  .hreel video { width: 100%; height: 100%; border-radius: 22px; background: var(--video); object-fit: cover; display: block; }
+  .hreel .t1, .hreel .t2 { position: absolute; top: -12px; width: 70px; height: 24px; z-index: 1; }
+  .hreel .t1 { left: 34px; background: rgba(247,217,108,0.85); transform: rotate(-6deg); }
+  .hreel .t2 { right: 30px; background: rgba(126,205,213,0.8); transform: rotate(5deg); }
+
+  .making .ring { animation: spin 6s linear infinite; border-style: dashed; border-color: var(--pink); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .making .ring { animation: none; } }
+  .making .ring > * { animation: unspin 6s linear infinite; }
+  @keyframes unspin { to { transform: rotate(-360deg); } }
+
+  .heart { width: 92px; height: 92px; border-radius: 50%; background: var(--pink); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 10px rgba(212,38,106,0.12); }
+  .heart.calm { background: var(--cyan); box-shadow: 0 0 0 10px rgba(11,157,170,0.12); }
+  .postmark { width: 96px; height: 96px; border-radius: 50%; border: 2px solid rgba(26,20,16,0.5); display: flex; flex-direction: column; align-items: center; justify-content: center; transform: rotate(-10deg); color: rgba(26,20,16,0.7); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; line-height: 1.5; }
+  .postmark b { font-size: 14px; }
+
+  .hsteps { display: flex; flex-direction: column; gap: 8px; }
+  .hsteps div { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: #fff; border-radius: 16px; color: var(--ink-faded); }
+  .hsteps i { font-style: normal; width: 26px; height: 26px; border-radius: 50%; background: var(--paper-aged); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .hsteps .on { color: var(--ink); }
+  .hsteps .on i { background: var(--pink); color: #fff; }
+
+  details.more { background: #fff; border-radius: 20px; padding: 0 16px; }
+  details.more > summary { list-style: none; cursor: pointer; padding: 14px 0; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+  details.more > summary::-webkit-details-marker { display: none; }
+  details.more > summary::after { content: '+'; font-size: 20px; color: var(--ink-faded); }
+  details.more[open] > summary::after { content: '–'; }
+  details.more > div { padding-bottom: 16px; }
+  .tile.dragging { opacity: 0.4; }
+  .tile.over { outline: 3px solid var(--cyan); }
+
   dialog { border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px); background: #fff; }
   dialog::backdrop { background: rgba(26,20,16,0.5); }
   .dlg { padding: 16px; }
-  .tile.dragging { opacity: 0.4; }
-  .tile.over { outline: 3px solid var(--cyan); }
-  .who-in { display: flex; flex-wrap: wrap; gap: 6px; }
-  .who-in span { background: var(--paper); border-radius: 999px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
-  .who-in span.more { background: transparent; color: var(--ink-faded); font-weight: 600; padding-left: 0; }
-  .hostSheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; max-width: 520px; margin: 0 auto; }
+
+  /* full-screen viewer, like Stories */
+  #viewer { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; border-radius: 0; background: #000; color: #fff; }
+  #viewer::backdrop { background: #000; }
+  .vw { position: relative; width: 100%; height: 100%; max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; }
+  .vw .bars { display: flex; gap: 4px; padding: calc(10px + env(safe-area-inset-top)) 10px 0; }
+  .vw .bars span { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.3); overflow: hidden; }
+  .vw .bars span b { display: block; height: 100%; width: 0; background: #fff; }
+  .vw .top { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; }
+  .vw .top strong { font-size: 15px; } .vw .top small { opacity: 0.75; font-size: 12px; margin-left: 6px; }
+  .vw .x { all: unset; cursor: pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .vw .x:focus-visible { outline: 2px solid #fff; }
+  .vw .media { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .vw .media video { width: 100%; height: 100%; object-fit: contain; }
+  .vw .media .say { margin: 24px; padding: 28px 22px; border-radius: 24px; background: var(--amber-pale); color: var(--ink); font-size: 30px; line-height: 1.15; text-align: center; }
+  .vw .tap { position: absolute; top: 0; bottom: 0; width: 35%; z-index: 2; background: transparent; border: 0; cursor: pointer; }
+  .vw .tap.l { left: 0; } .vw .tap.r { right: 0; }
+  .vw .bottom { padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
+  .vw .flag { background: var(--tape); color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 700; }
+  .vw .btn { background: rgba(255,255,255,0.14); color: #fff; box-shadow: none; border-radius: 999px; }
+
+  main.board { padding-bottom: 230px; }
   @media (min-width: 960px) {
-    main.wrap { max-width: 1200px; padding: 0 40px 48px !important; display: grid !important; grid-template-columns: minmax(0, 1fr) 360px; column-gap: 40px; align-items: start; }
-    main.wrap > .topbar { grid-column: 1 / -1; }
-    main.wrap > .side { grid-column: 2; grid-row: 2 / span 6; position: sticky; top: 24px; }
-    main.wrap > :not(.topbar):not(.side) { grid-column: 1; }
-    .grid3 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
-    .hostSheet { position: static; max-width: none; border-radius: 20px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 8px 24px rgba(26,20,16,0.05); padding: 16px; }
-    .hostSheet .handle { display: none; }
+    main.board { max-width: 1160px; padding: 0 48px 48px; }
+    main.board .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 64px; align-items: center; min-height: calc(100vh - 140px); }
+    main.board .solo { max-width: 460px; margin-left: auto; margin-right: auto; }
+    main.board .split > .left { display: flex; justify-content: flex-end; }
+    main.board .split .hreel { width: 330px; height: auto; max-height: none; margin: 0; }
+    .dock { position: static; max-width: none; margin: 0; padding: 0; background: transparent; box-shadow: none; border-radius: 0; }
+    .dock .handle { display: none; }
+    .hero { font-size: 48px; }
+    .faces { flex-wrap: wrap; overflow: visible; margin: 0; padding: 4px 0; }
     .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; }
   }
 </style>
 </head>
 <body>
 <div class="stripe"></div>
-<main class="wrap stack" style="padding-bottom: 240px">
-  <div class="topbar">
-    <div style="display: flex; flex-direction: column; line-height: 1.15">
-      <span class="muted">Your card for</span>
-      <strong style="font-size: 24px" id="title">...</strong>
-    </div>
-    <a class="logo" href="/">churpie<b>.</b></a>
+<main class="wrap stack board">
+  <div class="hb-top">
+    <div class="for"><span id="forLine">Your card for</span><strong id="title">…</strong></div>
+    <span class="chip hidden" id="topChip"></span>
   </div>
-
-  <aside class="side stack">
-  <div class="card stack" id="status">
-    <div class="row between"><strong style="font-size: 18px" id="countLine">...</strong><span class="muted" id="deadline"></span></div>
-    <div class="who-in" id="whoIn"></div>
-    <div class="chips" id="chips"></div>
-  </div>
-
-  <div class="card stack hidden" id="sentBox"></div>
-  <div class="sheet hostSheet">
-  <div class="handle"></div>
-  <div class="row" style="margin-bottom: 12px">
-    <button class="btn tile amber" id="shareBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>Invite more</button>
-    <button class="btn tile cyan" id="previewBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>Watch so far</button>
-    <button class="btn tile pink" id="promptBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Your question</button>
-  </div>
-  <div class="stack" id="actions"></div>
-</div>
-  </aside>
-
-  <div class="grid3" id="grid" aria-label="messages so far"></div>
-  <p class="ghost" style="text-align: center">Tap a message to watch it. Hold and drag to change the order. Hidden messages never reach <span id="firstName2"></span>.</p>
-
-  <div class="card stack" id="introBox">
-    <div class="row between">
-      <div><h3>Say it in your own voice (optional)</h3><p class="muted">Record 15 seconds. Everyone you invite can tap to hear you first, and it opens the reel.</p></div>
-    </div>
-    <div class="row">
-      <button class="btn" id="introRecord">Record it</button>
-      <input type="file" id="introFile" accept="video/*" class="hidden"><button class="btn" id="introUpload">Upload it</button>
-    </div>
-    <p class="ghost hidden" id="introDone">Your intro is in. Record again any time to replace it.</p>
-  </div>
-
-  <div class="card stack hidden" id="replies"><h3 id="repliesTitle">Notes back</h3><div id="replyList" class="stack"></div></div>
-  <p style="text-align: center"><button class="btn quiet" id="deleteCard" type="button" style="width: auto">Delete this card</button></p>
+  <div id="stage" class="stack" aria-live="polite"></div>
+  <div id="extras" class="stack"></div>
 </main>
+<div class="dock" id="dock"></div>
 
 <dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
+<dialog id="viewer" aria-label="watch messages"><div class="vw" id="vw"></div></dialog>
+<input type="file" id="introFile" accept="video/*" class="hidden">
 
 <script type="module">
 import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
-let data = await load()
+const esc = escapeHtml
+let data = await load().catch((e) => { $('#stage').innerHTML = `<div class="panel center"><h2>${esc(e.message)}</h2><a class="btn primary big" href="/lost">Find your board</a></div>`; throw e })
 const first = firstName(data.card.recipientName)
-$('#firstName2').textContent = first
-$('#deleteCard').onclick = confirmDelete
+const F = esc(first)
 const memorial = data.card.moment === 'memory'
+const COLORS = ['#F4B9CF', '#B8E3E8', '#F7E27A', '#D9E8C4', '#E4D6F0', '#FAD7B5']
+const ICON = {
+  share: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8h16v-8"/><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/></svg>',
+  save: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>',
+  plus: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+  cam: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  heart: '<svg width="42" height="42" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.3 1.1 4 2.2.3.5 1 .5 1.3 0C12.4 6.1 13.7 5 15.6 5 19 5 21.1 8.4 19.6 11.8 17.5 16.4 12 21 12 21z" fill="#fff"/></svg>',
+  sprig: '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21V8"/><path d="M12 13c-3 0-5-2-5-5 3 0 5 2 5 5zM12 10c3 0 5-2 5-5-3 0-5 2-5 5zM12 17c2.5 0 4.5-1.6 4.5-4.2-2.5 0-4.5 1.6-4.5 4.2z" fill="rgba(255,255,255,0.35)"/></svg>',
+  x: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+}
 
 async function load() { return api(`/api/host/${token}`) }
+async function refresh() { data = await load(); render() }
+const store = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(`churpie:${k}:${token}`)) ?? d } catch { return d } },
+  set(k, v) { try { localStorage.setItem(`churpie:${k}:${token}`, JSON.stringify(v)) } catch {} },
+}
+const seenIds = new Set(store.get('seen', []))
+function markSeen(id) { if (!seenIds.has(id)) { seenIds.add(id); store.set('seen', [...seenIds]) } }
 
-const seen = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => entries.forEach((e) => {
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`
+const shortDate = (iso) => new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
+const colorFor = (i) => COLORS[i % COLORS.length]
+const initial = (n) => esc(String(n || '?').trim().slice(0, 1).toUpperCase())
+const readyClips = () => data.clips.filter((c) => c.status === 'ready')
+
+// thumbnails load only when a face scrolls into view
+const lazy = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => entries.forEach((e) => {
   if (!e.isIntersecting) return
-  const v = e.target; seen.unobserve(v); v.preload = 'metadata'; v.load()
-}), { rootMargin: '200px' }) : null
-function lazyTiles() { $$('#grid video[data-lazy]').forEach((v) => { v.removeAttribute('data-lazy'); if (seen) seen.observe(v); else { v.preload = 'metadata'; v.load() } }) }
+  const v = e.target; lazy.unobserve(v); v.preload = 'metadata'; v.src = v.dataset.src
+}), { rootMargin: '120px' }) : null
+function wireLazy() { $$('video[data-src]').forEach((v) => { if (lazy) lazy.observe(v); else { v.preload = 'metadata'; v.src = v.dataset.src } }) }
 
-// "Delete this card": gone now, for everyone, not when the window ends
+function faceHtml(c, i, { tap = true } = {}) {
+  const inner = c.kind === 'text' || !c.streamUrl
+    ? `<span style="background:${colorFor(i)}">${initial(c.name)}</span>`
+    : `<video data-src="${c.streamUrl}#t=0.6" muted playsinline preload="none" style="background:${colorFor(i)}"></video>`
+  const isNew = !seenIds.has(c.id)
+  return `<button class="face ${isNew ? 'new' : ''}" ${tap ? `data-play="${c.id}"` : 'tabindex="-1"'} aria-label="${isNew ? 'new: ' : ''}message from ${esc(c.name)}"><span class="ring">${inner}${c.flags?.length ? '<i class="dot" aria-hidden="true">!</i>' : ''}</span><span class="nm">${esc(c.name)}</span></button>`
+}
+function facesRow(list, { add = false, tap = true } = {}) {
+  return `<div class="faces" role="list">${add ? `<button class="face add" data-act="invite" aria-label="Invite more people"><span class="ring"><span>${ICON.plus}</span></span><span class="nm">Invite</span></button>` : ''}${list.map((c, i) => faceHtml(c, i, { tap })).join('')}</div>`
+}
+function stackFaces(list) {
+  const shown = list.slice(0, 4)
+  return `<div class="stack-faces" aria-hidden="true">${shown.map((c, i) => `<span style="background:${colorFor(i)}">${initial(c.name)}</span>`).join('')}${list.length > 4 ? `<span style="background: var(--paper-aged); font-size: 12px">+${list.length - 4}</span>` : ''}</div>`
+}
+
+// ── the dock ────────────────────────────────────────────────────────────────
+function dock(html) { $('#dock').innerHTML = html ? `<div class="handle"></div>${html}` : '' }
+function placeDock() {
+  // on a computer the button sits beside the content; on a phone it's thumb-height at the bottom
+  const slot = $('#dockSlot')
+  const wide = matchMedia('(min-width: 960px)').matches
+  if (wide && slot) slot.appendChild($('#dock'))
+  else if (!wide && $('#dock').parentElement !== document.body) document.body.appendChild($('#dock'))
+}
+matchMedia('(min-width: 960px)').addEventListener?.('change', placeDock)
+
+// ── shares ──────────────────────────────────────────────────────────────────
+const inviteText = () => `${data.card.hostName} is making a surprise video for ${first}, and you're one of ${first}'s people. Tap, record ${data.card.clipSeconds} seconds, done. (Shh, don't tell ${first}.)`
+function nudgeText() {
+  const c = data.card
+  const left = c.deadlineAt && !c.deadlinePassed ? fmtDays(c.deadlineAt) : ''
+  const when = left === 'today' ? 'Last day' : left ? `${left[0].toUpperCase()}${left.slice(1)} left` : 'Still time'
+  return memorial
+    ? `${when} to add a memory of ${first}. ${c.clipSeconds} seconds, no app: ${c.links.invite}`
+    : `${when} to add yours for ${first}! It takes ${c.clipSeconds} seconds, no app. ${c.links.invite}`
+}
+const invite = () => share({ title: `A video for ${first}`, text: inviteText(), url: data.card.links.invite })
+function sendReel() {
+  const n = readyClips().length
+  return share(memorial
+    ? { title: `In memory of ${first}`, text: `${plural(n, 'person', 'people')} shared what they remember about ${first}. Find a quiet moment.`, url: data.card.links.watch }
+    : { title: `${first}, people made you something`, text: `${first}, ${plural(n, 'person', 'people')} made you something. Find a quiet moment.`, url: data.card.links.watch })
+}
+const saveHref = () => `/api/host/${token}/reel.mp4?download=1`
+
+// ── render ──────────────────────────────────────────────────────────────────
+function render() {
+  const { card } = data
+  const ready = readyClips()
+  const max = card.maxClips || 50
+  $('#title').textContent = first
+  $('#forLine').textContent = memorial ? 'Your card in memory of' : 'Your card for'
+  document.title = `Your card for ${first} · churpie.`
+  rememberBoard({ url: location.origin + location.pathname, id: card.id, host: card.hostName, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
+  $('#extras').innerHTML = ''
+  const chip = $('#topChip'); chip.className = 'chip hidden'
+  const setChip = (text, dark) => { chip.textContent = text; chip.className = `chip${dark ? ' dark' : ''}` }
+
+  const s = card.status
+  if (s === 'open') {
+    if (card.deadlineAt && !card.deadlinePassed) { const d = fmtDays(card.deadlineAt); setChip(d === 'today' ? 'Last day' : `${d} left`, /^(today|1 day|2 days)$/.test(d)) }
+    else if (card.deadlinePassed) setChip('Closed to new', true)
+    if (!ready.length && !data.clips.length && !store.get('skipFirst', false)) goFirst()
+    else collecting()
+  } else if (s === 'queued' || s === 'stitching') making()
+  else if (s === 'failed') failed()
+  else if (s === 'ready') { setChip(`${fmtDays(card.expiresAt)} to save`); readyView() }
+  else if (s === 'sent') sentView()
+  else doneView()
+  placeDock()
+  wireLazy()
+}
+
+// 0 · just made
+function goFirst() {
+  $('#stage').innerHTML = `
+    <div class="panel center" style="margin-top: 14px">
+      <div class="tape"></div>
+      <div style="display: flex; align-items: center" aria-hidden="true">
+        <span style="width: 70px; height: 70px; border-radius: 50%; border: 3px dashed var(--pink); display: flex; align-items: center; justify-content: center; background: var(--pink-pale); color: var(--pink)">${ICON.cam}</span>
+        <span style="width: 52px; height: 52px; border-radius: 50%; border: 2px dashed var(--paper-dark); margin-left: -10px; background: var(--paper)"></span>
+        <span style="width: 40px; height: 40px; border-radius: 50%; border: 2px dashed var(--paper-dark); margin-left: -10px; background: var(--paper)"></span>
+      </div>
+      <h1 class="hero">Go first.</h1>
+      <p class="sub">People add theirs much faster when they can see someone already did. Record yours, then invite everyone.</p>
+      <p class="hand" style="font-size: 24px; color: var(--ink-faded)">“${esc(data.card.prompt || `Say ${first}'s name first.`)}”</p>
+    </div>
+    <div class="hsteps">
+      <div class="on"><i>1</i><span><strong>Record yours</strong> · ${data.card.clipSeconds} seconds</span></div>
+      <div><i>2</i><span>Send the invite to the group chat</span></div>
+      <div><i>3</i><span>Make the reel when everyone's in</span></div>
+    </div>
+    <div id="dockSlot"></div>`
+  dock(`<a class="btn primary big" href="/c/${data.card.id}" id="recordFirst"><span style="width: 14px; height: 14px; border-radius: 50%; background: #fff"></span>Record mine first</a>
+    <button class="btn soft" id="skipFirst">Skip, invite people now</button>`)
+  $('#skipFirst').onclick = async () => { store.set('skipFirst', true); render(); await invite() }
+  moreBox()
+}
+
+// 1 · collecting
+function collecting() {
+  const { card } = data
+  const ready = readyClips()
+  const max = card.maxClips || 50, left = Math.max(0, max - ready.length)
+  const fresh = ready.filter((c) => !seenIds.has(c.id)).length
+  const flagged = ready.filter((c) => c.flags?.length)
+  const flagLine = { quiet: 'is hard to hear', short: 'is under 3 seconds', dark: 'is mostly dark', noname: `doesn't say “${first}”`, blurry: 'looks blurry' }
+  const notes = []
+  if (card.expiresAt) notes.push(`<div class="note"><span class="tag">Quiet</span><span>Nobody has added anything in 30 days, so this card will be deleted on ${esc(shortDate(card.expiresAt))}. <button class="link" data-act="keep">Keep it open</button></span></div>`)
+  if (card.deadlinePassed) notes.push(`<div class="note"><span class="tag">Closed</span><span>The last day to add a message has passed. Make the reel with these ${ready.length}, or <button class="link" data-act="moreDays">give people 3 more days</button>.</span></div>`)
+  else if (left === 0) notes.push(`<div class="note"><span class="tag">Full</span><span>${max} messages is as many as one reel holds. Anyone else can start a card of their own for ${F} from the invite.</span></div>`)
+  else if (left <= 10) notes.push(`<div class="note"><span class="tag">Room for ${left}</span><span>Then the card is full.</span></div>`)
+  flagged.slice(0, 2).forEach((c) => notes.push(`<div class="note"><span class="tag">${esc({ quiet: 'Quiet?', short: 'Short?', dark: 'Dark?', noname: 'Name?', blurry: 'Blurry?' }[c.flags[0]] || 'Check')}</span><span>${esc(c.name)}'s message ${esc(flagLine[c.flags[0]] || 'might need a look')}. <button class="link" data-play="${c.id}">Check it</button></span></div>`))
+  if (flagged.length > 2) notes.push(`<p class="ghost">${flagged.length - 2} more marked with ! on their face.</p>`)
+
+  const canInvite = !card.deadlinePassed && left > 0
+  const headline = ready.length ? `${plural(ready.length, 'person is', 'people are')} in.` : 'Nobody yet.'
+  const hint = !ready.length ? 'Send the invite to get it going.' : fresh ? `${plural(fresh, 'new one', 'new ones')}. Tap a face to watch.` : 'Tap a face to watch them one after another.'
+
+  $('#stage').innerHTML = `
+    <div class="split" style="min-height: 0; align-items: start">
+      <div class="stack" style="gap: 14px">
+        <div><h1 class="hero">${headline}</h1><p class="sub" style="margin-top: 6px">${hint}${card.status === 'open' && ready.length && left > 10 ? ` <span class="ghost">Room for ${left} more.</span>` : ''}</p></div>
+        ${facesRow(ready, { add: canInvite })}
+        ${notes.join('')}
+        ${canInvite && ready.length ? `<div class="panel stack" style="gap: 10px">
+          <div class="row between"><strong>Nudge the group</strong><span class="ghost">a ready message</span></div>
+          <p class="bubble" id="nudgeText">${esc(nudgeText())}</p>
+          <button class="btn line" data-act="nudge">Copy and share</button>
+        </div>` : ''}
+      </div>
+      <div class="stack" style="gap: 14px">
+        <div id="dockSlot"></div>
+      </div>
+    </div>`
+  const enough = ready.length >= 3 || card.deadlinePassed || left === 0
+  const make = `<button class="btn ${enough ? 'primary big' : 'line'}" data-act="make" ${ready.length ? '' : 'disabled'}>Make ${F}'s reel${enough ? '' : ' now'}</button>`
+  const inv = `<button class="btn ${enough ? 'line' : 'primary big'}" data-act="invite">${ICON.share}Invite more people</button>`
+  dock(!canInvite ? make : enough ? make + inv : inv + make)
+  $('#dock').insertAdjacentHTML('beforeend', `<p class="ghost">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Most reels have 5 or more.` : `${F} sees nothing until you send it.`}</p>`)
+  allMessages()
+  moreBox()
+}
+
+// 2 · making
+function making() {
+  const { card } = data
+  const ready = readyClips()
+  const waitedMin = card.queuedAt ? (new Date(card.now) - new Date(card.queuedAt)) / 60000 : 0
+  const slow = card.status === 'queued' && waitedMin >= 5
+  $('#stage').innerHTML = `
+    <div class="solo stack center" style="gap: 14px; margin-top: 24px">
+      <div class="making">${facesRow(ready.slice(0, 5), { tap: false })}</div>
+      <h1 class="hero">${slow ? "It's taking longer than usual." : `Making ${F}'s reel.`}</h1>
+      <p class="sub">${slow ? `Every message is safe, and nothing goes to ${F} until you send it. It keeps going without you.` : `From ${plural(ready.length, 'message', 'messages')}. Usually a few minutes.`}</p>
+      <p class="sub"><strong>You can close this page.</strong> ${card.hostEmail ? `We'll email ${esc(card.hostEmail)} when it's ready.` : 'Come back to this link in a few minutes.'}</p>
+      <div id="dockSlot" style="width: 100%"></div>
+    </div>`
+  dock(slow ? `<button class="btn soft" data-act="reopen">Reopen for more messages</button>` : '')
+  setTimeout(refresh, 15000)
+}
+
+function failed() {
+  const timedOut = /^timed out/.test(data.card.stitchError || '')
+  $('#stage').innerHTML = `
+    <div class="panel center" style="margin-top: 14px"><div class="tape"></div>
+      <h1 class="hero">The reel didn't finish.</h1>
+      <p class="sub" title="${esc(data.card.stitchError || '')}">${timedOut ? 'We tried twice. ' : ''}Every message is safe, and nothing went to ${F}. Try again in a minute, or reopen the card to hide a message first.</p>
+    </div><div id="dockSlot"></div>`
+  dock(`<button class="btn primary big" data-act="retry">Try again</button><button class="btn soft" data-act="reopen">Reopen for more messages</button>`)
+  allMessages()
+  moreBox()
+}
+
+// 3 · ready: watch it, then send it
+function readyView() {
+  const { card } = data
+  const ready = readyClips()
+  const len = card.reelSeconds ? ` · ${mmss(card.reelSeconds)}` : ''
+  $('#stage').innerHTML = `
+    <div class="split">
+      <div class="left"><div class="hreel"><i class="t1"></i><i class="t2"></i><video src="/api/host/${token}/reel.mp4#t=0.1" controls playsinline preload="metadata"></video></div></div>
+      <div class="stack" style="gap: 14px">
+        <h1 class="hero">${F}'s reel is ready.</h1>
+        <p class="sub">${plural(ready.length, 'person', 'people')}${len}. Only you can see it until you send it.</p>
+        ${stackFaces(ready)}
+        <div id="dockSlot"></div>
+      </div>
+    </div>`
+  dock(`<button class="btn primary big" data-act="sendReel">${memorial ? `Share ${F}'s reel` : `Send it to ${F}`}</button>
+    <div class="two"><a class="btn line" href="${saveHref()}" download>${ICON.save}Save video</a>${card.canEdit ? '<button class="btn soft" data-act="edit">Edit</button>' : `<button class="btn soft" data-act="copyWatch">Copy link</button>`}</div>
+    <p class="ghost">Saved until ${esc(shortDate(card.expiresAt))}. ${card.extended ? '' : `<button class="btn quiet" data-act="extend" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Keep it ${card.keepDays} more days</button>`}</p>`)
+}
+
+// 4 · sent: they opened it
+function sentView() {
+  const { card } = data
+  $('#stage').innerHTML = `
+    <div class="solo stack center" style="gap: 12px; margin-top: 30px">
+      <div class="heart ${memorial ? 'calm' : ''}">${memorial ? ICON.sprig : ICON.heart}</div>
+      <h1 class="hero" style="margin-top: 10px">${memorial ? 'Someone has opened it.' : `${F} opened it.`}</h1>
+      ${card.openedAt ? `<p class="sub">${esc(fmtWhen(card.openedAt))}</p>` : ''}
+      <div id="replyBox" style="width: 100%"></div>
+      <div id="dockSlot" style="width: 100%"></div>
+    </div>`
+  dock(`<button class="btn primary big" data-act="tellGroup">${memorial ? 'Tell the group it was shared' : `Tell the group ${F} watched it`}</button>
+    <a class="btn line" href="${saveHref()}" download>${ICON.save}Save video</a>
+    <p class="ghost">We delete the reel in ${fmtDays(card.expiresAt)}. Save it to keep it forever. <button class="btn quiet" data-act="watchAgain" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Watch it again</button>${card.extended ? '' : `<br><button class="btn quiet" data-act="extend" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Keep it ${card.keepDays} more days</button>`}</p>`)
+  showReplies()
+}
+
+let replies = null
+async function showReplies() {
+  if (!replies) replies = (await api(`/api/host/${token}/replies`).catch(() => ({ replies: [] }))).replies
+  if (!replies.length || !$('#replyBox')) return
+  const r = replies[replies.length - 1]
+  $('#replyBox').innerHTML = `<div class="panel" style="text-align: left; transform: rotate(-1deg); box-shadow: 0 10px 24px rgba(26,20,16,0.08); margin-top: 14px">
+      <div class="tape pink"></div>
+      <p class="ghost" style="text-transform: uppercase; letter-spacing: 1px">A note back from ${F}</p>
+      <p class="hand" style="font-size: 30px; line-height: 1.1; margin: 8px 0 6px">${esc(r.text)}</p>
+      <p class="hand" style="font-size: 22px; color: var(--pink)">— ${F}</p>
+    </div>${replies.length > 1 ? `<p class="ghost" style="margin-top: 8px">${replies.length - 1} more ${replies.length === 2 ? 'note' : 'notes'} below.</p>` : ''}`
+  if (replies.length > 1) $('#extras').insertAdjacentHTML('afterbegin', `<div class="stack">${replies.slice(0, -1).reverse().map((x) => `<p class="panel hand" style="font-size: 24px">“${esc(x.text)}”</p>`).join('')}</div>`)
+  const btn = $('[data-act="tellGroup"]')
+  if (btn && !memorial) btn.textContent = `Post ${first}'s note to your group chat`
+}
+
+// 5 · finished
+function doneView() {
+  const when = data.card.expiresAt ? shortDate(data.card.expiresAt) : ''
+  $('#stage').innerHTML = `
+    <div class="panel center" style="margin-top: 40px; padding: 34px 24px 26px">
+      <div class="postmark" aria-hidden="true"><span>churpie post</span><b>delivered</b><span>${esc(when)}</span></div>
+      <h1 class="hero" style="margin-top: 10px">This card is finished.</h1>
+      <p class="sub">${F}'s reel and every message were deleted, as promised. The copies people saved are theirs to keep.</p>
+      <a class="btn primary big" href="/new" style="width: 100%">Start a new card</a>
+    </div>
+    <p class="ghost" style="text-align: center">Nothing is stored here anymore: no videos, names or notes.</p>`
+  dock('')
+}
+
+// ── tucked away: everything the main screen doesn't need ───────────────────
+function allMessages() {
+  const { card, clips } = data
+  if (!clips.length) return
+  const editable = card.status === 'open' || card.status === 'failed'
+  const hidden = clips.filter((c) => c.status === 'hidden').length
+  $('#extras').insertAdjacentHTML('beforeend', `<details class="more" id="allBox"><summary>All messages · ${clips.length}${hidden ? ` (${hidden} hidden)` : ''}</summary><div class="stack">
+    <div class="grid3" id="grid">${clips.map((c, i) => {
+      if (c.status === 'hidden') return `<button class="tile is-hidden" data-id="${c.id}" draggable="${editable}">Hidden<span>${esc(c.name)}</span></button>`
+      if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="${editable}"><span class="q">“${esc(c.text)}”</span><span class="name">${esc(c.name)}</span></button>`
+      return `<button class="tile ${c.flags?.length ? 'flagged' : ''}" data-id="${c.id}" draggable="${editable}"><video data-src="${c.streamUrl}#t=0.5" preload="none" muted playsinline></video><span class="name">${esc(c.name)}</span></button>`
+    }).join('')}</div>
+    <p class="ghost" style="text-align: center">${editable ? `Drag to change the order. Tap one to watch or hide it. Hidden messages never reach ${F}.` : 'Tap one to watch it.'}</p>
+  </div></details>`)
+  const box = $('#allBox')
+  if (store.get('allOpen', false)) box.open = true
+  box.addEventListener('toggle', () => store.set('allOpen', box.open))
+}
+
+function moreBox() {
+  const { card } = data
+  $('#extras').insertAdjacentHTML('beforeend', `<details class="more"><summary>The question, your intro, delete</summary><div class="stack">
+    <div><p class="ghost">${esc(firstName(card.hostName))} asks</p><p style="font-size: 17px">${esc(card.prompt)}</p></div>
+    <div class="stack" style="gap: 8px"><p class="ghost">Your intro (optional). Everyone you invite can tap to hear you first.</p>
+      <div class="row"><button class="btn" data-act="introRecord">${card.hasIntro ? 'Record again' : 'Record it'}</button><button class="btn" data-act="introUpload">Upload it</button></div>
+      ${card.hasIntro ? '<p class="ghost">Your intro is in.</p>' : ''}</div>
+    <button class="btn quiet" data-act="delete" style="color: var(--red)">Delete this card</button>
+  </div></details>`)
+}
+
+// ── one listener for every button ──────────────────────────────────────────
+document.addEventListener('click', async (e) => {
+  const play = e.target.closest('[data-play]')
+  if (play) { const list = readyClips(); viewer(list, Math.max(0, list.findIndex((c) => c.id === play.dataset.play))); return }
+  const tile = e.target.closest('#grid .tile[data-id]')
+  if (tile) { const c = data.clips.find((x) => x.id === tile.dataset.id); if (c) viewer([c], 0); return }
+  const b = e.target.closest('[data-act]'); if (!b) return
+  const act = b.dataset.act
+  const post = async (path, body) => { try { await api(`/api/host/${token}/${path}`, { method: 'POST', body }); return true } catch (err) { toast(err.message); return false } }
+  if (act === 'invite') invite()
+  else if (act === 'nudge') { const t = nudgeText(); try { await navigator.clipboard.writeText(t) } catch {} ; share({ title: `A video for ${first}`, text: t }) }
+  else if (act === 'make') confirmSend()
+  else if (act === 'keep') { if (await post('keep')) { toast('Kept open.'); refresh() } }
+  else if (act === 'moreDays') { if (await post('deadline', { days: 3 })) { toast('Open 3 more days.'); refresh() } }
+  else if (act === 'reopen') { if (await post('reopen')) { toast('Open again. People can keep adding messages.'); refresh() } }
+  else if (act === 'retry') { if (await post('send')) refresh() }
+  else if (act === 'sendReel') sendReel()
+  else if (act === 'copyWatch') { await navigator.clipboard.writeText(data.card.links.watch); toast(`${first}'s link is copied.`) }
+  else if (act === 'extend') { if (await post('extend')) { toast(`${data.card.keepDays} more days.`); refresh() } }
+  else if (act === 'edit') confirmEdit()
+  else if (act === 'watchAgain') { $('#dlgBody').innerHTML = `<div class="hreel" style="box-shadow: none; padding: 0"><video src="/api/host/${token}/reel.mp4" controls playsinline autoplay></video></div><button class="btn outline" data-close>Close</button>`; $('#dlg').showModal() }
+  else if (act === 'tellGroup') {
+    const r = replies?.[replies.length - 1]
+    share({ title: `${first} watched it`, text: r && !memorial ? `${first} watched our video and wrote back: “${r.text}”` : memorial ? `The video for ${first} has been shared. Thank you for being part of it.` : `${first} watched the video we all made. Thank you for being part of it!` })
+  }
+  else if (act === 'delete') confirmDelete()
+  else if (act === 'introUpload') $('#introFile').click()
+  else if (act === 'introRecord') recordIntro()
+})
+document.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) e.target.closest('dialog')?.close() })
+
+function confirmSend() {
+  const ready = readyClips()
+  const flagged = ready.filter((c) => c.flags?.length)
+  $('#dlgBody').innerHTML = `
+    <h2>Make ${F}'s reel now?</h2>
+    <p class="muted">${plural(ready.length, 'message goes', 'messages go')} in.${flagged.length ? ` ${plural(flagged.length, 'is', 'are')} marked to check; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} New messages stop here.</p>
+    <p class="muted">You'll watch it before ${F} does${data.card.hostEmail ? `, and we'll email you when it's ready` : ''}.</p>
+    <button class="btn primary big" id="dlgSend">Make it</button>
+    <button class="btn outline" data-close>Not yet</button>`
+  $('#dlg').showModal()
+  $('#dlgSend').onclick = async () => { try { await api(`/api/host/${token}/send`, { method: 'POST' }); $('#dlg').close(); refresh() } catch (err) { toast(err.message) } }
+}
+
+function confirmEdit() {
+  $('#dlgBody').innerHTML = `
+    <h2>Change something?</h2>
+    <p class="muted">The card opens again so you can hide a message, change the order or let more people in. Then make the reel again. This one is replaced; ${F} hasn't seen it.</p>
+    <button class="btn primary big" id="dlgEdit">Open it again</button>
+    <button class="btn outline" data-close>Keep this reel</button>`
+  $('#dlg').showModal()
+  $('#dlgEdit').onclick = async () => { try { await api(`/api/host/${token}/reopen`, { method: 'POST' }); $('#dlg').close(); store.set('allOpen', true); toast('Open again.'); refresh() } catch (err) { toast(err.message) } }
+}
+
 function confirmDelete() {
-  $('#dlgBody').innerHTML = `<h2>Delete ${escapeHtml(first)}'s card?</h2><p class="muted">Every message and the reel are deleted now, for everyone, and its links stop working. This can't be undone.</p><button class="btn" id="dlgDelete" style="background: var(--red, #B22222); color: #fff">Delete it</button><button class="btn outline" id="dlgClose">Keep it</button>`
-  $('#dlgClose').onclick = () => $('#dlg').close()
+  $('#dlgBody').innerHTML = `<h2>Delete ${F}'s card?</h2><p class="muted">Every message and the reel are deleted now, for everyone, and its links stop working. This can't be undone.</p><button class="btn" id="dlgDelete" style="background: var(--red); color: #fff">Delete it</button><button class="btn outline" data-close>Keep it</button>`
   $('#dlgDelete').onclick = async () => {
     try { await api(`/api/host/${token}/delete`, { method: 'POST' }) } catch (e) { toast(e.message); return }
     forgetBoard(location.origin + location.pathname)
     $('#dlg').close()
-    // nothing is left to show: the card, its messages and its reel are gone
-    document.querySelector('main').innerHTML = `<div class="topbar"><a class="logo" href="/">churpie<b>.</b></a></div><div class="card stack" style="text-align: center; padding: 32px 20px"><h2>Deleted.</h2><p class="muted">${escapeHtml(first)}'s card, every message and the reel are gone, and its links no longer work.</p><a class="btn primary" href="/new">Start a new card</a></div>`
+    data.card.status = 'expired'; data.card.expiresAt = new Date().toISOString(); data.clips = []
+    $('#topChip').className = 'chip hidden'; $('#extras').innerHTML = ''
+    doneView(); placeDock()
   }
   $('#dlg').showModal()
 }
 
-function render() {
-  const { card, clips } = data
-  const ready = clips.filter((c) => c.status === 'ready')
-  const flagged = ready.filter((c) => c.flags?.length)
-  const hidden = clips.filter((c) => c.status === 'hidden')
-  $('#title').textContent = `${first}`
-  if (memorial) $('.topbar .muted').textContent = 'Your card in memory of'
-  document.title = `Your card for ${first} · churpie.`
-  const max = card.maxClips || 50, left = Math.max(0, max - ready.length)
-  // the count always shows the limit, so nobody finds out it's full from a contributor
-  $('#countLine').textContent = card.status === 'open' ? `${ready.length} of ${max} in` : `${ready.length} ${ready.length === 1 ? 'person' : 'people'} in`
-  $('#deadline').textContent = card.status !== 'open' ? '' : card.deadlinePassed ? 'closed to new messages' : card.deadlineAt ? `last day ${fmtWhen(card.deadlineAt)}` : ''
-  // so the home page can list this card under "your cards" (this device only)
-  rememberBoard({ url: location.origin + location.pathname, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
-  // who's in, by name: a goal-less progress bar read as "not enough"
-  $('#whoIn').innerHTML = ready.length ? ready.slice(0, 12).map((c) => `<span>${escapeHtml(c.name)}</span>`).join('') + (ready.length > 12 ? `<span class="more">+${ready.length - 12} more</span>` : '') : '<span class="more">Nobody yet. Send the invite to get it going.</span>'
-  $('#chips').innerHTML = [
-    flagged.length ? `<span class="pill tape">${flagged.length} to check</span>` : '',
-    hidden.length ? `<span class="pill aged">${hidden.length} hidden</span>` : '',
-    `<span class="pill aged">${card.clipSeconds}-second messages</span>`,
-    card.accountType === 'business' ? `<span class="pill cyan">For a business</span>` : '',
-  ].join('')
-
-  $('#grid').innerHTML = clips.map((c, i) => {
-    const flag = c.flags?.[0]
-    const flagText = { quiet: 'Quiet', short: 'Very short', dark: 'Dark', noname: `No “${first}”?`, blurry: 'Blurry' }[flag] || (flag ? 'Check this' : '')
-    if (c.status === 'hidden') return `<button class="tile is-hidden" data-id="${c.id}" draggable="true" aria-label="hidden message from ${escapeHtml(c.name)}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.1A10.9 10.9 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.9 8.5 2.5 12 2.5 12s3.5 7 9.5 7a10 10 0 0 0 4.1-.9"/></svg>Hidden<span>${escapeHtml(c.name)}</span></button>`
-    if (c.kind === 'text') return `<button class="tile text" data-id="${c.id}" draggable="true"><span class="q">“${escapeHtml(c.text)}”</span><span class="name">${escapeHtml(c.name)}</span></button>`
-    return `<button class="tile ${flag ? 'flagged' : ''}" data-id="${c.id}" draggable="true" aria-label="message from ${escapeHtml(c.name)}${flagText ? ', ' + flagText : ''}"><video src="${c.streamUrl}#t=0.5" preload="none" data-lazy muted playsinline></video>${flagText ? `<span class="flag">${escapeHtml(flagText)}</span>` : ''}${i === 0 && c.name === card.hostName ? '<span class="you">You</span>' : ''}<span class="name">${escapeHtml(c.name)}</span></button>`
-  }).join('') + (card.status === 'open' ? `<div class="tile" style="background: transparent; border: 2px dashed var(--paper-dark); display: flex; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--ink-faded); cursor: default; padding: 8px; box-shadow: none">more on the way</div>` : '')
-
-  lazyTiles()
-  $('#deleteCard').parentElement.classList.toggle('hidden', card.status === 'expired')
-  // actions depend on state
-  const a = $('#actions')
-  $('#shareBtn').classList.toggle('hidden', card.status !== 'open') // no inviting once the card is closed
-  if (card.status === 'open') {
-    const notes = []
-    if (card.expiresAt) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>This card has been quiet for a while.</h3><p class="muted">Nobody has added anything in 30 days, so we'll delete it on ${escapeHtml(fmtWhen(card.expiresAt))}. Make the reel now, or keep it open if people are still coming.</p><button class="btn quiet" id="keepBtn">Keep it open</button></div>`)
-    if (card.deadlinePassed) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>The last day to add a message has passed.</h3><p class="muted">New messages can't go in. Make the reel with the ${ready.length} you have, or give people a little longer.</p><button class="btn quiet" id="moreDaysBtn">Give them 3 more days</button></div>`)
-    else if (left === 0) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>The card is full.</h3><p class="muted">${max} messages is as many as one reel can hold. Anyone else who opens the invite can start a card of their own for ${escapeHtml(first)}.</p></div>`)
-    else if (left <= 10) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>Room for ${left} more.</h3><p class="muted">After that the card is full. Make the reel soon if more people are on the way.</p></div>`)
-    a.innerHTML = notes.join('') + (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `Usually ready in a few minutes. ${escapeHtml(first)} sees nothing until you send it.`}</p>`
-    $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
-    $('#sendBtn')?.addEventListener('click', confirmSend)
-    $('#keepBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/keep`, { method: 'POST' }); toast('Kept open.'); data = await load(); render() })
-    $('#moreDaysBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/deadline`, { method: 'POST', body: { days: 3 } }); toast('Open 3 more days.'); data = await load(); render() })
-    $('#sentBox').classList.add('hidden')
-  } else {
-    // the reel link only exists for the host once there's a reel behind it, so it can't reach the recipient early
-    const reelReady = card.status === 'ready' || card.status === 'sent'
-    a.innerHTML = reelReady ? `<button class="btn primary" id="shareWatch">${memorial ? `Share ${escapeHtml(first)}'s reel` : `Send ${escapeHtml(first)} the reel`}</button><button class="btn quiet" id="copyWatch">${memorial ? 'Copy the link' : `Copy ${escapeHtml(first)}'s reel link`}</button>` : ''
-    $('#shareWatch')?.addEventListener('click', () => share(memorial
-      ? { title: `In memory of ${first}`, text: `${ready.length} ${ready.length === 1 ? 'person' : 'people'} shared what they remember about ${first}. Find a quiet moment.`, url: card.links.watch }
-      : { title: `${first}, people made you something`, text: `${first}, ${ready.length} ${ready.length === 1 ? 'person' : 'people'} made you something. Find a quiet moment.`, url: card.links.watch }))
-    $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s reel link copied.`) })
-    // how long it has been waiting, by the server's clock
-    const waitedMin = card.queuedAt ? (new Date(card.now).getTime() - new Date(card.queuedAt).getTime()) / 60000 : 0
-    const n = `${ready.length} ${ready.length === 1 ? 'message' : 'messages'}`
-    const keep = `<button class="btn quiet" id="reopenBtn">Reopen for more messages</button><p class="ghost" style="text-align:center">You'll make the reel again when you're ready.</p>`
-    const timedOut = /^timed out/.test(card.stitchError || '')
-    const box = $('#sentBox'); box.classList.remove('hidden')
-    const msgs = {
-      queued: waitedMin < 5
-        ? `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Usually a few minutes. You can stay here; this page updates on its own.</p>`
-        : `<h3>It's taking longer than usual.</h3><p class="muted">Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page and come back; it keeps going without you.</p>${keep}`,
-      stitching: `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Almost there. This page updates on its own.</p>`,
-      ready: `<h3>It's ready.</h3><button class="btn" id="previewReel">Watch it first</button><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it ${card.keepDays} more days</button>'}`,
-      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><button class="btn quiet" id="previewReel">Watch it again</button><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it ${card.keepDays} more days</button>'}</p>`,
-      failed: timedOut
-        ? `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again in a few minutes.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
-        : `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`,
-      expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message have been deleted, as promised. The copies that remain are the ones people saved.</p>`,
-    }
-    box.innerHTML = msgs[card.status] || ''
-    $('#previewReel')?.addEventListener('click', () => {
-      $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/16; max-height: 70vh"><video src="/api/host/${token}/reel.mp4" controls playsinline autoplay></video></div><p class="ghost" style="text-align:center">Only you can see this. ${escapeHtml(first)} sees nothing until you send the link.</p><button class="btn outline" id="dlgClose">Close</button>`
-      $('#dlgClose').onclick = () => $('#dlg').close(); $('#dlg').showModal()
-    })
-    $('#extendBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/extend`, { method: 'POST' }); toast(`${data.card.keepDays} more days.`); data = await load(); render() })
-    $('#reopenBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/reopen`, { method: 'POST' }); toast(`Open again. People can keep adding messages.`); data = await load(); render() })
-    $('#retryBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/send`, { method: 'POST' }); data = await load(); render() })
-    if (card.status === 'queued' || card.status === 'stitching') setTimeout(async () => { data = await load(); render() }, 15000)
-    $('#introBox').classList.add('hidden')
-  }
-  if (card.hasIntro) $('#introDone').classList.remove('hidden')
+// ── the viewer: tap a face, watch them one after another ───────────────────
+let vState = null
+function viewer(list, start) {
+  if (!list.length) return
+  vState = { list, i: start, timer: null }
+  $('#viewer').showModal()
+  showOne()
 }
-render()
-
-// ── preview / hide / unhide ─────────────────────────────────────────────────
-$('#grid').addEventListener('click', (e) => { const t = e.target.closest('.tile[data-id]'); if (t) openClip(t.dataset.id) })
-function openClip(id) {
-  const c = data.clips.find((x) => x.id === id); if (!c) return
-  const flagText = { quiet: 'This one is very quiet. It may be hard to hear in the reel.', short: 'This one is under 3 seconds.', dark: 'This one is mostly dark. Faces may be hard to see.', noname: `We didn't hear “${first}” in this one. Worth a quick look.`, blurry: 'This one looks blurry or shaky.' }
-  $('#dlgBody').innerHTML = `
-    <div class="row between"><strong>${escapeHtml(c.name)}</strong><span class="muted">${c.location ? escapeHtml(c.location) : ''}</span></div>
-    ${c.kind === 'text' ? `<p class="rulebox" style="background: var(--amber-pale); border-radius: 14px; padding: 12px; font-size: 16px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video src="${c.streamUrl}" controls playsinline autoplay></video></div>`}
-    ${(c.flags || []).map((f) => `<p class="pill tape">${escapeHtml(flagText[f] || f)}</p>`).join('')}
-    <div class="row">
-      ${data.card.status === 'open' || data.card.status === 'failed' ? (c.status === 'hidden' ? `<button class="btn" id="dlgUnhide">Show it again</button>` : `<button class="btn" id="dlgHide">Hide from ${escapeHtml(first)}</button>`) : ''}
-      <button class="btn outline" id="dlgClose">Close</button>
+function showOne() {
+  const { list, i } = vState
+  const c = list[i]
+  clearTimeout(vState.timer)
+  markSeen(c.id)
+  const editable = data.card.status === 'open' || data.card.status === 'failed'
+  const flagText = { quiet: 'Very quiet. It may be hard to hear in the reel.', short: 'Under 3 seconds.', dark: 'Mostly dark. Faces may be hard to see.', noname: `We didn't hear “${first}” in this one.`, blurry: 'Looks blurry or shaky.' }
+  $('#vw').innerHTML = `
+    <div class="bars">${list.map((_, k) => `<span><b style="width:${k < i ? 100 : 0}%"></b></span>`).join('')}</div>
+    <div class="top"><span><strong>${esc(c.name)}</strong>${c.location ? `<small>${esc(c.location)}</small>` : ''}</span><button class="x" id="vClose" aria-label="Close">${ICON.x}</button></div>
+    <div class="media">
+      ${c.kind === 'text' ? `<p class="say hand">“${esc(c.text)}”</p>` : `<video id="vVid" src="${c.streamUrl}" playsinline autoplay></video>`}
+      ${list.length > 1 ? '<button class="tap l" id="vPrev" aria-label="Previous"></button><button class="tap r" id="vNext" aria-label="Next"></button>' : ''}
+    </div>
+    <div class="bottom">
+      ${(c.flags || []).map((f) => `<p class="flag">${esc(flagText[f] || 'Worth a quick look.')}</p>`).join('')}
+      ${editable ? (c.status === 'hidden' ? '<button class="btn" id="vShow">Show it again</button>' : `<button class="btn" id="vHide">Hide from ${F}</button>`) : ''}
     </div>`
-  $('#dlg').showModal()
-  $('#dlgClose').onclick = () => $('#dlg').close()
-  $('#dlgHide')?.addEventListener('click', async () => { await api(`/api/host/${token}/clips/${id}`, { method: 'POST', body: { status: 'hidden' } }); $('#dlg').close(); toast(`Hidden. ${first} won't see it.`); data = await load(); render() })
-  $('#dlgUnhide')?.addEventListener('click', async () => { await api(`/api/host/${token}/clips/${id}`, { method: 'POST', body: { status: 'ready' } }); $('#dlg').close(); data = await load(); render() })
+  const bar = $$('#vw .bars b')[i]
+  const next = () => { if (vState.i < vState.list.length - 1) { vState.i++; showOne() } else $('#viewer').close() }
+  $('#vClose').onclick = () => $('#viewer').close()
+  $('#vNext')?.addEventListener('click', next)
+  $('#vPrev')?.addEventListener('click', () => { vState.i = Math.max(0, vState.i - 1); showOne() })
+  const v = $('#vVid')
+  if (v) {
+    v.addEventListener('timeupdate', () => { if (v.duration) bar.style.width = `${(v.currentTime / v.duration) * 100}%` })
+    v.addEventListener('ended', next)
+    v.addEventListener('click', () => (v.paused ? v.play() : v.pause()))
+  } else {
+    bar.style.transition = 'width 6s linear'; requestAnimationFrame(() => { bar.style.width = '100%' })
+    vState.timer = setTimeout(next, 6000)
+  }
+  const setStatus = async (status, msg) => {
+    try { await api(`/api/host/${token}/clips/${c.id}`, { method: 'POST', body: { status } }) } catch (err) { toast(err.message); return }
+    toast(msg); c.status = status
+    $('#viewer').close(); refresh()
+  }
+  $('#vHide')?.addEventListener('click', () => setStatus('hidden', `Hidden. ${first} won't see it.`))
+  $('#vShow')?.addEventListener('click', () => setStatus('ready', 'Back in.'))
 }
+$('#viewer').addEventListener('close', () => {
+  clearTimeout(vState?.timer); $$('#vw video').forEach((v) => v.pause()); $('#vw').innerHTML = ''
+  // rings update without a reload
+  $$('.face[data-play]').forEach((f) => { if (seenIds.has(f.dataset.play)) f.classList.remove('new') })
+})
+document.addEventListener('keydown', (e) => {
+  if (!$('#viewer').open) return
+  if (e.key === 'ArrowRight') $('#vNext')?.click()
+  if (e.key === 'ArrowLeft') $('#vPrev')?.click()
+})
 $('#dlg').addEventListener('close', () => { $$('#dlgBody video').forEach((v) => v.pause()) })
 
-// ── reorder by drag (desktop) and long-press drag (phones use native drag on most browsers) ─
+// ── reorder by drag (inside "All messages") ────────────────────────────────
 let dragId = null
-$('#grid').addEventListener('dragstart', (e) => { const t = e.target.closest('.tile[data-id]'); if (!t) return; dragId = t.dataset.id; t.classList.add('dragging') })
-$('#grid').addEventListener('dragover', (e) => { e.preventDefault(); const t = e.target.closest('.tile[data-id]'); $$('.tile.over').forEach((x) => x.classList.remove('over')); t?.classList.add('over') })
-$('#grid').addEventListener('drop', async (e) => {
-  e.preventDefault()
-  const t = e.target.closest('.tile[data-id]'); $$('.tile.over, .tile.dragging').forEach((x) => x.classList.remove('over', 'dragging'))
-  if (!t || !dragId || t.dataset.id === dragId) return
+document.addEventListener('dragstart', (e) => { const t = e.target.closest?.('#grid .tile[data-id]'); if (!t) return; dragId = t.dataset.id; t.classList.add('dragging') })
+document.addEventListener('dragover', (e) => { const t = e.target.closest?.('#grid .tile[data-id]'); if (!t) return; e.preventDefault(); $$('.tile.over').forEach((x) => x.classList.remove('over')); t.classList.add('over') })
+document.addEventListener('drop', async (e) => {
+  const t = e.target.closest?.('#grid .tile[data-id]'); if (!t) return
+  e.preventDefault(); $$('.tile.over, .tile.dragging').forEach((x) => x.classList.remove('over', 'dragging'))
+  if (!dragId || t.dataset.id === dragId) return
   const ids = data.clips.map((c) => c.id)
   ids.splice(ids.indexOf(dragId), 1); ids.splice(ids.indexOf(t.dataset.id), 0, dragId)
-  await api(`/api/host/${token}/order`, { method: 'POST', body: { order: ids } })
-  data = await load(); render()
+  try { await api(`/api/host/${token}/order`, { method: 'POST', body: { order: ids } }) } catch (err) { toast(err.message) }
+  refresh()
 })
 
-// ── send ────────────────────────────────────────────────────────────────────
-function confirmSend() {
-  const ready = data.clips.filter((c) => c.status === 'ready')
-  const flagged = ready.filter((c) => c.flags?.length)
-  $('#dlgBody').innerHTML = `
-    <h2>Make ${escapeHtml(first)}'s reel now?</h2>
-    <p class="muted">${ready.length} ${ready.length === 1 ? 'message goes' : 'messages go'} in. ${flagged.length ? `${flagged.length} flagged ${flagged.length === 1 ? 'one is' : 'ones are'} still in; hide ${flagged.length === 1 ? 'it' : 'them'} first if you'd rather.` : ''} After this the card closes. Anyone who opens the invite later can start a card of their own for ${escapeHtml(first)} right from it.</p>
-    <p class="muted">${escapeHtml(first)} can save the reel to keep forever. Download it to keep it. We delete our copy ${data.card.keepDays} days after it's made, and we'll email you a reminder 2 days before.</p>
-    <button class="btn primary" id="dlgSend">Make it</button>
-    <button class="btn outline" id="dlgClose">Not yet</button>`
-  $('#dlg').showModal()
-  $('#dlgClose').onclick = () => $('#dlg').close()
-  $('#dlgSend').onclick = async () => { try { await api(`/api/host/${token}/send`, { method: 'POST' }); $('#dlg').close(); data = await load(); render() } catch (err) { toast(err.message) } }
-}
-
-// ── share, preview, prompt ──────────────────────────────────────────────────
-$('#shareBtn').onclick = () => share({ title: `A video for ${first}`, text: `${data.card.hostName} is making a surprise video for ${first}, and you're one of ${first}'s people. Tap, record ${data.card.clipSeconds} seconds, done. (Shh, don't tell ${first}.)`, url: data.card.links.invite })
-$('#previewBtn').onclick = () => {
-  const ready = data.clips.filter((c) => c.status === 'ready')
-  if (!ready.length) return toast('Nothing to preview yet.')
-  let i = 0
-  const play = () => {
-    const c = ready[i]
-    $('#dlgBody').innerHTML = `<div class="row between"><span class="sticker" style="font-size:15px">${escapeHtml(c.name)}</span><span class="muted">${i + 1} of ${ready.length}</span></div>${c.kind === 'text' ? `<p style="background: var(--amber-pale); border-radius: 14px; padding: 16px; font-size: 18px">“${escapeHtml(c.text)}”</p>` : `<div class="video" style="aspect-ratio: 9/14"><video id="pv" src="${c.streamUrl}" controls playsinline autoplay></video></div>`}<div class="row"><button class="btn" id="pvNext">Next</button><button class="btn outline" id="dlgClose">Close</button></div>`
-    $('#dlgClose').onclick = () => $('#dlg').close()
-    $('#pvNext').onclick = () => { i = (i + 1) % ready.length; play() }
-    $('#pv')?.addEventListener('ended', () => { i = (i + 1) % ready.length; play() })
-    if (c.kind === 'text') setTimeout(() => { if ($('#dlg').open && $('#pvNext')) { i = (i + 1) % ready.length; play() } }, 8000)
-  }
-  play(); $('#dlg').showModal()
-}
-$('#promptBtn').onclick = () => {
-  $('#dlgBody').innerHTML = `<h3>${escapeHtml(firstName(data.card.hostName))} asks</h3><p style="font-size: 18px">${escapeHtml(data.card.prompt)}</p>${data.card.tone ? `<p class="muted">Feel: ${escapeHtml(({ funny: 'Light', heartfelt: 'Warm', hype: 'Loud', quiet: 'Gentle' })[data.card.tone] || data.card.tone)}</p>` : ''}${data.card.rules?.length ? `<p class="muted">${data.card.rules.map(escapeHtml).join(' · ')}</p>` : ''}<p class="ghost">The question stays put once people start recording, so everyone answers the same thing.</p><button class="btn outline" id="dlgClose">Close</button>`
-  $('#dlg').showModal(); $('#dlgClose').onclick = () => $('#dlg').close()
-}
-
 // ── intro clip ──────────────────────────────────────────────────────────────
-$('#introUpload').onclick = () => $('#introFile').click()
-$('#introFile').onchange = async () => { const f = $('#introFile').files[0]; if (!f) return; await upload(`/api/host/${token}/intro`, f); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
-$('#introRecord').onclick = async () => {
+$('#introFile').onchange = async () => { const f = $('#introFile').files[0]; if (!f) return; await upload(`/api/host/${token}/intro`, f); toast('Your intro is in.'); refresh() }
+async function recordIntro() {
   let stream
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: true }) } catch { return toast('Your camera is blocked. Upload a video instead.') }
   $('#dlgBody').innerHTML = `<div class="video" style="aspect-ratio: 9/14"><video id="iv" autoplay muted playsinline></video></div><p class="muted">Tell everyone what this is for, in your own words. 15 seconds.</p><button class="btn primary" id="ivStop">Stop and save</button>`
   $('#iv').srcObject = stream; $('#dlg').showModal()
   const chunks = []; const rec = new MediaRecorder(stream, { mimeType: recorderMime() || undefined }); rec.ondataavailable = (e) => chunks.push(e.data)
-  rec.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); $('#dlg').close(); await upload(`/api/host/${token}/intro`, new Blob(chunks, { type: rec.mimeType })); toast('Your intro is in.'); $('#introDone').classList.remove('hidden') }
+  rec.onstop = async () => { stream.getTracks().forEach((t) => t.stop()); $('#dlg').close(); await upload(`/api/host/${token}/intro`, new Blob(chunks, { type: rec.mimeType })); toast('Your intro is in.'); refresh() }
   rec.start(250); const stop = setTimeout(() => rec.state === 'recording' && rec.stop(), 16000)
   $('#ivStop').onclick = () => { clearTimeout(stop); rec.stop() }
 }
 
-// ── replies ─────────────────────────────────────────────────────────────────
-const { replies } = await api(`/api/host/${token}/replies`).catch(() => ({ replies: [] }))
-if (replies.length) { $('#replies').classList.remove('hidden'); $('#repliesTitle').textContent = `From ${first}`; $('#replyList').innerHTML = replies.map((r) => `<p class="card" style="padding: 12px">“${escapeHtml(r.text)}”</p>`).join('') }
+render()
+// come back to the tab and the board is current (new faces, a finished reel)
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !$('#viewer').open && !$('#dlg').open) refresh().catch(() => {}) })
 </script>
 </body>
 </html>

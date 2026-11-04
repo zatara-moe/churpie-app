@@ -240,13 +240,16 @@
 </main>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo, botCheck } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo, botCheck, myBoards } from '/app.js'
 
 const cardId = location.pathname.split('/')[2]
 const editToken = new URLSearchParams(location.search).get('edit')
 const card = await api(`/api/cards/${cardId}/public`).catch((e) => { document.body.innerHTML = `<main class="wrap"><p class="card">${escapeHtml(e.message)}</p></main>`; throw e })
 const first = firstName(card.recipientName)
 const LIMIT = card.clipSeconds
+// the host going first from their own board: their name is already filled in, and "done" leads back to the board
+const myBoard = myBoards().find((b) => b.id === cardId)
+if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
 
 // ── the brief ────────────────────────────────────────────────────────────────
 $('#hostLine').textContent = `${card.hostName} is making this for`
@@ -431,6 +434,12 @@ function finish(reg, name) {
   $('#editText').href = `sms:?&body=${encodeURIComponent(`My churpie message for ${first} (to redo it): ${reg.editUrl}`)}`
   $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
   try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {}
+  if (myBoard) {
+    // the host is done with this page; the next job (inviting people) lives on the board
+    $('#shareOn').textContent = 'Back to your board'
+    $('#shareOn').onclick = () => { location.href = myBoard.url }
+    $('#laterText').textContent = `You can swap or remove it from your board until you make the reel.`
+  }
   show('done')
 }
 
