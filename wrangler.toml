@@ -13,7 +13,7 @@ not_found_handling = "none"
 APP_URL = "https://churpie.me"
 CLIP_LIFETIME_DAYS = "30"
 MAX_CLIPS_PER_CARD = "50"
-MAX_UPLOAD_MB = "200"
+MAX_UPLOAD_MB = "95"  # Cloudflare refuses request bodies over 100 MB on this plan, before the Worker sees them
 
 # Secrets (set with `wrangler secret put NAME`, never in this file):
 #   STITCH_TOKEN   shared secret the stitcher uses to pull jobs and push finals

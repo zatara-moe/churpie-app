@@ -293,10 +293,25 @@ async function openCamera() {
   $('#camPlaceholder').classList.add('hidden')
   $('.video.cam').classList.add('live')
 }
-function cameraHelp() {
+// Links opened inside Instagram, Facebook, TikTok, Snapchat and similar apps run in their own browser,
+// which often blocks the camera. Those people need to open the link in Safari or Chrome instead.
+const IN_APP = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|TikTok|musical_ly|BytedanceWebview|Snapchat|LinkedInApp|Line\/|Pinterest|Twitter/i.test(navigator.userAgent)
+const OPEN_IN_BROWSER = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+  ? 'Tap the ••• or share button at the top or bottom of this screen, then choose <strong>Open in Safari</strong> (or Open in browser).'
+  : 'Tap the ⋮ menu at the top of this screen, then choose <strong>Open in Chrome</strong> (or Open in browser).'
+function inAppHelp() {
   $('#camPlaceholder').classList.remove('hidden')
-  $('#camPlaceholder').innerHTML = `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or tap <strong>Upload a video</strong> below.</span>`
+  $('#camPlaceholder').innerHTML = `<strong>To record, open this in your phone's browser.</strong><span>This app's built-in browser can block the camera. ${OPEN_IN_BROWSER}</span><button class="btn" type="button" id="copyInvite" style="width: auto">Copy this link</button><span>Or write a message instead. That works right here.</span>`
+  $('#copyInvite').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('Link copied. Paste it into Safari or Chrome.') } catch { toast(location.href) } }
 }
+function cameraHelp(err) {
+  if (IN_APP) return inAppHelp()
+  $('#camPlaceholder').classList.remove('hidden')
+  $('#camPlaceholder').innerHTML = err && err.name !== 'NotAllowedError' && err.name !== 'SecurityError'
+    ? `<strong>We couldn't start your camera.</strong><span>Close any other app using the camera and try again, or tap <strong>Upload a video</strong> below.</span>`
+    : `<strong>Your camera is blocked.</strong><span>On iPhone: Settings → Safari → Camera → Allow. On Android: tap the lock icon next to the web address → Permissions → Camera.</span><span>Or tap <strong>Upload a video</strong> below.</span>`
+}
+if (IN_APP && $('#camPlaceholder')) inAppHelp() // not on a closed or full card, where the recorder is replaced
 
 if ($('#flip')) $('#flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; if (stream) await openCamera().catch(cameraHelp) }
 if ($('#timerToggle')) $('#timerToggle').onclick = () => {
@@ -308,7 +323,7 @@ if ($('#timerToggle')) $('#timerToggle').onclick = () => {
 
 async function startRecording() {
   seenTips(); $('#howto').open = false
-  try { if (!stream) await openCamera() } catch { cameraHelp(); return }
+  try { if (!stream) await openCamera() } catch (err) { cameraHelp(err); return }
   // 3-2-1 so nobody starts mid-sentence
   const count = $('#count'); count.classList.remove('hidden')
   for (const n of [3, 2, 1]) { count.textContent = n; await new Promise((r) => setTimeout(r, 800)) }
@@ -347,6 +362,8 @@ if ($('#file')) $('#file').onchange = async () => {
   reviewBlob(f, null)
 }
 
+const MAX_MB = 95
+let tooBig = false
 function reviewBlob(b, seconds) {
   const url = URL.createObjectURL(b)
   const v = $('#preview'); v.src = url; v.muted = false
@@ -357,14 +374,17 @@ function reviewBlob(b, seconds) {
   v.onended = () => { bg.pause(); $('#asReel').classList.remove('playing') }
   const notes = []
   if (seconds !== null && seconds < 3) notes.push('That was very short. Want another go?')
-  if (b.size > 200 * 1024 * 1024) notes.push('That file is over 200 MB. Trim it in your camera roll first, or record here instead.')
+  tooBig = b.size > MAX_MB * 1024 * 1024
+  if (tooBig) notes.push(`That video is ${Math.round(b.size / 1048576)} MB, and the most we can take is ${MAX_MB} MB. Tap Retake and record it here instead (it's quicker), or trim it in your camera roll first.`)
+  $('#sendClip').disabled = tooBig
+  $('#checkNotes').innerHTML = notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('')
   v.onloadedmetadata = () => {
     if (isFinite(v.duration) && v.duration > LIMIT + 1) notes.push(`This one is ${Math.round(v.duration)} seconds and ${hostFirst} asked for ${LIMIT}. We'll use the first ${LIMIT}, so put the good part up front, or trim it on your phone first.`)
     $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : `<p class="muted">Looks good. Does it answer ${escapeHtml(hostFirst)}'s question? Then add your name and send it.</p>`) + `<p class="ghost">${escapeHtml(hostFirst)} asked: “${escapeHtml(card.prompt)}”</p>`
   }
   step(2); show('check')
 }
-if ($('#retake')) $('#retake').onclick = () => { blob = null; step(1); show('record') }
+if ($('#retake')) $('#retake').onclick = () => { blob = null; tooBig = false; $('#sendClip').disabled = false; step(1); show('record') }
 
 // the sticker shows their name as they type, the way the reel will
 $('#checkForm [name=name]').addEventListener('input', (e) => { $('#tagName').textContent = e.target.value.trim() || 'Your name' })
@@ -376,6 +396,7 @@ const seenTips = () => { try { localStorage.setItem('churpie:tips-seen', '1') } 
 $('#checkForm').addEventListener('submit', async (e) => {
   e.preventDefault()
   const f = new FormData(e.target)
+  if (tooBig) return
   const btn = $('#sendClip'); btn.disabled = true; btn.textContent = 'Sending...'
   const bar = $('#upbar'); bar.classList.remove('hidden')
   try {

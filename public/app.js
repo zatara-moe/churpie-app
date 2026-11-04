@@ -65,6 +65,7 @@ export function upload(url, blob, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total) }
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText || '{}'))
+      else if (xhr.status === 413) reject(new Error('That video is too big to send. Record it here instead (it’s quicker), or trim it in your camera roll first.'))
       else { let msg = "That didn't go through. Try once more."; try { msg = JSON.parse(xhr.responseText).error || msg } catch {} reject(new Error(msg)) }
     }
     xhr.onerror = () => reject(new Error('Your connection blinked. Your video is still on your phone, so try once more.'))
