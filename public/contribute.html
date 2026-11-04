@@ -262,12 +262,14 @@ if (card.hasIntro) {
 }
 $('#footnote').textContent = card.clipCount ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
 // closed or full: never a dead end, and never "go ask someone". Offer a card of their own for the same person.
-if (card.status !== 'open' || card.full) {
+if (card.status !== 'open' || card.full || card.deadlinePassed) {
   const own = `/new?for=${encodeURIComponent(card.recipientName)}&moment=${encodeURIComponent(card.moment || '')}`
-  const [h, p] = card.status !== 'open'
+  const [h, p] = card.deadlinePassed
+    ? [`The last day for ${escapeHtml(first)}'s card has passed.`, `New messages can't go in now. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
+    : card.status !== 'open'
     ? (['ready', 'sent', 'expired'].includes(card.status)
       ? [`${escapeHtml(first)}'s reel is already made.`, `This card is closed, so new messages can't go in. You can still send ${escapeHtml(first)} something of your own. It takes about a minute.`]
-      : [`Messages are closed for now.`, `${escapeHtml(hostFirst)} is making ${escapeHtml(first)}'s reel. If ${escapeHtml(hostFirst)} opens the card again, this link will take your message. You can also start a card of your own for ${escapeHtml(first)}.`])
+      : [`Messages are closed for now.`, `${escapeHtml(hostFirst)} is putting ${escapeHtml(first)}'s reel together right now. You can still start a card of your own for ${escapeHtml(first)}.`])
     : [`${escapeHtml(first)}'s card is full.`, `${card.clipCount} people have already said something, which is as many as one reel can hold. You can still start a card of your own for ${escapeHtml(first)}.`]
   $('#howto').classList.add('hidden')
   $('#record').innerHTML = `<div class="card stack"><h2>${h}</h2><p class="muted">${p}</p><a class="btn primary" href="${own}">Start a card for ${escapeHtml(first)}</a></div>`

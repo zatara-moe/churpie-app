@@ -123,6 +123,10 @@
 <main class="wrap" style="padding-bottom: 56px">
   <section class="hero stack" style="gap: 14px">
     <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a><a class="btn quiet" style="width:auto; min-height: 40px" id="myBoard" href="/new">Start a card</a></div>
+    <section id="myCards" class="card stack hidden" aria-label="your cards on this device" style="gap: 8px">
+      <div class="row between"><strong>Your cards</strong><span class="ghost">saved on this device only</span></div>
+      <div id="myCardsList" class="stack" style="gap: 6px"></div>
+    </section>
     <h1>a video card from everyone who loves them.</h1>
     <p class="lede">Send one link. Everyone who loves them records a few seconds. We put it all together into one reel they'll play again and again.</p>
 
@@ -229,7 +233,21 @@
   if (!still) setInterval(() => { i = (i + 1) % slides.length; show(i) }, 2800)
   // a real churpie reel, once we have one: drop it at /demo/reel.mp4 and it replaces the placeholder
   fetch('/demo/reel.mp4', { method: 'HEAD' }).then((r) => { if (r.ok && (r.headers.get('content-type') || '').startsWith('video')) { const v = document.getElementById('demoVid'); v.src = '/demo/reel.mp4'; v.classList.remove('hidden'); bars.classList.add('hidden') } }).catch(() => {})
-  try { const h = localStorage.getItem('churpie:last-host'); const a = document.getElementById('myBoard'); if (h) { a.href = h; a.textContent = 'My board' } else a.remove() } catch {}
+  // "your cards": every board opened on this device, so a host never has to dig for the link
+  import('/app.js').then(({ myBoards, forgetBoard, escapeHtml, fmtWhen }) => {
+    const box = document.getElementById('myCards'), list = document.getElementById('myCardsList')
+    const draw = () => {
+      const boards = myBoards()
+      box.classList.toggle('hidden', !boards.length)
+      list.innerHTML = boards.map((b) => {
+        const state = b.status === 'open' ? (b.max ? `${b.n} of ${b.max} in` : 'collecting') + (b.deadlineAt ? ` · last day ${fmtWhen(b.deadlineAt)}` : '')
+          : b.status === 'ready' ? 'reel ready to send' : b.status === 'sent' ? 'opened' : b.status === 'expired' ? 'finished' : b.status ? 'reel on the way' : ''
+        return `<div class="row between" style="gap: 8px; align-items: center"><a class="btn outline" style="justify-content: space-between; flex: 1; min-height: 48px" href="${escapeHtml(b.url)}"><span>${b.name ? `${b.moment === 'memory' ? 'In memory of ' : 'For '}${escapeHtml(b.name)}` : 'Your card'}</span><small class="ghost">${escapeHtml(state)}</small></a><button class="btn quiet" style="width: auto; min-width: 44px" data-forget="${escapeHtml(b.url)}" aria-label="Remove ${escapeHtml(b.name || 'this card')} from this device">×</button></div>`
+      }).join('')
+    }
+    list.addEventListener('click', (e) => { const x = e.target.closest('[data-forget]'); if (x) { forgetBoard(x.dataset.forget); draw() } })
+    draw()
+  }).catch(() => {})
 </script>
 </body>
 </html>

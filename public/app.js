@@ -78,3 +78,36 @@ export function installPrompt() {
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferred = e })
   return async () => { if (!deferred) return false; deferred.prompt(); const r = await deferred.userChoice; deferred = null; return r.outcome === 'accepted' }
 }
+
+// ── "your cards" on this device ─────────────────────────────────────────────
+// No account: the board link is the key. We keep every board this browser has opened, so hosts can
+// find their way back from the home page. It never leaves this device.
+const BOARDS = 'churpie:boards'
+export function myBoards() {
+  try {
+    const list = JSON.parse(localStorage.getItem(BOARDS) || '[]')
+    // carry over the single link older versions saved
+    const last = localStorage.getItem('churpie:last-host')
+    if (last && !list.some((b) => b.url === last)) list.push({ url: last, name: '', at: '' })
+    return list
+  } catch { return [] }
+}
+export function rememberBoard(entry) {
+  try {
+    const list = myBoards().filter((b) => b.url !== entry.url)
+    list.unshift({ ...entry, at: new Date().toISOString() })
+    localStorage.setItem(BOARDS, JSON.stringify(list.slice(0, 20)))
+    localStorage.setItem('churpie:last-host', entry.url)
+  } catch {}
+}
+export function forgetBoard(url) {
+  try {
+    localStorage.setItem(BOARDS, JSON.stringify(myBoards().filter((b) => b.url !== url)))
+    if (localStorage.getItem('churpie:last-host') === url) localStorage.removeItem('churpie:last-host')
+  } catch {}
+}
+
+// "Fri, Nov 6, 3 PM" in the viewer's own time
+export function fmtWhen(iso) {
+  return new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}

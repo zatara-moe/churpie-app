@@ -98,14 +98,22 @@ const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds
 const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '' }
 
+// a memorial reel is watched by the people who loved them, so it never speaks to the person as "you"
+const memorial = card.moment === 'memory'
 $('#stampN').textContent = n
-$('#stampWord').innerHTML = `${n === 1 ? 'person' : 'people'}<br>showed up`
+$('#stampWord').innerHTML = memorial ? (n === 1 ? 'voice' : 'voices') : `${n === 1 ? 'person' : 'people'}<br>showed up`
+if (memorial) $('#envelope .addr .muted').textContent = 'In memory of'
 $('#replyNote').textContent = `${firstName(card.hostName)} gets this and can pass it on to everyone.`
 $('#recName').textContent = first
-$('#momentLine').textContent = MOMENT[card.moment] || ''
+$('#momentLine').textContent = memorial ? '' : (MOMENT[card.moment] || '')
 $('#fromLine').textContent = `From ${card.hostName}${n > 1 ? ` and ${n - 1} more` : ''}`
 const mins = Math.max(1, Math.round(totalSec / 60))
-$('#quietLine').textContent = `Find a quiet moment. This is about ${mins === 1 ? 'a minute' : `${mins} minutes`} of people who love you.`
+const length = mins === 1 ? 'a minute' : `${mins} minutes`
+// the opening line follows the card: loud for a kid's party, quiet for everything tender
+const OPENER = { confettipop: 'Turn the volume up.', lockernote: 'Ok. Press play.', kraft: 'Get everyone together.' }
+$('#quietLine').textContent = memorial
+  ? `Find a quiet moment. This is about ${length} of people who loved ${first}.`
+  : `${OPENER[card.vibe] || 'Find a quiet moment.'} This is about ${length} of people who love you.`
 // videos and written notes are counted apart, so one written note never reads as "1 short video"
 const notes = people.filter((p) => p.kind === 'text').length, vids = n - notes
 const parts = [vids ? `${vids} short ${vids === 1 ? 'video' : 'videos'}` : '', notes ? `${notes} ${notes === 1 ? 'note' : 'notes'}` : ''].filter(Boolean)
@@ -115,7 +123,7 @@ $('#footLine').textContent = card.expiresAt ? `You can pause, skip, or come back
 if (!data.ready) {
   $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden')
   $('#notReadyBody').innerHTML = data.expired
-    ? `<h2>This reel isn't here anymore.</h2><p class="muted">${escapeHtml(card.hostName)}${n > 1 ? ` and ${n - 1} others` : ''} made it for ${escapeHtml(first)}. We delete every reel after 30 days, as promised, so the copies that remain are the ones people saved.</p>`
+    ? `<h2>This reel isn't here anymore.</h2><p class="muted">${escapeHtml(card.hostName)}${n > 1 ? ` and ${n - 1} others` : ''} made it ${memorial ? 'in memory of' : 'for'} ${escapeHtml(first)}. We delete every reel after 30 days, as promised, so the copies that remain are the ones people saved.</p>`
     : `<h2>${escapeHtml(card.hostName)} is still putting this together.</h2><p class="muted">It's almost ready. Come back a little later.</p>`
 }
 

@@ -45,6 +45,17 @@ async function queueTimes(db, cardId) {
   return { queuedAt: row?.queuedAt || null, claimedAt: row?.claimedAt || null, claims: Number(row?.claims || 0) }
 }
 
+// The host's "last day to add a message" is a real close, not just a label.
+function pastDeadline(card) {
+  return card.status === 'open' && !!card.deadline_at && card.deadline_at < nowIso()
+}
+
+// Unfinished cards: kept while people are still adding, then let go.
+// After IDLE_DAYS with nothing new, the card gets a delete date GRACE_DAYS out (shown on the board).
+// Any new message, or the host pressing "keep it", clears that date. No schema change: uses expires_at and the events log.
+const IDLE_DAYS = 30
+const GRACE_DAYS = 14
+
 function publicCard(card, clipCount) {
   return {
     id: card.id,
@@ -58,6 +69,7 @@ function publicCard(card, clipCount) {
     clipSeconds: card.clip_seconds,
     status: card.status,
     deadlineAt: card.deadline_at,
+    deadlinePassed: pastDeadline(card),
     hasIntro: !!card.host_intro_key,
     clipCount,
   }
@@ -186,6 +198,8 @@ app.post('/api/cards/:id/clips', async (c) => {
   if (!card) return bad(c, "This card isn't here anymore.", 404)
   if (card.status !== 'open') return bad(c, card.status === 'ready' || card.status === 'sent' || card.status === 'expired' ? `${card.host_name} already made the reel, so this card is closed.` : `${card.host_name} closed messages to make the reel.`, 409)
 
+  if (pastDeadline(card)) return bad(c, `The last day to add a message for ${card.recipient_name} has passed.`, 409)
+
   const b = await c.req.json().catch(() => ({}))
   const name = sanitize(b.name, 40)
   const location = sanitize(b.location, 40) || null
@@ -211,6 +225,8 @@ app.post('/api/cards/:id/clips', async (c) => {
     .run()
 
   if (kind === 'text') await logEvent(c.env.DB, card.id, 'clip')
+  // someone is still adding: a quiet card's delete date goes away
+  if (card.expires_at) await c.env.DB.prepare(`UPDATE cards SET expires_at = NULL WHERE id = ? AND status = 'open'`).bind(card.id).run()
 
   return c.json({
     clipId,
@@ -293,6 +309,7 @@ app.get('/api/host/:token', async (c) => {
     card: {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
       hostEmail: card.host_email,
+      maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
       accountType: card.account_type,
       sentAt: card.sent_at,
       expiresAt: card.expires_at,
@@ -371,6 +388,30 @@ app.post('/api/host/:token/reopen', async (c) => {
   await c.env.DB.prepare(`UPDATE cards SET status = 'open', expires_at = NULL, stitch_error = NULL WHERE id = ? AND status IN ('queued','failed')`).bind(card.id).run()
   await logEvent(c.env.DB, card.id, 'reopened')
   return c.json({ ok: true, status: 'open' })
+})
+
+// "Give them 3 more days": moves the last day to add a message (from now, if it already passed)
+app.post('/api/host/:token/deadline', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (card.status !== 'open') return bad(c, 'Messages are already closed for this card.', 409)
+  const b = await c.req.json().catch(() => ({}))
+  const days = Math.min(14, Math.max(1, Number(b.days) || 3))
+  const from = Math.max(Date.now(), card.deadline_at ? new Date(card.deadline_at).getTime() : 0)
+  const next = new Date(from + days * 86400000).toISOString()
+  await c.env.DB.prepare(`UPDATE cards SET deadline_at = ? WHERE id = ?`).bind(next, card.id).run()
+  await logEvent(c.env.DB, card.id, 'deadline')
+  return c.json({ ok: true, deadlineAt: next })
+})
+
+// A quiet card the host still wants: clears the delete date and restarts the clock
+app.post('/api/host/:token/keep', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (card.status !== 'open' && card.status !== 'failed') return bad(c, 'This card is already finished.', 409)
+  await c.env.DB.prepare(`UPDATE cards SET expires_at = NULL WHERE id = ?`).bind(card.id).run()
+  await logEvent(c.env.DB, card.id, 'kept')
+  return c.json({ ok: true })
 })
 
 app.post('/api/host/:token/extend', async (c) => {
@@ -600,6 +641,20 @@ app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore"
 async function sweep(env) {
   await recoverStale(env.DB)
   const now = nowIso()
+  // unfinished cards with nothing new for IDLE_DAYS get a delete date; the existing expiry below does the rest
+  const idleCutoff = new Date(Date.now() - IDLE_DAYS * 86400000).toISOString()
+  const { results: quiet } = await env.DB.prepare(
+    `SELECT c.id FROM cards c
+      WHERE c.status IN ('open','failed') AND c.expires_at IS NULL
+        AND MAX(c.created_at,
+                COALESCE((SELECT MAX(k.created_at) FROM clips k WHERE k.card_id = c.id), ''),
+                COALESCE((SELECT MAX(e.at) FROM events e WHERE e.card_id = c.id AND e.type IN ('clip','reopened','kept','deadline')), '')) < ?`
+  ).bind(idleCutoff).all()
+  const graceUntil = new Date(Date.now() + GRACE_DAYS * 86400000).toISOString()
+  for (const { id } of quiet) {
+    await env.DB.prepare(`UPDATE cards SET expires_at = ? WHERE id = ? AND expires_at IS NULL`).bind(graceUntil, id).run()
+    await logEvent(env.DB, id, 'quiet')
+  }
   const { results: expired } = await env.DB.prepare(
     `SELECT id FROM cards WHERE expires_at IS NOT NULL AND expires_at < ? AND status != 'expired'`
   ).bind(now).all()
@@ -623,7 +678,7 @@ async function sweep(env) {
     if (keys.length) await env.CLIPS.delete(keys)
     await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
   }
-  return { expired: expired.length, rawsCleared: done.length }
+  return { quiet: quiet.length, expired: expired.length, rawsCleared: done.length }
 }
 
 app.post('/api/stitch/sweep', async (c) => c.json(await sweep(c.env)))

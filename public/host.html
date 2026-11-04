@@ -86,13 +86,13 @@
 <dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, upload, recorderMime } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload, recorderMime, rememberBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
 let data = await load()
 const first = firstName(data.card.recipientName)
 $('#firstName2').textContent = first
-try { localStorage.setItem('churpie:last-host', location.href) } catch {}
+const memorial = data.card.moment === 'memory'
 
 async function load() { return api(`/api/host/${token}`) }
 
@@ -102,9 +102,14 @@ function render() {
   const flagged = ready.filter((c) => c.flags?.length)
   const hidden = clips.filter((c) => c.status === 'hidden')
   $('#title').textContent = `${first}`
+  if (memorial) $('.topbar .muted').textContent = 'Your card in memory of'
   document.title = `Your card for ${first} · churpie.`
-  $('#countLine').textContent = `${ready.length} ${ready.length === 1 ? 'person is' : 'people are'} in`
-  $('#deadline').textContent = card.deadlineAt ? `closes ${new Date(card.deadlineAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}` : ''
+  const max = card.maxClips || 50, left = Math.max(0, max - ready.length)
+  // the count always shows the limit, so nobody finds out it's full from a contributor
+  $('#countLine').textContent = card.status === 'open' ? `${ready.length} of ${max} in` : `${ready.length} ${ready.length === 1 ? 'person' : 'people'} in`
+  $('#deadline').textContent = card.status !== 'open' ? '' : card.deadlinePassed ? 'closed to new messages' : card.deadlineAt ? `last day ${fmtWhen(card.deadlineAt)}` : ''
+  // so the home page can list this card under "your cards" (this device only)
+  rememberBoard({ url: location.origin + location.pathname, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
   // who's in, by name: a goal-less progress bar read as "not enough"
   $('#whoIn').innerHTML = ready.length ? ready.slice(0, 12).map((c) => `<span>${escapeHtml(c.name)}</span>`).join('') + (ready.length > 12 ? `<span class="more">+${ready.length - 12} more</span>` : '') : '<span class="more">Nobody yet. Send the invite to get it going.</span>'
   $('#chips').innerHTML = [
@@ -126,31 +131,40 @@ function render() {
   const a = $('#actions')
   $('#shareBtn').classList.toggle('hidden', card.status !== 'open') // no inviting once the card is closed
   if (card.status === 'open') {
-    a.innerHTML = (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `Usually ready in a few minutes. ${escapeHtml(first)} sees nothing until you send it.`}</p>`
+    const notes = []
+    if (card.expiresAt) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>This card has been quiet for a while.</h3><p class="muted">Nobody has added anything in 30 days, so we'll delete it on ${escapeHtml(fmtWhen(card.expiresAt))}. Make the reel now, or keep it open if people are still coming.</p><button class="btn quiet" id="keepBtn">Keep it open</button></div>`)
+    if (card.deadlinePassed) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>The last day to add a message has passed.</h3><p class="muted">New messages can't go in. Make the reel with the ${ready.length} you have, or give people a little longer.</p><button class="btn quiet" id="moreDaysBtn">Give them 3 more days</button></div>`)
+    else if (left === 0) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>The card is full.</h3><p class="muted">${max} messages is as many as one reel can hold. Anyone else who opens the invite can start a card of their own for ${escapeHtml(first)}.</p></div>`)
+    else if (left <= 10) notes.push(`<div class="card stack" style="background: var(--amber-pale)"><h3>Room for ${left} more.</h3><p class="muted">After that the card is full. Make the reel soon if more people are on the way.</p></div>`)
+    a.innerHTML = notes.join('') + (flagged.length ? `<button class="btn primary" id="checkBtn">Look at the ${flagged.length} flagged ${flagged.length === 1 ? 'message' : 'messages'}</button><button class="btn outline" id="sendBtn">Make ${escapeHtml(first)}'s reel</button>` : `<button class="btn ${ready.length >= 3 ? 'primary' : 'outline'}" id="sendBtn" ${ready.length ? '' : 'disabled'}>Make ${escapeHtml(first)}'s reel</button>`) + `<p class="ghost" style="text-align:center">${ready.length && ready.length < 3 ? `Only ${ready.length} so far. Give people a day or two to add theirs.` : `Usually ready in a few minutes. ${escapeHtml(first)} sees nothing until you send it.`}</p>`
     $('#checkBtn')?.addEventListener('click', () => openClip(flagged[0].id))
     $('#sendBtn')?.addEventListener('click', confirmSend)
+    $('#keepBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/keep`, { method: 'POST' }); toast('Kept open.'); data = await load(); render() })
+    $('#moreDaysBtn')?.addEventListener('click', async () => { await api(`/api/host/${token}/deadline`, { method: 'POST', body: { days: 3 } }); toast('Open 3 more days.'); data = await load(); render() })
     $('#sentBox').classList.add('hidden')
   } else {
     // the reel link only exists for the host once there's a reel behind it, so it can't reach the recipient early
     const reelReady = card.status === 'ready' || card.status === 'sent'
-    a.innerHTML = reelReady ? `<button class="btn primary" id="shareWatch">Send ${escapeHtml(first)} the reel</button><button class="btn quiet" id="copyWatch">Copy ${escapeHtml(first)}'s reel link</button>` : ''
-    $('#shareWatch')?.addEventListener('click', () => share({ title: `${first}, people made you something`, text: `${first}, ${ready.length} people made you something. Find a quiet moment.`, url: card.links.watch }))
+    a.innerHTML = reelReady ? `<button class="btn primary" id="shareWatch">${memorial ? `Share ${escapeHtml(first)}'s reel` : `Send ${escapeHtml(first)} the reel`}</button><button class="btn quiet" id="copyWatch">${memorial ? 'Copy the link' : `Copy ${escapeHtml(first)}'s reel link`}</button>` : ''
+    $('#shareWatch')?.addEventListener('click', () => share(memorial
+      ? { title: `In memory of ${first}`, text: `${ready.length} ${ready.length === 1 ? 'person' : 'people'} shared what they remember about ${first}. Find a quiet moment.`, url: card.links.watch }
+      : { title: `${first}, people made you something`, text: `${first}, ${ready.length} ${ready.length === 1 ? 'person' : 'people'} made you something. Find a quiet moment.`, url: card.links.watch }))
     $('#copyWatch')?.addEventListener('click', async () => { await navigator.clipboard.writeText(card.links.watch); toast(`${first}'s reel link copied.`) })
     // how long it has been waiting, by the server's clock
     const waitedMin = card.queuedAt ? (new Date(card.now).getTime() - new Date(card.queuedAt).getTime()) / 60000 : 0
     const n = `${ready.length} ${ready.length === 1 ? 'message' : 'messages'}`
-    const keep = `<button class="btn quiet" id="reopenBtn">Keep collecting while you wait</button>`
+    const keep = `<button class="btn quiet" id="reopenBtn">Reopen for more messages</button><p class="ghost" style="text-align:center">You'll make the reel again when you're ready.</p>`
     const timedOut = /^timed out/.test(card.stitchError || '')
     const box = $('#sentBox'); box.classList.remove('hidden')
     const msgs = {
       queued: waitedMin < 5
         ? `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Usually a few minutes. You can stay here; this page updates on its own.</p>`
-        : `<h3>${escapeHtml(first)}'s reel is still in line.</h3><p class="muted">The reel maker hasn't picked it up yet. Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page; your place in line stays.</p>${keep}`,
+        : `<h3>It's taking longer than usual.</h3><p class="muted">Every message is safe, and nothing goes to ${escapeHtml(first)} until you send it. You can close this page and come back; it keeps going without you.</p>${keep}`,
       stitching: `<h3>Making ${escapeHtml(first)}'s reel from ${n}.</h3><p class="muted">Almost there. This page updates on its own.</p>`,
-      ready: `<h3>It's ready.</h3><p class="muted">Send ${escapeHtml(first)} the link however you like: a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
-      sent: `<h3>${escapeHtml(first)} has opened it.</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
+      ready: `<h3>It's ready.</h3><p class="muted">${memorial ? `Share it with the people who loved ${escapeHtml(first)} however you like:` : `Send ${escapeHtml(first)} the link however you like:`} a text, an email, a phone held out across the table. ${escapeHtml(first)} can save it to keep forever. We delete our copy in ${fmtDays(card.expiresAt)}.</p>${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}`,
+      sent: `<h3>${memorial ? 'Someone has opened it.' : `${escapeHtml(first)} has opened it.`}</h3><p class="muted">We delete our copy in ${fmtDays(card.expiresAt)}. ${card.extended ? '' : '<button class="btn quiet" id="extendBtn">Give it 30 more days</button>'}</p>`,
       failed: timedOut
-        ? `<h3>The reel couldn't be made.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again, or hide any message you're unsure about first.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
+        ? `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">We tried twice. Every message is safe, and nothing went to ${escapeHtml(first)}. Try again in a few minutes.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`
         : `<h3>The reel didn't finish.</h3><p class="muted" title="${escapeHtml(card.stitchError || '')}">Every message is safe, and nothing went to ${escapeHtml(first)}.</p><button class="btn primary" id="retryBtn">Try again</button>${keep}`,
       expired: `<h3>This card is finished.</h3><p class="muted">The reel and every message were deleted after 30 days, as promised. The copies that remain are the ones people saved.</p>`,
     }

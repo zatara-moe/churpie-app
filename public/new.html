@@ -144,11 +144,11 @@
     <div class="host-card">
       <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
       <div class="stack" style="gap: 10px">
-        <div><h3>Your board, private to you</h3><p class="muted" style="margin-top: 4px">Watch messages come in, hide any you like, and send <span id="firstName3"></span> the finished reel. It's private to you, and it's the only way back in, so text it to yourself or copy it somewhere safe.</p></div>
-        <a class="btn outline" id="hostLink" href="#">Open my board</a>
+        <div><h3>Save your board link</h3><p class="muted" style="margin-top: 4px">This link is your key. There's no account, so it's how you get back to see who's in, hide any message, and send <span id="firstName3"></span> the finished reel. This phone remembers it too, under "your cards" on the home page.</p></div>
+        <a class="btn primary" id="hostText" href="#">Text it to myself</a>
         <div class="row">
-          <a class="btn" id="hostText" href="#">Text me</a>
           <button class="btn" id="copyHost" type="button">Copy link</button>
+          <a class="btn outline" id="hostLink" href="#">Open my board</a>
         </div>
       </div>
     </div>
@@ -157,7 +157,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, rememberBoard } from '/app.js'
 import { cardPreview } from '/people.js'
 
 const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
@@ -248,7 +248,7 @@ $('#step3').addEventListener('submit', async (e) => {
     const res = await api('/api/cards', { method: 'POST', body: {
       recipientName: f1.get('recipientName'), hostName: f1.get('hostName'), moment: state.moment,
       prompt: f2.get('prompt'), tone: state.tone, rules: $$('#rules input:checked').map((x) => x.value),
-      clipSeconds: secs, vibe: state.vibe, deadlineAt: f3.get('deadlineAt') || null, hostEmail: f3.get('hostEmail') || null,
+      clipSeconds: secs, vibe: state.vibe, deadlineAt: f3.get('deadlineAt') ? new Date(f3.get('deadlineAt')).toISOString() : null, hostEmail: f3.get('hostEmail') || null,
     } })
     const first = firstName(f1.get('recipientName')), host = firstName(f1.get('hostName'))
     const invite = res.links.invite
@@ -274,7 +274,7 @@ $('#step3').addEventListener('submit', async (e) => {
     $('#hostLink').href = res.links.host
     $('#hostText').href = `sms:?&body=${encodeURIComponent(`My churpie board for ${first} (keep private): ${res.links.host}`)}`
     $('#copyHost').onclick = async () => { await navigator.clipboard.writeText(res.links.host); toast('Board link copied. Keep it somewhere safe.') }
-    try { localStorage.setItem('churpie:last-host', res.links.host) } catch {}
+    rememberBoard({ url: res.links.host, name: f1.get('recipientName'), n: 0, max: null, status: 'open', moment: state.moment })
     ;[1, 2, 3].forEach((i) => $(`#step${i}`).classList.add('hidden'))
     $('#live').classList.add('hidden')
     $('#done').classList.remove('hidden'); $('#stepLabel').textContent = 'Done'
