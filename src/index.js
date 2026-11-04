@@ -626,7 +626,9 @@ app.post('/api/stitch/failed/:cardId', async (c) => {
 // Pages: static HTML from /public with link-preview metadata filled in
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function page(c, file, meta) {
+// private pages (invites, boards, reels) and "not here" pages stay out of search results
+const PRIVATE = /^\/(c|h|w)\//
+async function page(c, file, meta, status = 200) {
   const res = await c.env.ASSETS.fetch(new URL(`/${file}`, c.req.url))
   let body = await res.text()
   const base = c.env.APP_URL
@@ -642,7 +644,8 @@ async function page(c, file, meta) {
     .replaceAll('{{og:description}}', escapeHtml(m.description))
     .replaceAll('{{og:image}}', escapeHtml(m.image))
     .replaceAll('{{og:url}}', escapeHtml(m.url))
-  return c.html(body)
+  if (status !== 200 || PRIVATE.test(new URL(c.req.url).pathname)) c.header('X-Robots-Tag', 'noindex')
+  return c.html(body, status)
 }
 
 app.get('/', (c) => page(c, 'index.html', {}))
@@ -650,7 +653,7 @@ app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }
 
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
-  if (!card) return page(c, 'gone.html', { title: "This card isn't here anymore" })
+  if (!card) return page(c, 'gone.html', { title: "This card isn't here anymore" }, 404)
   const first = card.recipient_name.split(' ')[0]
   return page(c, 'contribute.html', {
     title: `${card.host_name} is making a surprise video for ${first}`,
@@ -661,22 +664,23 @@ app.get('/c/:id', async (c) => {
 
 app.get('/h/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
-  if (!card) return page(c, 'gone.html', { title: "We can't find this board" })
+  if (!card) return page(c, 'gone.html', { title: "We can't find this board" }, 404)
   return page(c, 'host.html', { title: `Your card for ${card.recipient_name} · churpie.`, description: 'Your private board. Keep this link to yourself.' })
 })
 
 app.get('/w/:token', async (c) => {
   const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
-  if (!card) return page(c, 'gone.html', { title: "This reel isn't here anymore" })
+  if (!card) return page(c, 'gone.html', { title: "This reel isn't here anymore" }, 404)
   const { count } = await c.env.DB.prepare(`SELECT COUNT(*) AS count FROM clips WHERE card_id = ? AND status = 'ready'`).bind(card.id).first()
+  const memorial = card.moment === 'memory'
   return page(c, 'watch.html', {
-    title: `${card.recipient_name}, ${count} ${count === 1 ? 'person' : 'people'} made you something`,
-    description: `From ${card.host_name} and everyone who loves you. Find a quiet moment.`,
+    title: memorial ? `In memory of ${card.recipient_name}` : `${card.recipient_name}, ${count} ${count === 1 ? 'person' : 'people'} made you something`,
+    description: memorial ? `${count} ${count === 1 ? 'person' : 'people'} shared what they remember. Gathered by ${card.host_name}. Find a quiet moment.` : `From ${card.host_name} and everyone who loves you. Find a quiet moment.`,
     image: `${c.env.APP_URL}/og/${card.vibe}.png`,
   })
 })
 
-app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore" }))
+app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore" }, 404))
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nightly sweep: delete what has expired, and raw clips 48h after a reel exists
