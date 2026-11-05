@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- churpie link-preview images (1200×630). Rendered by tools/og/render.mjs; see tools/og/README.md.
+     No people, no silhouettes: messages are shown as stamps with initials, the same faces the card page uses. -->
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,500;9..40,700&family=Courier+Prime:wght@400;700&family=Caveat:wght@500;700&family=Nunito:wght@900&family=Playfair+Display:wght@500&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #F5F0E8; --ink: #1A1410; --soft: #4A3F30; --accent: #D4266A; --accent2: #0B9DAA; --tape: #F7D96C; --panel: #fff;
+    --title: 'DM Serif Display', Georgia, serif; --script: 'Caveat', cursive; --mono: 'Courier Prime', monospace; --sans: 'DM Sans', sans-serif; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body { font-family: var(--sans); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  .og { position: relative; width: 1200px; height: 630px; background: var(--bg); color: var(--ink); overflow: hidden; }
+  .grain { position: absolute; inset: 0; opacity: 0.06; mix-blend-mode: multiply; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .edge { position: absolute; inset: 0; pointer-events: none; }
+
+  /* words, left */
+  .words { position: absolute; left: 76px; top: 0; bottom: 0; width: 560px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+  .eyebrow { font-family: var(--mono); font-weight: 700; font-size: 18px; letter-spacing: 3.5px; text-transform: uppercase; color: var(--soft); }
+  .eyebrow i { font-style: normal; color: var(--accent); }
+  h1 { font-family: var(--title); font-weight: 400; font-size: 78px; line-height: 0.98; letter-spacing: -1.5px; }
+  h1 em { font-style: italic; color: var(--accent); }
+  .sub { font-family: var(--script); font-size: 36px; line-height: 1.15; color: var(--soft); max-width: 520px; }
+  .facts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .facts span { font-family: var(--sans); font-weight: 700; font-size: 19px; padding: 9px 16px; border-radius: 999px; background: var(--panel); color: var(--ink); box-shadow: 0 2px 0 rgba(26,20,16,0.08); }
+
+  /* brand, bottom left */
+  .brand { position: absolute; left: 76px; bottom: 38px; display: flex; align-items: center; gap: 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; color: var(--ink); }
+  .brand small { font-family: var(--mono); font-size: 16px; letter-spacing: 2px; color: var(--soft); margin-left: 12px; }
+
+  /* the card on the right: a phone-shaped postcard of message stamps */
+  .stage { position: absolute; right: 78px; top: 118px; transform: rotate(3deg); width: 380px; height: 452px; }
+  .sheet { position: absolute; inset: 0; background: var(--panel); border-radius: 30px; box-shadow: 0 2px 0 rgba(26,20,16,0.06), 0 26px 50px rgba(26,20,16,0.20); padding: 26px; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 16px; }
+  .tape { position: absolute; width: 120px; height: 34px; background: var(--tape); opacity: 0.85; top: -14px; left: 40px; transform: rotate(-5deg); box-shadow: 0 1px 2px rgba(0,0,0,0.08); z-index: 2; }
+  .tape.b { left: auto; right: 34px; background: #8FD3D9; transform: rotate(4deg); }
+  .st { position: relative; padding: 7px; background: radial-gradient(circle at 6px 6px, transparent 3.6px, #fff 4.2px) -6px -6px / 12px 12px; filter: drop-shadow(0 3px 4px rgba(26,20,16,0.18)); }
+  .st > span { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; color: #fff; }
+  .st b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 52px; line-height: 1; }
+  .st small { font-family: var(--mono); font-weight: 700; font-size: 14px; letter-spacing: 1.5px; opacity: 0.9; margin-top: 4px; }
+  .st.you > span { background: transparent !important; color: var(--accent); border: 3px dashed var(--accent); }
+  .st.you { background: none; filter: none; }
+  .st.you b { font-family: var(--sans); font-weight: 700; font-size: 46px; }
+  .st:nth-child(3n+1) { transform: rotate(-3deg); } .st:nth-child(3n+2) { transform: rotate(2deg); } .st:nth-child(3n) { transform: rotate(-1deg); }
+
+  /* reel: a play button over the stamps */
+  .play { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; margin: -66px 0 0 -66px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 10px rgba(255,255,255,0.85), 0 16px 30px rgba(26,20,16,0.25); z-index: 3; }
+  .play::after { content: ''; margin-left: 10px; border-style: solid; border-width: 28px 0 28px 46px; border-color: transparent transparent transparent #fff; }
+  .reel .st { opacity: 0.92; }
+
+  /* postmark, over the sheet's corner */
+  .pm { position: absolute; left: -78px; bottom: 26px; width: 150px; height: 150px; background: radial-gradient(circle, var(--bg) 0 60%, transparent 61%); border-radius: 50%; color: var(--soft); font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; line-height: 1.4; transform: rotate(-14deg); z-index: 4; }
+  .pm::before, .pm::after { content: ''; position: absolute; border-radius: 50%; border: 3px solid currentColor; }
+  .pm::before { inset: 0; border-right-color: transparent; }
+  .pm::after { inset: 9px; border-width: 1.5px; }
+  .pm b { font-size: 20px; letter-spacing: 1px; }
+
+  /* the bird, perched on the sheet's top edge with the card in its beak */
+  .bird { position: absolute; right: -34px; top: -104px; z-index: 5; filter: drop-shadow(0 6px 8px rgba(26,20,16,0.18)); transform: rotate(-3deg); }
+
+  /* ── themes ─────────────────────────────────────────────────────────────── */
+  .t-postcard .edge { border: 16px solid transparent; border-image: repeating-linear-gradient(45deg, #D4266A 0 24px, #fff 24px 48px, #0B9DAA 48px 72px, #fff 72px 96px) 16; }
+
+  .t-confettipop { --bg: #FFF8EE; --title: 'Nunito', sans-serif; }
+  .t-confettipop .edge { border: 16px solid #D4266A; }
+  .t-confettipop h1 { font-weight: 900; font-size: 74px; letter-spacing: -2px; line-height: 1; }
+  .confetti { position: absolute; inset: 0; pointer-events: none; }
+  .confetti i { position: absolute; width: 14px; height: 6px; border-radius: 2px; }
+
+  .t-milestonegold { --bg: #15120F; --ink: #F3E3BF; --soft: #CDBB93; --accent: #D9B25F; --panel: #221C16; --title: 'Playfair Display', Georgia, serif; --tape: #D9B25F; }
+  .t-milestonegold .edge { inset: 22px; border: 1.5px solid rgba(217,178,95,0.7); }
+  .t-milestonegold h1 { font-weight: 500; }
+  .t-milestonegold .facts span { background: rgba(217,178,95,0.14); color: #F3E3BF; box-shadow: none; }
+  .t-milestonegold .st:not(.you) { background: radial-gradient(circle at 6px 6px, transparent 3.6px, #F3E3BF 4.2px) -6px -6px / 12px 12px; }
+  .t-milestonegold .brand { color: #F3E3BF; }
+  .t-milestonegold .sheet { box-shadow: inset 0 0 0 1.5px rgba(217,178,95,0.55), 0 26px 50px rgba(0,0,0,0.5); }
+
+  .t-airmail { --bg: #F7F3EA; --accent: #B8282E; --accent2: #23408E; }
+  .t-airmail .edge { border: 16px solid transparent; border-image: repeating-linear-gradient(45deg, #B8282E 0 24px, #fff 24px 48px, #23408E 48px 72px, #fff 72px 96px) 16; }
+
+  .t-quietnote { --bg: #F3EFE6; --accent: #5E8C7B; --soft: #5B5246; }
+  .t-quietnote h1 em { color: #5E8C7B; }
+
+  .t-kraft { --bg: #C9A879; --soft: #3A2E20; --accent: #2F5D3A; --tape: #F7D96C; }
+  .t-kraft .words { left: 56px; width: 600px; padding: 40px 40px 46px; top: 60px; bottom: 120px; background: #FBF6EA; transform: rotate(-1.5deg); box-shadow: 0 14px 30px rgba(43,33,22,0.25); }
+  .t-kraft h1 { font-size: 70px; }
+  .t-kraft .facts span { background: #EFE5CF; }
+  .t-kraft .brand small { color: #3A2E20; }
+
+  .t-pressedflower { --bg: #F6F2EA; --ink: #2E2A24; --soft: #625A4E; --accent: #9B6B78; --title: 'Cormorant Garamond', Georgia, serif; --tape: #E7D9C2; }
+  .t-pressedflower h1 { font-weight: 500; font-size: 80px; letter-spacing: -0.5px; }
+  .t-pressedflower .sheet { grid-template-columns: repeat(2, 1fr); padding: 34px; gap: 22px; }
+
+  .t-lockernote { --bg: #FBFBF9; --title: 'Permanent Marker', cursive; --accent: #D4266A; }
+  .t-lockernote .og-lines { position: absolute; inset: 0; background: repeating-linear-gradient(180deg, transparent 0 39px, #CFE0F0 39px 41px); }
+  .t-lockernote .og-lines::after { content: ''; position: absolute; left: 50px; top: 0; bottom: 0; width: 2px; background: #F0A9B8; }
+  .t-lockernote h1 { font-size: 66px; line-height: 1.08; letter-spacing: 0; }
+  .t-lockernote h1 span { background: linear-gradient(transparent 52%, #F7D96C 52%); padding: 0 6px; }
+  .t-lockernote .sheet { border: 6px solid #1A1410; }
+
+  /* site images: wordmark big, same stage */
+  .site .eyebrow { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="og" id="og"></div>
+<script>
+function bird({ size = 24, body = '#D4266A', wing = '#0B9DAA', beak = '#F2B33D', eye = '#1A1410', card = false, legs = false } = {}) {
+  const w = Math.round(size * (card ? 1.32 : 1))
+  const c = card ? `<g transform="rotate(-10 108 49)"><rect x="89" y="37" width="38" height="25" rx="2" fill="#fff" stroke="#1A1410" stroke-width="2.5"/><rect x="93" y="41" width="30" height="17" fill="none" stroke="#D4266A" stroke-width="2.5" stroke-dasharray="5 4"/><rect x="113" y="42.5" width="7" height="8" fill="#0B9DAA"/></g>` : ''
+  return `<svg width="${w}" height="${size}" viewBox="0 0 ${card ? 132 : 100} 100" style="overflow:visible"><path d="M30 56 L7 45 L13 72 L32 66 Z" fill="${body}"/><path d="M22 58 C22 38 38 24 56 24 C72 24 82 36 82 50 C82 70 66 82 48 82 C32 82 22 72 22 58 Z" fill="${body}"/>${c}<path d="M79 42.5 L97 48.5 L79 50 Z" fill="${beak}"/><path d="M79 50 L95 51 L79 55.5 Z" fill="${beak}"/><path d="M64 57 C58 47 42 47 30 57 C36 59 38 63 34 68 C46 70 58 66 64 57 Z" fill="${wing}"/><circle cx="66" cy="42" r="4.6" fill="${eye}"/><circle cx="67.6" cy="40.4" r="1.4" fill="#fff"/>${legs ? `<path d="M44 82 L41 92 M56 81 L56 92" stroke="${eye}" stroke-width="3.2" stroke-linecap="round"/>` : ''}</svg>`
+}
+
+// per theme: stamp colors (the same initials-on-color faces the card page uses)
+const PAL = {
+  postcard: ['#D4266A', '#0B9DAA', '#E08A1E', '#6B4FA0', '#2F8F5B', '#D4266A', '#0B9DAA', '#C24E2E'],
+  confettipop: ['#D4266A', '#0B9DAA', '#F2A81D', '#7A4FD0', '#22A06B', '#E8533B', '#0B9DAA', '#D4266A'],
+  milestonegold: ['#B8893A', '#8C6A2E', '#C9A04E', '#6E5530', '#B8893A', '#9C7A3C', '#C9A04E', '#8C6A2E'],
+  airmail: ['#B8282E', '#23408E', '#B8282E', '#23408E', '#C98A1E', '#23408E', '#B8282E', '#3B6E9E'],
+  quietnote: ['#7FA394', '#8EA7BF', '#C2A28A', '#9C8FB2', '#7FA394', '#B8A27A', '#8EA7BF', '#C2A28A'],
+  kraft: ['#2F5D3A', '#B8282E', '#C98A1E', '#23408E', '#6B3F2A', '#2F5D3A', '#B8282E', '#C98A1E'],
+  pressedflower: ['#B6909A', '#9AAE94', '#C4AE8C', '#A39BB5', '#B6909A', '#9AAE94'],
+  lockernote: ['#D4266A', '#0B9DAA', '#F2A81D', '#7A4FD0', '#22A06B', '#E8533B', '#0B9DAA', '#D4266A'],
+}
+const INITIALS = ['A', 'M', 'J', 'S', 'R', 'T', 'L', 'K', 'D']
+
+function render(o) {
+  const t = o.theme || 'postcard'
+  const pal = PAL[t]
+  const cols = t === 'pressedflower' ? 2 : 3
+  const count = t === 'pressedflower' ? 6 : 9
+  let stamps = ''
+  for (let i = 0; i < count; i++) {
+    const last = i === count - 1 && o.kind === 'invite'
+    stamps += last
+      ? `<div class="st you"><span><b>+</b><small>YOU</small></span></div>`
+      : `<div class="st"><span style="background:${pal[i % pal.length]}"><b>${INITIALS[i]}</b><small>0:${String(10 + ((i * 7) % 6)).padStart(2, '0')}</small></span></div>`
+  }
+  const SPOTS = [[60,40,20,'#D4266A'],[180,30,-30,'#0B9DAA'],[320,48,60,'#F2A81D'],[470,32,15,'#7A4FD0'],[600,52,-50,'#D4266A'],[680,36,35,'#0B9DAA'],[420,580,40,'#F2A81D'],[560,560,-20,'#7A4FD0'],[660,590,70,'#0B9DAA'],[760,575,-40,'#D4266A'],[1150,90,25,'#F2A81D'],[1160,300,-60,'#7A4FD0'],[1140,480,10,'#0B9DAA'],[700,140,50,'#F2A81D'],[690,420,-25,'#D4266A']]
+  const confetti = t === 'confettipop' ? `<div class="confetti">${SPOTS.map(([x, y, r, col]) => `<i style="left:${x}px;top:${y}px;transform:rotate(${r}deg);background:${col}"></i>`).join('')}</div>` : ''
+  const showBird = t !== 'pressedflower'
+  document.getElementById('og').className = `og t-${t} ${o.kind}`
+  document.getElementById('og').innerHTML = `
+    ${t === 'lockernote' ? '<div class="og-lines"></div>' : ''}
+    ${confetti}
+    <div class="edge"></div>
+    <div class="words">
+      <p class="eyebrow">${o.eyebrow}</p>
+      <h1>${t === 'lockernote' ? `<span>${o.title}</span>` : o.title}</h1>
+      ${o.sub ? `<p class="sub">${o.sub}</p>` : ''}
+      ${o.facts ? `<div class="facts">${o.facts.map((f) => `<span>${f}</span>`).join('')}</div>` : ''}
+    </div>
+    <div class="stage">
+      <div class="tape"></div><div class="tape b"></div>
+      <div class="sheet" style="grid-template-columns: repeat(${cols}, 1fr)">${stamps}</div>
+      ${o.kind === 'reel' ? '<div class="play"></div>' : ''}
+      ${o.postmark ? `<div class="pm">${o.postmark}</div>` : ''}
+      ${showBird ? `<div class="bird">${bird({ size: 118, card: true, legs: true })}</div>` : ''}
+    </div>
+    ${t === 'kraft' ? '' : ''}
+    <div class="brand">churpie${bird({ size: 30 })}<small>${o.foot || 'CHURPIE.ME'}</small></div>
+`
+}
+window.render = render
+</script>
+</body>
+</html>

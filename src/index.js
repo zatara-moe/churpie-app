@@ -772,7 +772,7 @@ async function page(c, file, meta, status = 200) {
   const m = {
     title: 'churpie.',
     description: 'A video card from everyone who loves them. One link, a few seconds each, one reel to keep. Free.',
-    image: `${base}/og/postcard.png`,
+    image: `${base}/og/site.png`,
     url: c.req.url,
     ...meta,
   }
@@ -815,7 +815,7 @@ app.get('/w/:token', async (c) => {
   return page(c, 'watch.html', {
     title: memorial ? `In memory of ${card.recipient_name}` : `${card.recipient_name}, ${count} ${count === 1 ? 'person' : 'people'} made you something`,
     description: memorial ? `${count} ${count === 1 ? 'person' : 'people'} shared what they remember. Gathered by ${card.host_name}. Find a quiet moment.` : `From ${card.host_name} and everyone who loves you. Find a quiet moment.`,
-    image: `${c.env.APP_URL}/og/${card.vibe}.png`,
+    image: `${c.env.APP_URL}/og/reel-${card.vibe}.png`,
   })
 })
 
