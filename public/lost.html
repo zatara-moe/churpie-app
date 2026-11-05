@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Find your board · churpie.</title>
+<title>Find your card · churpie.</title>
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#F5F0E8">
 <link rel="icon" href="/favicon.svg">
@@ -11,14 +11,14 @@
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-<div class="stripe"></div>
+<header class="tnav" data-right="start"></header>
+<script type="module" src="/brand.js"></script>
 <main class="wrap stack" style="padding-top: 24px; gap: 16px">
-  <div class="topbar"><a class="logo" href="/">churpie<b>.</b></a></div>
   <form class="card stack" id="lostForm">
-    <h1>Find your board.</h1>
-    <p class="muted">Enter the email you used when you made the card. We'll send you the link to every board made with it.</p>
+    <h1>Find your card.</h1>
+    <p class="muted">Enter the email you used when you made the card. We'll send you the link to every card made with it.</p>
     <label class="field">Your email<input type="email" name="email" required maxlength="120" autocomplete="email" placeholder="you@example.com"></label>
-    <button class="btn primary" type="submit" id="lostBtn">Email me my boards</button>
+    <button class="btn primary" type="submit" id="lostBtn">Email me my cards</button>
   </form>
   <div class="card stack hidden" id="lostDone">
     <h2>Check your email.</h2>
@@ -34,7 +34,7 @@ $('#lostForm').addEventListener('submit', async (e) => {
   try {
     await api('/api/lost', { method: 'POST', body: { email: new FormData(e.target).get('email'), turnstile: await botCheck() } })
     $('#lostForm').classList.add('hidden'); $('#lostDone').classList.remove('hidden')
-  } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Email me my boards' }
+  } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Email me my cards' }
 })
 </script>
 </body>

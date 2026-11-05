@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your cards · churpie.</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&family=Courier+Prime:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .page { max-width: 1160px; margin: 0 auto; padding: 28px 20px 140px; display: flex; flex-direction: column; gap: 28px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .head .display { font-size: 40px; }
+  .head p a { color: var(--pink-deep); font-weight: 700; }
+  .group { display: flex; flex-direction: column; gap: 10px; }
+  .row-card { background: #fff; border-radius: var(--radius); padding: 14px; display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; grid-template-areas: "mini name more" "prog prog prog" "chip chip act"; gap: 12px 14px; align-items: center; animation: rise-in 420ms ease-out both; }
+  .mini { grid-area: mini; width: 64px; height: 46px; position: relative; background: #fff; border-radius: 4px; box-shadow: 0 2px 6px rgba(26,20,16,0.12); border: 4px solid transparent; border-image: repeating-linear-gradient(135deg, var(--pink) 0 6px, #fff 6px 12px, var(--cyan) 12px 18px, #fff 18px 24px) 4; }
+  .mini b { position: absolute; left: 6px; top: 6px; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 20px; line-height: 1; }
+  .mini .stamp { position: absolute; right: -12px; top: -14px; width: 30px; height: 34px; padding: 3px; background-size: 6px 6px; background-position: -3px -3px; background-image: radial-gradient(circle at 3px 3px, transparent 1.8px, #fff 2.2px); transform: rotate(6deg); }
+  .mini .stamp span { font-family: 'DM Serif Display', Georgia, serif; font-size: 13px; }
+  .name { grid-area: name; min-width: 0; }
+  .name strong { display: block; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .name span { font-size: 13px; color: var(--ink-faded); font-weight: 600; }
+  .prog { grid-area: prog; display: flex; flex-direction: column; gap: 6px; }
+  .prog small { font-size: 13px; font-weight: 700; }
+  .meter { height: 6px; border-radius: 6px; background: var(--paper-aged); overflow: hidden; }
+  .meter b { display: block; height: 100%; background: var(--pink); border-radius: 6px; }
+  .chip { grid-area: chip; justify-self: start; font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--amber-pale); color: var(--ink-faded); white-space: nowrap; }
+  .chip.ready { background: var(--pink); color: #fff; }
+  .chip.done { background: var(--green-pale); color: var(--green); }
+  .chip.none { background: #fff; box-shadow: inset 0 0 0 1.5px var(--paper-aged); }
+  .chip.gone { background: var(--paper-aged); }
+  .act { grid-area: act; justify-self: end; }
+  .act .btn { width: auto; min-height: 42px; padding: 0 20px; font-size: 14px; white-space: nowrap; }
+  .more { grid-area: more; position: relative; }
+  .more summary { list-style: none; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--ink-faded); }
+  .more summary::-webkit-details-marker { display: none; }
+  .more summary:focus-visible { outline: 3px solid var(--cyan); }
+  .more[open] summary { background: var(--paper); }
+  .more .menu { position: absolute; right: 0; top: 44px; z-index: 5; background: #fff; border-radius: 14px; box-shadow: 0 10px 30px rgba(26,20,16,0.16); padding: 6px; min-width: 230px; }
+  .more .menu button { all: unset; cursor: pointer; display: flex; gap: 10px; align-items: center; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 14px; }
+  .more .menu button:hover, .more .menu button:focus-visible { background: var(--paper); }
+  .more .menu small { display: block; padding: 2px 12px 8px; color: var(--ink-ghost); font-size: 12px; font-weight: 600; }
+  .empty { background: #fff; border-radius: 24px; padding: 32px 22px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+  .empty .btn { width: auto; }
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); background: rgba(245,240,232,0.95); border-top: 1px solid #E2DACB; }
+  @media (min-width: 720px) {
+    .page { padding: 44px 40px 60px; }
+    .head .display { font-size: 48px; }
+    .row-card { grid-template-columns: 80px minmax(0, 1fr) 190px 140px 150px 40px; grid-template-areas: "mini name prog chip act more"; padding: 16px 20px; gap: 20px; }
+    .chip { justify-self: start; }
+    .dock { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="tnav" data-middle="Your cards" data-right="start"></header>
+<main class="page">
+  <div class="head">
+    <div class="stack" style="gap: 8px">
+      <h1 class="display">Your cards</h1>
+      <p class="muted" id="where" style="font-size: 15px">Saved on this device. On another one? <a href="/lost">Find your card by email</a></p>
+    </div>
+  </div>
+  <div id="list" class="stack" style="gap: 28px" aria-live="polite"></div>
+</main>
+<div class="dock" id="dock"><a class="btn primary" href="/new">Start a card</a></div>
+
+<script type="module">
+import { $, escapeHtml as esc, myBoards, forgetBoard, fmtDays, toast } from '/app.js'
+import { icon, bird } from '/brand.js'
+
+const MOMENT = { birthday: 'Birthday', congrats: 'Congrats', thankyou: 'Thank you', getwell: 'Get well', missyou: 'Miss you', memory: 'In memory', team: 'Team send-off', business: 'For a business' }
+const COLORS = ['#D4266A', '#0B9DAA']
+const short = (iso) => new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
+if (/iPhone|Android|Mobile/i.test(navigator.userAgent)) $('#where').innerHTML = 'Saved on this phone. On another device? <a href="/lost">Find your card by email</a>'
+
+// what each card needs from you, freshest from the server
+async function fresh(b) {
+  const token = new URL(b.url).pathname.split('/')[2]
+  try {
+    const r = await fetch(`/api/host/${token}`)
+    if (r.status === 404) return { ...b, status: 'gone' }
+    if (!r.ok) return b
+    const { card, clips } = await r.json()
+    return { ...b, name: card.recipientName, moment: card.moment, status: card.status, n: clips.filter((c) => c.status === 'ready').length, max: card.maxClips || 50, deadlineAt: card.deadlineAt, deadlinePassed: card.deadlinePassed, expiresAt: card.expiresAt, openedAt: card.openedAt }
+  } catch { return b }
+}
+
+function row(b, i) {
+  const s = b.status
+  const first = String(b.name || '').trim().split(/\s+/)[0] || 'someone'
+  const who = b.moment === 'memory' ? `In memory of ${esc(first)}` : `For ${esc(first)}`
+  const chip = s === 'ready' ? ['ready', 'Ready to send']
+    : s === 'failed' ? ['ready', 'Needs a retry']
+    : s === 'queued' || s === 'stitching' ? ['', 'Being made']
+    : s === 'sent' ? ['done', 'Delivered']
+    : s === 'gone' || s === 'expired' ? ['gone', 'Finished']
+    : !b.n ? ['none', 'Nobody yet']
+    : b.deadlinePassed ? ['', 'Closed to new']
+    : b.deadlineAt ? ['', `${fmtDays(b.deadlineAt)} left`] : ['', 'Collecting']
+  const meta = [MOMENT[b.moment] || 'Card', s === 'ready' || s === 'sent' ? (b.expiresAt ? `saved until ${short(b.expiresAt)}` : '') : ''].filter(Boolean).join(' · ')
+  const gone = s === 'gone' || s === 'expired'
+  const act = gone ? `<a class="btn outline" href="/new">Start a new one</a>`
+    : s === 'ready' ? `<a class="btn primary" href="${esc(b.url)}">Send it</a>`
+    : `<a class="btn outline" href="${esc(b.url)}">Open</a>`
+  const max = b.max || 50, n = b.n || 0
+  return `<article class="row-card" style="animation-delay: ${i * 60}ms">
+    <span class="mini" aria-hidden="true"><b>${esc(first.slice(0, 1).toUpperCase())}</b><span class="stamp${i % 2 ? ' cyan' : ''}"><span>${n}</span></span></span>
+    <div class="name"><strong>${who}</strong><span>${esc(meta)}</span></div>
+    <div class="prog"><small>${gone ? 'Deleted, as promised' : `${n} of ${max} messages`}</small><span class="meter"><b style="width: ${gone ? 0 : Math.max(3, Math.round((n / max) * 100))}%; background: ${COLORS[i % 2]}"></b></span></div>
+    <span class="chip ${chip[0]}">${esc(chip[1])}</span>
+    <span class="act">${act}</span>
+    <details class="more"><summary aria-label="More for ${who}">${icon('dots-three', { size: 22, tint: 'transparent' })}</summary>
+      <div class="menu"><button type="button" data-forget="${esc(b.url)}">${icon('x', { size: 18, tint: 'transparent' })}Remove from this device</button><small>The card itself stays. Find it again by email.</small></div>
+    </details>
+  </article>`
+}
+
+function empty() {
+  return `<div class="empty">${bird({ size: 96, card: true, legs: true })}<h2 class="display" style="font-size: 30px">No cards on this device yet</h2><p class="muted" style="font-size: 15px">Cards you make here show up on this page.</p><a class="btn primary" href="/new">Start a card</a><a href="/lost" style="color: var(--pink-deep); font-weight: 700">Made one somewhere else? Find it by email</a></div>`
+}
+
+async function draw() {
+  const saved = myBoards().filter((b) => /\/h\//.test(b.url))
+  if (!saved.length) { $('#list').innerHTML = empty(); $('#dock').style.display = 'none'; return }
+  // show what we know right away, then the fresh state
+  const paint = (list) => {
+    const groups = [
+      ['Needs you', list.filter((b) => b.status === 'ready' || b.status === 'failed')],
+      ['Collecting', list.filter((b) => ['open', 'queued', 'stitching', undefined, ''].includes(b.status))],
+      ['Delivered', list.filter((b) => b.status === 'sent')],
+      ['Finished', list.filter((b) => b.status === 'gone' || b.status === 'expired')],
+    ].filter(([, l]) => l.length)
+    let i = 0
+    $('#list').innerHTML = groups.map(([label, l]) => `<section class="group"><p class="eyebrow">${label}</p>${l.map((b) => row(b, i++)).join('')}</section>`).join('')
+  }
+  paint(saved)
+  paint(await Promise.all(saved.map(fresh)))
+}
+
+$('#list').addEventListener('click', (e) => {
+  const x = e.target.closest('[data-forget]'); if (!x) return
+  forgetBoard(x.dataset.forget); toast('Removed from this device.'); draw()
+})
+document.addEventListener('click', (e) => { $$('details.more[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false }) })
+function $$(s) { return [...document.querySelectorAll(s)] }
+draw()
+</script>
+</body>
+</html>

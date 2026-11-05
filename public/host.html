@@ -18,6 +18,7 @@
   .hb-top { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 4px; gap: 12px; }
   .hb-top .for { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
   .hb-top .for span { font-size: 13px; color: var(--ink-faded); font-weight: 600; }
+  .tnav-mid .chip { margin-left: 6px; vertical-align: middle; }
   .hb-top .for strong { font-size: 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chip { background: var(--amber-pale); color: var(--ink-faded); font-size: 13px; font-weight: 700; padding: 7px 12px; border-radius: 999px; white-space: nowrap; }
   .chip.dark { background: var(--ink); color: #fff; }
@@ -148,7 +149,7 @@
     #sheet::backdrop { background: rgba(26,20,16,0.55); }
   }
 
-  main.board { padding-bottom: 230px; }
+  main.board { padding-bottom: 230px; padding-top: 18px; }
   .sideonly { display: none; }
   @media (min-width: 960px) {
     main.board { max-width: 1160px; padding: 0 48px 48px; }
@@ -169,13 +170,10 @@
 </style>
 </head>
 <body>
-<div class="stripe"></div>
+<header class="tnav" data-middle='<span id="forLine">For</span> <strong id="title">…</strong> <span class="chip hidden" id="topChip"></span>' data-right="cards"></header>
+<script type="module" src="/brand.js"></script>
 <main class="wrap stack board">
-  <div class="hb-top">
-    <div style="display: flex; align-items: center; gap: 14px; min-width: 0"><a class="logo" href="/" aria-label="churpie home" style="font-size: 22px">churpie<b>.</b></a><span style="width: 1px; height: 32px; background: var(--paper-dark)"></span>
-    <div class="for"><span id="forLine">Your card for</span><strong id="title">…</strong></div></div>
-    <span class="chip hidden" id="topChip"></span>
-  </div>
+
   <div id="stage" class="stack" aria-live="polite"></div>
   <div id="extras" class="stack"></div>
 </main>
@@ -183,7 +181,7 @@
 
 <dialog id="dlg"><div class="dlg stack" id="dlgBody"></div></dialog>
 <dialog id="viewer" aria-label="watch messages"><div class="vw" id="vw"></div></dialog>
-<dialog id="sheet" aria-label="your invite page"><div class="sh"><div class="shbar"><button type="button" id="sheetBack"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back to your board</button><span id="sheetNote"></span></div><iframe id="sheetFrame" title="your invite page" allow="camera; microphone; clipboard-write; web-share; autoplay"></iframe></div></dialog>
+<dialog id="sheet" aria-label="your invite page"><div class="sh"><div class="shbar"><button type="button" id="sheetBack"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Back to your card</button><span id="sheetNote"></span></div><iframe id="sheetFrame" title="your invite page" allow="camera; microphone; clipboard-write; web-share; autoplay"></iframe></div></dialog>
 <input type="file" id="introFile" accept="video/*" class="hidden">
 
 <script type="module">
@@ -191,7 +189,7 @@ import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, uplo
 
 const token = location.pathname.split('/')[2]
 const esc = escapeHtml
-let data = await load().catch((e) => { $('#stage').innerHTML = `<div class="panel center"><h2>${esc(e.message)}</h2><a class="btn primary big" href="/lost">Find your board</a></div>`; throw e })
+let data = await load().catch((e) => { $('#stage').innerHTML = `<div class="panel center"><h2>${esc(e.message)}</h2><a class="btn primary big" href="/lost">Find your card</a></div>`; throw e })
 const first = firstName(data.card.recipientName)
 const F = esc(first)
 const memorial = data.card.moment === 'memory'
@@ -297,7 +295,7 @@ function invite() {
       <a class="btn" href="mailto:?subject=${encodeURIComponent(`A surprise video for ${first}`)}&body=${encodeURIComponent(msg)}">${ICON.mail}Email</a>
     </div>
     <button class="btn line" id="wPreview">${ICON.eye}See what they'll see</button>
-    <p class="ghost" style="text-align: center">This is the invite link. Your board link stays private to you.</p>`
+    <p class="ghost" style="text-align: center">This is the invite link. Your card link stays private to you.</p>`
   if (!canShare) $('.ways').style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))'
   $('#wShare')?.addEventListener('click', () => share({ title: `A video for ${first}`, text: inviteText(), url: link }))
   $('#wCopy').onclick = async () => { try { await navigator.clipboard.writeText(msg); toast('Copied. Paste it into your group chat.') } catch { toast(link) } }
@@ -339,7 +337,7 @@ function render() {
   const ready = readyClips()
   const max = card.maxClips || 50
   $('#title').textContent = first
-  $('#forLine').textContent = memorial ? 'Your card in memory of' : 'Your card for'
+  $('#forLine').textContent = memorial ? 'In memory of' : 'For'
   document.title = `Your card for ${first} · churpie.`
   rememberBoard({ url: location.origin + location.pathname, id: card.id, host: card.hostName, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
   $('#extras').innerHTML = ''

@@ -105,17 +105,10 @@
 </style>
 </head>
 <body>
-<div class="stripe"></div>
-<main class="wrap stack" id="app" style="padding-bottom: 24px">
-  <div class="topbar">
-    <div class="row">
-      <div style="display: flex; flex-direction: column; line-height: 1.15">
-        <span class="muted" id="hostLine">Someone is making this for</span>
-        <strong style="font-size: 20px" id="title">...</strong>
-      </div>
-    </div>
-    <a class="logo" href="/">churpie<b>.</b></a>
-  </div>
+<header class="tnav" data-right="none"></header>
+<script type="module" src="/brand.js"></script>
+<main class="wrap stack" id="app" style="padding-bottom: 24px; padding-top: 16px">
+  <span id="hostLine" hidden></span><span id="title" hidden></span>
 
   <!-- the brief -->
   <div class="note" id="note">
@@ -241,6 +234,7 @@
 
 <script type="module">
 import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo, botCheck, myBoards } from '/app.js'
+import { setNavTitle } from '/brand.js'
 
 const cardId = location.pathname.split('/')[2]
 const editToken = new URLSearchParams(location.search).get('edit')
@@ -263,18 +257,18 @@ if (card.clipCount && card.names?.length && !editToken) {
 if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
 // opened over the board (a sheet) or on its own: either way the host always has a way back
 const embedded = window.self !== window.top
+if (embedded) document.querySelector('.tnav')?.remove() // the card page's sheet already has its own bar
 if (myBoard && !embedded) {
-  const bar = document.createElement('a')
-  bar.href = myBoard.url
-  bar.textContent = '← Back to your board'
-  bar.setAttribute('style', 'display:block; background:#fff; color:var(--pink-deep); font-weight:700; padding:12px 16px; text-decoration:none; box-shadow:0 1px 0 var(--paper-aged)')
-  document.body.insertBefore(bar, document.body.firstChild)
+  // in the top bar's right corner, where "Your cards" lives on every other page
+  const right = document.querySelector('.tnav-right')
+  if (right) right.innerHTML = `<a class="tnav-cards" href="${escapeHtml(myBoard.url)}" style="color: var(--pink-deep)">← Back to your card</a>`
 }
 
 // ── the brief ────────────────────────────────────────────────────────────────
 $('#hostLine').textContent = `${card.hostName} is making this for`
 $('#title').textContent = `${first}`
 const hostFirst = firstName(card.hostName)
+setNavTitle(`${card.moment === 'memory' ? 'In memory of' : 'For'} ${escapeHtml(first)} <small>· from ${escapeHtml(hostFirst)}</small>`)
 const TONE = { funny: 'make them laugh', heartfelt: 'say the real thing', hype: 'big energy', quiet: 'slow down, plain words' }
 $('#av').textContent = hostFirst.slice(0, 1).toUpperCase()
 $('#who').innerHTML = `a note from <b>${escapeHtml(hostFirst)}</b><br>for your video`
@@ -457,9 +451,9 @@ function finish(reg, name) {
   if (embedded) { try { parent.postMessage({ churpie: 'added' }, location.origin) } catch {} }
   if (myBoard) {
     // the host is done with this page; the next job (inviting people) lives on the board
-    $('#shareOn').textContent = 'Back to your board'
+    $('#shareOn').textContent = 'Back to your card'
     $('#shareOn').onclick = () => { location.href = myBoard.url }
-    $('#laterText').textContent = `You can swap or remove it from your board until you make the reel.`
+    $('#laterText').textContent = `You can swap or remove it from your card page until you make the reel.`
   }
   show('done')
 }

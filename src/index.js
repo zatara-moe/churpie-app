@@ -199,7 +199,7 @@ app.post('/api/cards', async (c) => {
   if (!recipientName) return bad(c, "Who's it for? Even just a first name.")
   if (!hostName) return bad(c, "Add your name so people know who's asking.")
   if (!prompt) return bad(c, 'Write the one question everyone will answer.')
-  if (emailOn(c.env) && !looksLikeEmail(hostEmail)) return bad(c, "Add your email. It's where your board link and the finished reel go.")
+  if (emailOn(c.env) && !looksLikeEmail(hostEmail)) return bad(c, "Add your email. It's where the link to your card and the finished reel go.")
 
   const id = newId(8)
   const hostToken = newToken()
@@ -222,9 +222,9 @@ app.post('/api/cards', async (c) => {
     const sent = await sendEmail(c.env, {
       to: hostEmail,
       subject: `Your card for ${first}: open it to get your invite link`,
-      lines: [`Hi ${hostName.split(' ')[0]},`, `Your card for ${first} is ready to go. Open your board to get the invite link, then send it to everyone who loves ${first}.`],
-      button: { label: 'Open my board', url: `${base}/h/${hostToken}` },
-      after: ['Keep this email. The board is private to you, and this link is how you get back to it from any phone or computer.'],
+      lines: [`Hi ${hostName.split(' ')[0]},`, `Your card for ${first} is ready to go. Open it to get the invite link, then send it to everyone who loves ${first}.`],
+      button: { label: 'Open my card', url: `${base}/h/${hostToken}` },
+      after: ['Keep this email. Your card page is private to you, and this link is how you get back to it from any phone or computer.'],
     })
     if (!sent.ok) return bad(c, "We couldn't send the email. Check the address and try once more.", 502)
     return c.json({ id, checkEmail: true, email: hostEmail })
@@ -417,7 +417,7 @@ app.get('/api/clips/:clipId/stream', async (c) => {
 
 app.get('/api/host/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
-  if (!card) return bad(c, "We can't find a board at this link. Check that you copied all of it.", 404)
+  if (!card) return bad(c, "We can't find a card at this link. Check that you copied all of it.", 404)
   if (await needsVerify(c.env.DB, card.id)) await logEvent(c.env.DB, card.id, 'verified')
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
@@ -560,7 +560,7 @@ app.post('/api/lost', async (c) => {
   if (results.length) {
     c.executionCtx.waitUntil(sendEmail(c.env, {
       to: email,
-      subject: results.length === 1 ? `Your churpie board for ${results[0].recipient_name.split(' ')[0]}` : 'Your churpie boards',
+      subject: results.length === 1 ? `Your churpie card for ${results[0].recipient_name.split(' ')[0]}` : 'Your churpie cards',
       lines: ['Here are the cards made with this email:', ...results.map((r) => `${r.recipient_name}: ${c.env.APP_URL}/h/${r.host_token}`)],
       after: ['Keep this email. Each link is private to you.'],
     }))
@@ -787,7 +787,8 @@ async function page(c, file, meta, status = 200) {
 
 app.get('/', (c) => page(c, 'index.html', {}))
 app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }))
-app.get('/lost', (c) => page(c, 'lost.html', { title: 'Find your board · churpie.' }))
+app.get('/lost', (c) => page(c, 'lost.html', { title: 'Find your card · churpie.' }))
+app.get('/cards', (c) => page(c, 'cards.html', { title: 'Your cards · churpie.' }))
 
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
@@ -802,8 +803,8 @@ app.get('/c/:id', async (c) => {
 
 app.get('/h/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
-  if (!card) return page(c, 'gone.html', { title: "We can't find this board" }, 404)
-  return page(c, 'host.html', { title: `Your card for ${card.recipient_name} · churpie.`, description: 'Your private board. Keep this link to yourself.' })
+  if (!card) return page(c, 'gone.html', { title: "We can't find this card" }, 404)
+  return page(c, 'host.html', { title: `Your card for ${card.recipient_name} · churpie.`, description: 'Your private card page. Keep this link to yourself.' })
 })
 
 app.get('/w/:token', async (c) => {
@@ -892,7 +893,7 @@ async function sweep(env) {
       to: card.host_email,
       subject: `${first}'s reel is deleted in 2 days`,
       lines: [`A reminder: churpie deletes ${first}'s reel and every message in 2 days, as promised.`, `If you haven't yet, download it to keep it forever.`],
-      button: { label: 'Open the board to download it', url: `${env.APP_URL}/h/${card.host_token}` },
+      button: { label: 'Open your card to download it', url: `${env.APP_URL}/h/${card.host_token}` },
     })
     await logEvent(env.DB, card.id, 'reminded')
   }
