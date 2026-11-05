@@ -157,9 +157,12 @@ async function finalize(parts, dst, { music, withMusic }) {
   let fc = '', mapA = '0:a', mapV = '0:v'
   if (musicFile) {
     inputs.push('-stream_loop', '-1', '-i', musicFile)
-    // the glue: music sits ~11 dB under voices between people (clearly there, holding it together),
-    // dips to ~19 dB under while someone speaks (felt, not heard), and swells back over 0.6 s. Measured, not guessed.
-    fc += `[1:a]volume=0.8,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.025:ratio=3.5:attack=30:release=600:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
+    // Voices are the point; the music only holds things together. Measured against voices at -16 LUFS:
+    //   nobody talking (title, end card, between people): music ~8 dB under the voices, there but never competing
+    //   someone talking: it ducks to ~25 dB under, felt rather than heard, and stays down between sentences
+    //   (0.9 s release) so it doesn't pump up in every pause. It fades in over the first second.
+    // (Before Nov 2026 it sat only ~4 dB under with nobody talking, which pulled focus from the people.)
+    fc += `[1:a]volume=0.5,afade=t=in:st=0:d=1,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.015:ratio=5:attack=20:release=900:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
     mapA = '[a]'
   }
   if (wm) {

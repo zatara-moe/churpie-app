@@ -31,7 +31,7 @@ export function personSVG(p, { w = 100, h = 156, round = 0 } = {}) {
 }
 
 // A live mini version of the card the stitcher will render. Same layout as the wide file, scaled to fit.
-const SUBLINE = { birthday: 'happy birthday', congrats: 'you did it', thankyou: 'with thanks', getwell: 'get well soon', missyou: 'we miss you', memory: 'in loving memory', team: 'from the team', brand: 'from all of us' }
+const SUBLINE = { birthday: 'happy birthday', congrats: 'you did it', thankyou: 'with thanks', getwell: 'get well soon', missyou: 'we miss you', memory: 'in loving memory', team: 'from the team', brand: 'from all of us', welcome: 'welcome home', retirement: 'happy retirement' }
 export function cardPreview({ theme = 'postcard', first = '', host = '', n = null, moment = 'birthday', prompt = '', person = 0 } = {}) {
   const e = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   const name = first || 'their name'

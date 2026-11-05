@@ -102,6 +102,7 @@
   .as-reel .play { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 64px; height: 64px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.92); display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,0.18); }
   .as-reel.playing .play { display: none; }
   .as-reel .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 14px 12px; background: linear-gradient(transparent, rgba(0,0,0,0.35)); color: #fff; font-size: 12px; font-weight: 600; z-index: 2; pointer-events: none; }
+  .note .how { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: var(--ink-faded); }
 </style>
 </head>
 <body>
@@ -115,6 +116,7 @@
     <div class="from"><span class="av" id="av"></span><span class="who" id="who"></span></div>
     <button class="hear hidden" id="hearBtn" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg><span></span></button>
     <p class="q" id="promptText"></p>
+    <p class="how" id="howTo"></p>
     <div class="tips" id="tips"></div>
   </div>
   <video id="introVid" class="hidden" playsinline controls style="width: 100%; border-radius: 16px"></video>
@@ -271,7 +273,11 @@ const hostFirst = firstName(card.hostName)
 setNavTitle(`${card.moment === 'memory' ? 'In memory of' : 'For'} ${escapeHtml(first)} <small>· from ${escapeHtml(hostFirst)}</small>`)
 const TONE = { funny: 'make them laugh', heartfelt: 'say the real thing', hype: 'big energy', quiet: 'slow down, plain words' }
 $('#av').textContent = hostFirst.slice(0, 1).toUpperCase()
-$('#who').innerHTML = `a note from <b>${escapeHtml(hostFirst)}</b><br>for your video`
+$('#who').innerHTML = `<b>${escapeHtml(hostFirst)}</b> asks you`
+// one plain instruction, so nobody wonders who they're talking to
+$('#howTo').textContent = card.moment === 'memory'
+  ? `Answer in your own words, like you're talking with ${hostFirst}. ${LIMIT} seconds.`
+  : `Answer it to ${first}, like they're right in front of you. ${LIMIT} seconds.`
 $('#promptText').textContent = card.prompt
 $('#tele').textContent = `“${card.prompt}”`
 $('#tips').innerHTML = [card.tone ? `<span class="tone">${escapeHtml(TONE[card.tone] || card.tone)}</span>` : '', ...(card.rules || []).map((r) => `<span>${escapeHtml(r)}</span>`), `<span>${LIMIT} seconds</span>`].join('')

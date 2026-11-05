@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="/app.css">
 <link rel="stylesheet" href="/preview.css">
 <style>
-  .live { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0 12px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+  .live { position: sticky; top: 62px; z-index: 5; background: var(--paper); padding: 10px 0 12px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   .live .cap { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .live .cap span { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-ghost); }
   .themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -47,11 +47,12 @@
   .more summary { cursor: pointer; font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
   .more summary .ghost { font-weight: 600; }
   @media (min-width: 960px) {
-    main.wrap { max-width: 1120px; padding: 0 40px 48px; display: grid !important; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
+    main.wrap { max-width: 1120px; padding: 32px 40px 48px !important; display: grid !important; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 48px; align-items: start; }
     main.wrap > .topbar { grid-column: 1 / -1; }
-    .live { grid-column: 1; grid-row: 2 / span 4; position: sticky; top: 32px; margin: 0; padding: 8px 0 0; background: transparent; }
+    .live { grid-column: 1; grid-row: 1 / span 4; position: sticky; top: 100px; margin: 0; padding: 8px 0 0; background: transparent; }
     .live .pv { box-shadow: 0 2px 0 rgba(0,0,0,0.04), 0 24px 48px rgba(26,20,16,0.16); }
-    main.wrap > form { grid-column: 2; }
+    main.wrap > form { grid-column: 2; grid-row: 1; }
+    main.wrap > #checkEmail { grid-column: 2; grid-row: 1; }
     #done { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px 40px; align-items: start; }
     #done.hidden { display: none; }
     #done .done-hero { grid-column: 1 / -1; padding: 12px 0 8px; } #done .done-hero h1 { font-size: 48px; }
@@ -59,6 +60,15 @@
     #done .share-grid, #done #qrBox, #done .host-card { grid-column: 2; }
   }
   #qr { display: flex; justify-content: center; padding: 12px; background: #fff; border-radius: 16px; }
+  .occs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .occs .choice { display: flex; align-items: center; gap: 10px; min-height: 56px; }
+  .occ-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--paper); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .occs .choice[aria-pressed=true] .occ-ic { background: var(--pink); color: #fff; --tint: rgba(255,255,255,0.35); }
+  .asked { display: flex; flex-direction: column; gap: 4px; background: #FFFCF4; border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 1.5px var(--paper-aged); }
+  .asked:empty { display: none; }
+  .asked q { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; line-height: 1.2; quotes: '“' '”'; }
+  .idea { all: unset; cursor: pointer; background: #fff; border-radius: 14px; padding: 10px 12px; font-size: 14px; font-weight: 600; box-shadow: inset 0 0 0 1.5px var(--paper-aged); }
+  .idea:hover, .idea:focus-visible { box-shadow: inset 0 0 0 1.5px var(--ink); }
 </style>
 </head>
 <body>
@@ -76,20 +86,22 @@
     <h1>Who's this one for?</h1>
     <label class="field">Their first name<input type="text" name="recipientName" required maxlength="60" placeholder="Rosa"></label>
     <label class="field">Your name (so people know who's asking)<input type="text" name="hostName" required maxlength="60" placeholder="Maria"></label>
-    <h2 style="margin-top: 6px">What's the moment?</h2>
-    <div class="choices" id="moments" role="group" aria-label="moment"></div>
+    <h2 style="margin-top: 6px">What's the occasion?</h2>
+    <div class="choices occs" id="moments" role="group" aria-label="occasion"></div>
+    <div class="asked" id="asked" aria-live="polite"></div>
     <button class="btn primary" type="submit">Next: the question</button>
   </form>
 
   <!-- step 2: the brief -->
   <form id="step2" class="stack card hidden" autocomplete="off">
-    <h1>What should everyone say?</h1>
-    <p class="muted">One question gets you 30 real answers instead of 30 different hellos. It opens the reel, too.</p>
-    <label class="field">Your question
+    <h1>What should everyone answer?</h1>
+    <p class="muted">Everyone sees this question right before they record, and it opens the reel. One question turns 20 hellos into one story.</p>
+    <label class="field">The question
       <textarea name="prompt" required maxlength="240"></textarea>
     </label>
-    <div class="row" style="flex-wrap: wrap; gap: 6px; align-items: center"><span class="ghost">Need an idea?</span><span class="row" style="flex-wrap: wrap; gap: 6px" id="promptIdeas"></span></div>
+    <div class="stack" style="gap: 6px"><span class="ghost">Or pick another:</span><div class="stack" style="gap: 6px" id="promptIdeas"></div></div>
     <h3>How should it feel?</h3>
+    <p class="ghost" style="margin-top: -6px">Shown to everyone as a hint, next to the question.</p>
     <div class="choices" id="tones" role="group" aria-label="tone"></div>
     <details class="more">
       <summary>More options <span class="ghost">house rules, longer messages</span></summary>
@@ -173,6 +185,7 @@
 <script type="module">
 import { api, $, $$, toast, share, escapeHtml, firstName, rememberBoard, botCheck } from '/app.js'
 import { cardPreview } from '/people.js'
+import { icon } from '/brand.js'
 
 const state = { moment: 'birthday', tone: null, vibe: 'postcard' }
 const { moments, vibes, email: emailOn, keepDays } = await api('/api/catalog')
@@ -185,7 +198,7 @@ if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
 // arriving from a closed or full card (/new?for=Rosa) starts a card for the same person
 const forName = new URLSearchParams(location.search).get('for')
 if (forName) $('#step1 [name=recipientName]').value = forName.slice(0, 60)
-const TONES = [['funny', 'Light', 'make them laugh'], ['heartfelt', 'Warm', 'say the real thing'], ['hype', 'Loud', 'big energy, say their name'], ['quiet', 'Gentle', 'slow down, plain words']]
+const TONES = [['funny', 'Fun', 'a laugh is welcome'], ['heartfelt', 'Heartfelt', 'say the real thing'], ['hype', 'Big energy', 'cheer them on'], ['quiet', 'Gentle', 'slow down, plain words']]
 const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
 
 // ── live preview ─────────────────────────────────────────────────────────────
@@ -209,7 +222,18 @@ function choiceButtons(root, items, key, render, cls = 'choice') {
     paint()
   })
 }
-choiceButtons($('#moments'), moments, 'moment', (m) => escapeHtml(m.label))
+choiceButtons($('#moments'), moments, 'moment', (m) => `<span class="occ-ic">${icon(m.icon || 'gift', { size: 26 })}</span><span>${escapeHtml(m.label)}</span>`)
+// the question a moment asks, with their name in it (every {name}, not just the first "them")
+const ask = (m, name) => (m?.prompt || '').replaceAll('{name}', name || 'them')
+let autoPrompt = ''
+function showAsked() {
+  const m = moments.find((x) => x.id === state.moment)
+  const name = firstName($('#step1 [name=recipientName]').value)
+  $('#asked').innerHTML = m ? `<span class="ghost">Everyone will be asked</span><q>${escapeHtml(ask(m, name || 'them'))}</q><span class="ghost">You can change it on the next step.</span>` : ''
+}
+$('#moments').addEventListener('click', showAsked)
+$('#step1 [name=recipientName]').addEventListener('input', showAsked)
+showAsked()
 choiceButtons($('#tones'), TONES.map(([id, label, hint]) => ({ id, label, hint })), 'tone', (t) => `${t.label}<small>${t.hint}</small>`)
 // "Loud" never fits a memorial
 function fitTones() {
@@ -245,12 +269,19 @@ $('#step1').addEventListener('submit', (e) => {
   e.preventDefault()
   const m = moments.find((x) => x.id === state.moment)
   const ta = $('#step2 textarea'); const name = firstName(new FormData(e.target).get('recipientName'))
-  if (!ta.value) ta.value = m.prompt.replace(/\bthem\b/, name).replace(/\btheir\b/, `${name}'s`)
+  // fill in the occasion's question, unless they've written their own
+  if (!ta.value || ta.value === autoPrompt) { ta.value = ask(m, name); autoPrompt = ta.value }
   if (!state.tone) { state.tone = m.tone; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === m.tone)) }
-  $('#promptIdeas').innerHTML = moments.filter((x) => x.id !== 'brand').slice(0, 5).map((x) => `<button type="button" class="pill aged" data-p="${escapeHtml(x.prompt)}">${escapeHtml(x.label)}</button>`).join('')
+  $('#promptIdeas').innerHTML = [m.prompt, ...(m.ideas || [])].map((q) => ask({ prompt: q }, name)).filter((q) => q !== ta.value).map((q) => `<button type="button" class="idea" data-p="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('')
   paint(); go(2)
 })
-$('#promptIdeas').addEventListener('click', (e) => { const b = e.target.closest('[data-p]'); if (b) { $('#step2 textarea').value = b.dataset.p; paint() } })
+$('#promptIdeas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-p]'); if (!b) return
+  const ta = $('#step2 textarea'), was = ta.value
+  ta.value = b.dataset.p; autoPrompt = ta.value
+  b.dataset.p = was; b.textContent = was // swap, so the one they had is still there to go back to
+  paint()
+})
 $('#back2').onclick = () => go(1)
 $('#step2').addEventListener('submit', (e) => { e.preventDefault(); go(3) })
 $('#back3').onclick = () => go(2)

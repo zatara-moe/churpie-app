@@ -23,6 +23,7 @@ export const WINDOWS = {
 const MOMENT_LINE = {
   birthday: (c) => c.age ? `turning ${c.age}` : 'happy birthday', congrats: () => 'you did it', thankyou: () => 'with thanks', getwell: () => 'get well soon',
   missyou: () => 'we miss you', memory: () => 'in memory', team: () => 'from the team', brand: () => 'from all of us',
+  welcome: () => 'welcome home', retirement: () => 'happy retirement',
 }
 
 export async function renderFrames(job, outDir) {

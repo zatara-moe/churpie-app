@@ -250,7 +250,7 @@
   $('#footMark').innerHTML = wordmark({ size: 30, hop: false })
 
   // occasions: a sheet of stamps, two colors, one icon each
-  const OCC = [['birthday', 'Birthday', 'cake'], ['congrats', 'Graduation', 'graduation-cap'], ['missyou', 'Welcome home', 'house'], ['getwell', 'Get well', 'hand-heart'], ['team', 'Retirement', 'clock-countdown'], ['thankyou', 'Thank you', 'heart'], ['team', 'Team send-off', 'users-three'], ['memory', 'In memory', 'flower-lotus']]
+  const OCC = [['birthday', 'Birthday', 'cake'], ['congrats', 'Graduation', 'graduation-cap'], ['welcome', 'Welcome home', 'house'], ['getwell', 'Get well', 'hand-heart'], ['retirement', 'Retirement', 'clock-countdown'], ['thankyou', 'Thank you', 'heart'], ['team', 'Team send-off', 'users-three'], ['memory', 'In memory', 'flower-lotus']]
   $('#stamps').innerHTML = OCC.map(([id, label, ic], i) => `<a class="occ" href="/new?moment=${id}"><span class="stamp${i % 2 ? ' cyan' : ''}"><span>${icon(ic, { size: 30, line: '#fff', tint: 'rgba(255,255,255,0.35)' })}</span></span><strong>${label}</strong></a>`).join('')
 
   // the postcard reel: people cycling through, or the real sample once it's there
