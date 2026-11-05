@@ -132,6 +132,15 @@
   .invite-card .lnk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ways { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .ways .btn { flex-direction: column; gap: 6px; min-height: 76px; border-radius: 18px; font-size: 13px; padding: 10px 4px; background: #fff; box-shadow: inset 0 0 0 1.5px var(--paper-aged); }
+  .live { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--green); background: var(--green-pale); padding: 3px 9px; border-radius: 999px; vertical-align: middle; }
+  .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: blink 2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  .face.pop .ring { animation: pop 600ms cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .live i, .face.pop .ring { animation: none; } }
+  .side .count { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
+  .meter { height: 8px; border-radius: 8px; background: var(--paper-aged); overflow: hidden; }
+  .meter b { display: block; height: 100%; background: var(--pink); border-radius: 8px; }
   .face.me .ring { border-style: dashed; border-color: var(--pink); }
   .face.me .ring > * { background: var(--pink-pale); color: var(--pink); }
   @media (min-width: 960px) {
@@ -140,12 +149,17 @@
   }
 
   main.board { padding-bottom: 230px; }
+  .sideonly { display: none; }
   @media (min-width: 960px) {
     main.board { max-width: 1160px; padding: 0 48px 48px; }
     main.board .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 64px; align-items: center; min-height: calc(100vh - 140px); }
     main.board .solo { max-width: 460px; margin-left: auto; margin-right: auto; }
     main.board .split > .left { display: flex; justify-content: flex-end; }
     main.board .split .hreel { width: 330px; height: auto; max-height: none; margin: 0; }
+    /* collecting on a computer: everything on the left, the next step in one panel on the right */
+    main.board .split.board2 { grid-template-columns: minmax(0, 1fr) 360px; gap: 40px; align-items: start; min-height: 0; margin-top: 8px; }
+    main.board .side { position: sticky; top: 24px; background: #fff; border-radius: 24px; padding: 20px; box-shadow: 0 1px 2px rgba(26,20,16,0.06), 0 10px 30px rgba(26,20,16,0.06); }
+    main.board .side .sideonly { display: flex; }
     .dock { position: static; max-width: none; margin: 0; padding: 0; background: transparent; box-shadow: none; border-radius: 0; }
     .dock .handle { display: none; }
     .hero { font-size: 48px; }
@@ -220,12 +234,10 @@ const lazy = 'IntersectionObserver' in window ? new IntersectionObserver((entrie
 function wireLazy() { $$('video[data-src]').forEach((v) => { if (lazy) lazy.observe(v); else { v.preload = 'metadata'; v.src = v.dataset.src } }) }
 
 function faceHtml(c, i, { tap = true } = {}) {
-  const inner = c.kind === 'text' || !c.streamUrl
-    ? `<span style="background:${colorFor(i)}">${initial(c.name)}</span>`
-    : `<video data-src="${c.streamUrl}#t=0.6" muted playsinline preload="none" style="background:${colorFor(i)}"></video>`
+  const inner = `<span style="background:${colorFor(i)}">${initial(c.name)}</span>`
   const you = c.name.trim().toLowerCase() === String(data.card.hostName || '').trim().toLowerCase()
   const isNew = !you && !seenIds.has(c.id)
-  return `<button class="face ${isNew ? 'new' : ''}" ${tap ? `data-play="${c.id}"` : 'tabindex="-1"'} aria-label="${isNew ? 'new: ' : ''}${you ? 'your message' : `message from ${esc(c.name)}`}"><span class="ring">${inner}${c.flags?.length ? '<i class="dot" aria-hidden="true">!</i>' : ''}</span><span class="nm">${you ? 'You' : esc(c.name)}</span></button>`
+  return `<button class="face ${isNew ? 'new' : ''} ${justIn.has(c.id) ? 'pop' : ''}" ${tap ? `data-play="${c.id}"` : 'tabindex="-1"'} aria-label="${isNew ? 'new: ' : ''}${you ? 'your message' : `message from ${esc(c.name)}`}"><span class="ring">${inner}${c.flags?.length ? '<i class="dot" aria-hidden="true">!</i>' : ''}</span><span class="nm">${you ? 'You' : esc(c.name)}</span></button>`
 }
 function facesRow(list, { add = false, tap = true, me = false } = {}) {
   return `<div class="faces" role="list">${me ? `<button class="face me" data-act="record" aria-label="Add yours"><span class="ring"><span>${ICON.cam}</span></span><span class="nm">Add yours</span></button>` : ''}${add ? `<button class="face add" data-act="invite" aria-label="Invite more people"><span class="ring"><span>${ICON.plus}</span></span><span class="nm">Invite</span></button>` : ''}${list.map((c, i) => faceHtml(c, i, { tap })).join('')}</div>`
@@ -237,12 +249,18 @@ function stackFaces(list) {
 
 // ── the dock ────────────────────────────────────────────────────────────────
 function dock(html) { $('#dock').innerHTML = html ? `<div class="handle"></div>${html}` : '' }
-function rescueDock() { const d = $('#dock'); if (d && d.parentElement !== document.body) document.body.appendChild(d) }
+function rescueDock() {
+  const d = $('#dock'); if (d && d.parentElement !== document.body) document.body.appendChild(d)
+  const x = $('#extras'), m = $('main.board'); if (x && x.parentElement !== m) m.appendChild(x)
+}
 function placeDock() {
   // on a computer the button sits beside the content; on a phone it's thumb-height at the bottom
   const slot = $('#dockSlot')
   const wide = matchMedia('(min-width: 960px)').matches
   if (wide && slot) slot.appendChild($('#dock'))
+  const xs = $('#extrasSlot')
+  if (wide && xs) xs.appendChild($('#extras'))
+  else if (!wide) $('main.board').appendChild($('#extras'))
   else if (!wide && $('#dock').parentElement !== document.body) document.body.appendChild($('#dock'))
 }
 matchMedia('(min-width: 960px)').addEventListener?.('change', placeDock)
@@ -392,9 +410,9 @@ function collecting() {
   const hint = !ready.length ? 'Send the invite. Faces pop in here as people add theirs.' : fresh ? `${plural(fresh, 'new one', 'new ones')}. Tap a face to watch.` : 'Tap a face to watch them one after another.'
 
   $('#stage').innerHTML = `
-    <div class="split" style="min-height: 0; align-items: start">
+    <div class="split board2">
       <div class="stack" style="gap: 14px">
-        <div><h1 class="hero">${headline}</h1><p class="sub" style="margin-top: 6px">${hint}${card.status === 'open' && ready.length && left > 10 ? ` <span class="ghost">Room for ${left} more.</span>` : ''}</p></div>
+        <div><h1 class="hero">${headline}</h1><p class="sub" style="margin-top: 6px">${hint} <span class="live" title="New messages show up here on their own"><i></i>Live</span></p></div>
         ${facesRow(ready, { add: canInvite, me: canInvite && !mine })}
         ${notes.join('')}
         ${!ready.length ? `<div class="invite-card stack" style="gap: 10px">
@@ -407,10 +425,12 @@ function collecting() {
           <p class="bubble" id="nudgeText">${esc(nudgeText())}</p>
           <button class="btn line" data-act="nudge">Copy and share</button>
         </div>` : ''}
+        <div id="extrasSlot" class="stack"></div>
       </div>
-      <div class="stack" style="gap: 14px">
+      <aside class="side stack" style="gap: 14px">
+        <div class="sideonly stack" style="gap: 8px"><div class="count"><span>${plural(ready.length, 'message', 'messages')}</span><span class="ghost">room for ${left} more</span></div><div class="meter"><b style="width: ${Math.min(100, Math.round((ready.length / max) * 100))}%"></b></div></div>
         <div id="dockSlot"></div>
-      </div>
+      </aside>
     </div>`
   const enough = ready.length >= 3 || card.deadlinePassed || left === 0
   const make = enough ? `<button class="btn primary big" data-act="make">Make ${F}'s reel</button>` : `<button class="btn quiet" data-act="make" style="min-height: 40px">Make the reel now</button>`
@@ -438,7 +458,6 @@ function making() {
       <div id="dockSlot" style="width: 100%"></div>
     </div>`
   dock(slow ? `<button class="btn soft" data-act="reopen">Reopen for more messages</button>` : '')
-  setTimeout(refresh, 15000)
 }
 
 function failed() {
@@ -705,6 +724,28 @@ async function recordIntro() {
   rec.start(250); const stop = setTimeout(() => rec.state === 'recording' && rec.stop(), 16000)
   $('#ivStop').onclick = () => { clearTimeout(stop); rec.stop() }
 }
+
+// ── live: new faces show up on their own ───────────────────────────────────
+let justIn = new Set()
+const sig = (d) => `${d.card.status}|${d.card.hasReel}|${d.clips.map((c) => c.id + c.status + (c.flags || []).join()).join(',')}`
+async function poll() {
+  if (document.visibilityState !== 'visible' || $('#viewer').open || $('#dlg').open || $('#sheet').open) return
+  if (!['open', 'queued', 'stitching', 'ready'].includes(data.card.status)) return
+  let next
+  try { next = await load() } catch { return }
+  if (sig(next) === sig(data)) { data.card.now = next.card.now; return }
+  const before = new Set(data.clips.map((c) => c.id))
+  const added = next.clips.filter((c) => c.status === 'ready' && !before.has(c.id))
+  const wasStatus = data.card.status
+  data = next
+  justIn = new Set(added.map((c) => c.id))
+  render()
+  justIn = new Set()
+  if (added.length) toast(added.length === 1 ? `${added[0].name} just added theirs.` : `${added.length} new messages just came in.`)
+  else if (wasStatus !== 'ready' && data.card.status === 'ready') toast(`${first}'s reel is ready.`)
+  else if (wasStatus === 'ready' && data.card.status === 'sent') toast(`${first} opened it.`)
+}
+setInterval(poll, 20000)
 
 render()
 // come back to the tab and the board is current (new faces, a finished reel)
