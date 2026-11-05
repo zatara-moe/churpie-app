@@ -137,7 +137,7 @@ async function sendEmail(env, { to, subject, lines, button, after = [] }) {
   const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
   const p = (t) => `<p style="margin:0 0 14px;font:16px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1A1410">${esc(t)}</p>`
   const html = `<div style="background:#F5F0E8;padding:28px 16px"><div style="max-width:480px;margin:0 auto;background:#fff;border-radius:18px;padding:28px 24px">`
-    + `<p style="margin:0 0 18px;font:italic 26px Georgia,serif;color:#1A1410">churpie<span style="color:#D4266A">.</span></p>`
+    + `<p style="margin:0 0 18px;font:italic 26px Georgia,serif;color:#1A1410">churpie<span style="color:#D4266A">.</span> <span style="font:italic 15px Georgia,serif;color:#7A6E5C">so they know they're loved</span></p>`
     + lines.map(p).join('')
     + (button ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="display:inline-block;background:#D4266A;color:#fff;text-decoration:none;font:700 16px -apple-system,Segoe UI,Helvetica,Arial,sans-serif;padding:14px 22px;border-radius:999px">${esc(button.label)}</a></p>` : '')
     + after.map(p).join('')

@@ -40,6 +40,7 @@
   .hero { padding-top: 32px; display: grid; gap: 28px; }
   .hero .copy { display: flex; flex-direction: column; gap: 18px; }
   .hero .display { font-size: 42px; }
+  .hero .tagline { font-family: 'Caveat', cursive; font-size: 34px; line-height: 1; color: var(--pink-deep); margin-top: -6px; }
   .hero .lede { color: var(--ink-faded); font-size: 17px; max-width: 520px; }
   .hero .ctas { display: flex; flex-direction: column; gap: 10px; }
   .hero .ctas .btn { min-height: 54px; font-size: 17px; font-weight: 700; }
@@ -119,6 +120,10 @@
   .foot::before { content: ''; display: block; height: 6px; background: repeating-linear-gradient(90deg, var(--pink) 0 14px, #EBE2CC 14px 20px, var(--cyan) 20px 34px, #EBE2CC 34px 40px); }
   .foot-in { max-width: 1160px; margin: 0 auto; padding: 36px 20px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px 20px; }
   .foot-brand { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; } .foot-brand p { color: var(--ink-faded); }
+  .foot-tag { font-family: 'Caveat', cursive; font-size: 28px; line-height: 1; color: var(--pink-deep) !important; }
+  .foot-song { font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 20px; color: var(--ink) !important; }
+  .foot-poem { margin: 6px 0 0; padding-left: 14px; border-left: 3px solid var(--cyan); font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 17px; line-height: 1.4; color: var(--ink-faded); max-width: 360px; }
+  .foot-poem cite { display: block; margin-top: 6px; font-family: 'Courier Prime', monospace; font-style: normal; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-ghost); }
   .foot-col { display: flex; flex-direction: column; gap: 9px; }
   .foot-col h4 { margin: 0 0 2px; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--ink-faded); }
   .foot-col a { color: var(--ink); font-weight: 700; text-decoration: none; width: fit-content; } .foot-col a:hover { color: var(--pink); }
@@ -170,7 +175,8 @@
     <div class="copy">
       <p class="eyebrow">Group video cards · free</p>
       <h1 class="display">A video card from everyone who loves them</h1>
-      <p class="lede">Send one link. Everyone records a few seconds on their phone. We stitch it into one reel they'll play again and again.</p>
+      <p class="tagline">So they know they're loved.</p>
+      <p class="lede">On their biggest day or their hardest week, they hear from everyone at once. One link, a few seconds each, and one reel they'll play again and again.</p>
       <div class="ctas">
         <a class="btn primary" href="/new" id="heroStart"><span data-icon="pencil-simple-line" data-line="#fff" data-tint="rgba(255,255,255,0.3)"></span>Start a card</a>
         <button class="btn outline" type="button" id="sampleBtn"><span data-icon="play" data-tint="var(--tint-cyan)"></span>Watch a sample</button>
@@ -207,7 +213,7 @@
 
   <section class="h-sec">
     <div class="promises">
-      <div class="promise"><span data-icon="gift" data-size="30"></span><div><strong>Free, always</strong><p>No ads, no per-card fees, no trial that runs out.</p></div></div>
+      <div class="promise"><span data-icon="gift" data-size="30"></span><div><strong>Free, always</strong><p>Nobody should have to pay to tell someone they're loved. No ads, no per-card fees, no trial that runs out.</p></div></div>
       <div class="promise"><span data-icon="users-four" data-size="30" data-tint="var(--tint-cyan)"></span><div><strong>No app, no account</strong><p>Everyone taps a link and records in their browser, or writes a note.</p></div></div>
       <div class="promise"><span data-icon="timer" data-size="30"></span><div><strong>Gone in 14 days</strong><p>We make the reel, you save it, then we delete everything.</p></div></div>
     </div>
@@ -233,7 +239,7 @@
 
 <footer class="foot">
   <div class="foot-in">
-    <div class="foot-brand"><a href="/" aria-label="churpie home" id="footMark" style="text-decoration: none"></a><p>A video card from everyone who loves them.</p></div>
+    <div class="foot-brand"><a href="/" aria-label="churpie home" id="footMark" style="text-decoration: none"></a><p class="foot-tag">So they know they're loved.</p><p class="foot-song">Small chirps. One song.</p><blockquote class="foot-poem">“Hope” is the thing with feathers,<br>that perches in the soul.<cite>Emily Dickinson</cite></blockquote></div>
     <nav class="foot-col" aria-label="churpie"><h4>churpie</h4><a href="/new">Start a card</a><a href="/cards">Your cards</a><a href="#how">How it works</a><a href="#faq">Questions</a></nav>
     <nav class="foot-col" aria-label="Help"><h4>Help</h4><a href="/lost">Find your card</a><a href="/new?moment=team">For teams</a><a href="/privacy">Privacy</a></nav>
     <div class="foot-col foot-made"><h4>Made by</h4><a href="https://sherwooddigital.org" rel="noopener">Sherwood Digital</a><span class="postmark"><span>flagstaff</span><b>arizona</b></span></div>

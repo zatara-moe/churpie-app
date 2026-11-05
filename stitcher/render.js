@@ -90,7 +90,9 @@ function cardHtml(theme, inner) {
 export const CARDS = {
   title: (j) => `<div class="eye">a card for</div><div class="big">${e(j.first)}</div><div class="eye" style="margin-top:30px">${e(j.host)} asked ${j.n} ${j.n === 1 ? 'person' : 'people'}</div><div class="hand">“${e(j.prompt)}”</div>`,
   text: (j) => `<div class="msg">“${e(j.text)}”</div><div class="sig">— ${e(j.name)}${j.location ? `, ${e(j.location)}` : ''}</div>`,
-  end: (j) => `<div class="num">${j.n} ${j.n === 1 ? 'person' : 'people'}</div><div class="it">showed up for you.</div></div><div class="mark">churpie<b>.</b><span class="url">churpie.me</span>`,
+  end: (j) => j.memory
+    ? `<div class="num">${j.n} ${j.n === 1 ? 'person' : 'people'}</div><div class="it">remembered ${e(j.first)}.</div><div class="hand" style="margin-top:34px;font-size:50px;opacity:0.8">with love, always.</div></div><div class="mark">churpie<b>.</b><span class="url">churpie.me</span>`
+    : `<div class="num">${j.n} ${j.n === 1 ? 'person' : 'people'}</div><div class="it">showed up for you.</div><div class="hand" style="margin-top:34px;font-size:50px;color:#D4266A">so you know you're loved.</div></div><div class="mark">churpie<b>.</b><span class="url">churpie.me</span>`,
 }
 function stickerHtml(name, location) {
   return `<!doctype html><html><head>${FONTS}<style>

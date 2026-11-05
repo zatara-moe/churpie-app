@@ -238,7 +238,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
 
     // 4. end card: the growth loop
     const end = path.join(tmp, 'end.mp4')
-    await makeCard(end, await painter.card('end', { n: job.clips.length }, theme, png('end')), 5)
+    await makeCard(end, await painter.card('end', { n: job.clips.length, first, memory: job.moment === 'memory' }, theme, png('end')), 5)
     await push(end, { kind: 'end', name: 'churpie', clipId: null })
 
     // 5. weave

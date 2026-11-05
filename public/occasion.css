@@ -26,5 +26,6 @@
 .occ .cmp tbody th { font-weight: 700; color: var(--ink-faded); width: 28%; }
 .occ-foot { max-width: 480px; margin: 0 auto; padding: 20px 16px 36px; border-top: 1px solid var(--paper-dark); display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; font-size: 13px; color: var(--ink-ghost); }
 .occ-foot a { color: var(--ink-faded); }
+.occ-foot .occ-tag { font-family: 'DM Serif Display', Georgia, serif; font-style: italic; font-size: 15px; color: var(--pink-deep); flex-basis: 100%; }
 @media (min-width: 720px) { .occ, .occ-foot { max-width: 680px; } .occ h1 { font-size: 52px; } }
 @media (min-width: 720px) { .occ .cmp-hint { display: none; } }
