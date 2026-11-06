@@ -167,3 +167,21 @@ export async function botCheck() {
     else { window.turnstile.reset(t.id) }
   })
 }
+
+// "Continue with Google" button. Loads Google's script only when asked; calls onCredential(token, email).
+// If Google can't load (blocked, offline), it hides the box and the email way still works.
+export function googleButton(el, clientId, onCredential, { hideOnFail = el } = {}) {
+  if (!clientId || !el) return
+  const start = () => {
+    window.google.accounts.id.initialize({
+      client_id: clientId, ux_mode: 'popup', auto_select: false,
+      callback: (r) => onCredential(r.credential, JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email),
+    })
+    window.google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 300 })
+  }
+  if (window.google?.accounts?.id) return start()
+  const s = document.createElement('script')
+  s.src = 'https://accounts.google.com/gsi/client'; s.async = true
+  s.onload = start; s.onerror = () => hideOnFail?.classList.add('hidden')
+  document.head.appendChild(s)
+}

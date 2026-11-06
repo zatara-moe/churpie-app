@@ -18,6 +18,8 @@ STITCHER_URL = "https://churpie-stitcher-wo5tv7wzna-uw.a.run.app"
 MAX_UPLOAD_MB = "300"
 # Who emails come from (the domain must be verified in Resend)
 EMAIL_FROM = "churpie <cards@churpie.me>"
+# "Continue with Google" for hosts. Paste the OAuth Web client ID (ends in .apps.googleusercontent.com). Empty = button hidden.
+GOOGLE_CLIENT_ID = "303229833132-p4f2578rjm6e6bq6il2c99cjesqsom0u.apps.googleusercontent.com"
 # Cloudflare Turnstile (free bot check). Paste the site key here; the secret key goes in the dashboard as a Secret named TURNSTILE_SECRET. Empty = off.
 TURNSTILE_SITE_KEY = ""  # whole video; anything over 90 MB goes up in pieces (Cloudflare refuses single requests over 100 MB)
 
@@ -25,6 +27,8 @@ TURNSTILE_SITE_KEY = ""  # whole video; anything over 90 MB goes up in pieces (C
 #   STITCH_TOKEN   shared secret the stitcher uses to pull jobs and push finals
 #   RESEND_API_KEY  email (Resend). With it, hosts give a verified email: board link, finished reel, reminder 2 days before deletion.
 #                   Without it, the board link shows on screen and no email is sent.
+#   RESEND_WEBHOOK_SECRET  signing secret from Resend > Webhooks (endpoint https://churpie.me/api/resend/webhook,
+#                   events email.bounced + email.complained). Lets the check-your-email screen spot a bounce and offer a fix.
 #   TURNSTILE_SECRET optional bot check on making cards and sending messages (with TURNSTILE_SITE_KEY above)
 
 # Workers Logs (free: 200,000 events a day, kept 3 days): shows which requests use the most CPU or fail

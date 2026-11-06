@@ -124,7 +124,7 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4', extra = {
 // Catalog (moments, vibes, ready-made prompts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null, email: emailOn(c.env), keepDays: LIFETIME(c.env) }))
+app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null, email: emailOn(c.env), google: c.env.GOOGLE_CLIENT_ID || null, keepDays: LIFETIME(c.env) }))
 
 // ── email: the host's board link, the finished reel, and a reminder before it's deleted ─────────────
 // Sent through Resend. Off until RESEND_API_KEY (secret) is set; then hosts give a verified email.
@@ -160,6 +160,140 @@ async function needsVerify(db, cardId) {
   return !!row?.needs && !row?.done
 }
 
+// The first email: the board link. Opening it confirms the address and opens the card.
+function sendBoardEmail(env, { to, recipientName, hostName, hostToken }) {
+  const first = recipientName.split(' ')[0]
+  return sendEmail(env, {
+    to,
+    subject: `Your card for ${first}: open it to get your invite link`,
+    lines: [`Hi ${hostName.split(' ')[0]},`, `Your card for ${first} is ready to go. Open it to get the invite link, then send it to everyone who loves ${first}.`],
+    button: { label: 'Open my card', url: `${env.APP_URL}/h/${hostToken}` },
+    after: ['Keep this email. Your card page is private to you, and this link is how you get back to it from any phone or computer.'],
+  })
+}
+
+// ── bounces: Resend tells us by webhook when an address can't take mail ──────
+// One-time setup: Resend > Webhooks > add https://churpie.me/api/resend/webhook with events
+// email.bounced and email.complained, then save its signing secret as the Worker secret RESEND_WEBHOOK_SECRET.
+async function resendSignatureOk(env, req, body) {
+  const secret = env.RESEND_WEBHOOK_SECRET
+  const id = req.header('svix-id'), ts = req.header('svix-timestamp'), sigs = req.header('svix-signature')
+  if (!secret || !id || !ts || !sigs) return false
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false // older than 5 minutes: a replay
+  const raw = Uint8Array.from(atob(secret.replace(/^whsec_/, '')), (ch) => ch.charCodeAt(0))
+  const key = await crypto.subtle.importKey('raw', raw, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${id}.${ts}.${body}`)))
+  const want = btoa(String.fromCharCode(...mac))
+  return sigs.split(' ').some((s) => s.split(',')[1] === want)
+}
+
+app.post('/api/resend/webhook', async (c) => {
+  const body = await c.req.text()
+  if (!(await resendSignatureOk(c.env, c.req, body))) return bad(c, 'Bad signature.', 401)
+  let ev = {}; try { ev = JSON.parse(body) } catch {}
+  const type = { 'email.bounced': 'email_bounced', 'email.complained': 'email_complained' }[ev.type]
+  if (!type) return c.json({ ok: true })
+  console.log('email problem', ev.type, ev.data?.bounce?.type || '', ev.data?.bounce?.message || '')
+  for (const to of [].concat(ev.data?.to || [])) {
+    const email = String(to).toLowerCase()
+    // only cards still using this address, so a host who already fixed it isn't flagged again
+    const { results } = await c.env.DB.prepare(`SELECT id FROM cards WHERE host_email = ?`).bind(email).all()
+    for (const r of results) await logEvent(c.env.DB, r.id, type)
+  }
+  return c.json({ ok: true })
+})
+
+const hasBounced = async (db, email) => !!(await db.prepare(
+  `SELECT 1 FROM events e JOIN cards c ON c.id = e.card_id WHERE c.host_email = ? AND e.type = 'email_bounced'
+     AND e.at > COALESCE((SELECT MAX(at) FROM events WHERE card_id = c.id AND type = 'email_changed'), '') LIMIT 1`).bind(email).first())
+
+// The "check your email" screen asks this, so a bounce shows up there instead of leaving the host waiting.
+// Only says yes/no; never shows the address.
+app.get('/api/cards/:id/email', async (c) => {
+  const id = c.req.param('id')
+  const row = await c.env.DB.prepare(`SELECT
+      EXISTS(SELECT 1 FROM events WHERE card_id = ?1 AND type = 'verified') AS verified,
+      (SELECT MAX(at) FROM events WHERE card_id = ?1 AND type = 'email_bounced') AS bouncedAt,
+      (SELECT MAX(at) FROM events WHERE card_id = ?1 AND type = 'email_changed') AS changedAt`).bind(id).first()
+  const bounced = !!row?.bouncedAt && (!row.changedAt || row.bouncedAt > row.changedAt)
+  return c.json({ verified: !!row?.verified, bounced })
+})
+
+// Fix the address and send the board link again. Only before the card is opened: until then the
+// card id is known only to the person who just made it (the invite link isn't shown yet).
+app.post('/api/cards/:id/email', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  if (!(await isPerson(c, b.turnstile))) return bad(c, NOT_A_PERSON, 403)
+  const card = await getCard(c.env.DB, 'id', c.req.param('id'))
+  if (!card) return bad(c, "We can't find that card. Start a new one.", 404)
+  if (!(await needsVerify(c.env.DB, card.id))) return bad(c, 'This card is already open. Use the link in your email.', 409)
+  const email = sanitize(b.email, 120)?.toLowerCase()
+  if (!looksLikeEmail(email)) return bad(c, 'Check the email address.')
+  if (await hasBounced(c.env.DB, email)) return bad(c, "Email to that address bounces. Check it for a typo, or use a different one.")
+  const tries = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM events WHERE card_id = ? AND type = 'email_changed'`).bind(card.id).first()
+  if ((tries?.n || 0) >= 5) return bad(c, 'That is a lot of tries. Start a new card with an address you know works.', 429)
+  await c.env.DB.prepare(`UPDATE cards SET host_email = ?, account_type = ? WHERE id = ?`)
+    .bind(email, isBusinessEmail(email) ? 'business' : 'personal', card.id).run()
+  await logEvent(c.env.DB, card.id, 'email_changed')
+  const sent = await sendBoardEmail(c.env, { to: email, recipientName: card.recipient_name, hostName: card.host_name, hostToken: card.host_token })
+  if (!sent.ok) return bad(c, "We couldn't send the email. Check the address and try once more.", 502)
+  return c.json({ ok: true, email })
+})
+
+// ── "Continue with Google": Google vouches for the email, so the card opens right away ──
+// Needs only GOOGLE_CLIENT_ID (a public value in wrangler.toml). No secret, no stored Google data:
+// we check Google's signature on the sign-in token and keep just the email.
+let googleKeys = { at: 0, keys: [] }
+const b64url = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), (ch) => ch.charCodeAt(0))
+async function googleEmail(env, credential) {
+  try {
+    if (!env.GOOGLE_CLIENT_ID || typeof credential !== 'string') return null
+    const [h, p, sig] = credential.split('.'); if (!sig) return null
+    const header = JSON.parse(new TextDecoder().decode(b64url(h)))
+    const claims = JSON.parse(new TextDecoder().decode(b64url(p)))
+    if (header.alg !== 'RS256') return null
+    let jwk = googleKeys.keys.find((k) => k.kid === header.kid)
+    if (!jwk || Date.now() - googleKeys.at > 6 * 3600e3) {
+      const r = await fetch('https://www.googleapis.com/oauth2/v3/certs')
+      googleKeys = { at: Date.now(), keys: (await r.json()).keys || [] }
+      jwk = googleKeys.keys.find((k) => k.kid === header.kid)
+    }
+    if (!jwk) return null
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify'])
+    if (!(await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, b64url(sig), new TextEncoder().encode(`${h}.${p}`)))) return null
+    if (!['accounts.google.com', 'https://accounts.google.com'].includes(claims.iss)) return null
+    if (claims.aud !== env.GOOGLE_CLIENT_ID || claims.exp * 1000 < Date.now() || !claims.email_verified) return null
+    return String(claims.email).toLowerCase()
+  } catch { return null }
+}
+
+// Waiting on an email that bounced (or never came)? The browser that made the card can sign in with
+// Google instead: Google vouches for the new address and the card opens. Only before it's opened,
+// when the card id is known only to whoever just made it.
+app.post('/api/cards/:id/google', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  const card = await getCard(c.env.DB, 'id', c.req.param('id'))
+  if (!card) return bad(c, "We can't find that card. Start a new one.", 404)
+  if (!(await needsVerify(c.env.DB, card.id))) return bad(c, 'This card is already open. Use the link in your email.', 409)
+  const email = await googleEmail(c.env, b.credential)
+  if (!email) return bad(c, "Google sign-in didn't go through. Tap the Google button again.", 401)
+  await c.env.DB.prepare(`UPDATE cards SET host_email = ?, account_type = ? WHERE id = ?`)
+    .bind(email, isBusinessEmail(email) ? 'business' : 'personal', card.id).run()
+  await logEvent(c.env.DB, card.id, 'email_changed')
+  await logEvent(c.env.DB, card.id, 'verified')
+  c.executionCtx.waitUntil(sendBoardEmail(c.env, { to: email, recipientName: card.recipient_name, hostName: card.host_name, hostToken: card.host_token }))
+  return c.json({ host: `${c.env.APP_URL}/h/${card.host_token}` })
+})
+
+// "Lost your card?" with Google: no email round trip, straight to the boards made with that address
+app.post('/api/lost/google', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  const email = await googleEmail(c.env, b.credential)
+  if (!email) return bad(c, "Google sign-in didn't go through. Tap the Google button again.", 401)
+  const { results } = await c.env.DB.prepare(`SELECT recipient_name, host_token, status FROM cards WHERE host_email = ? ORDER BY created_at DESC LIMIT 20`).bind(email).all()
+  return c.json({ email, cards: results.map((r) => ({ name: r.recipient_name, status: r.status, url: `${c.env.APP_URL}/h/${r.host_token}` })) })
+})
+
 // Cloudflare Turnstile: an invisible "are you a person" check on making cards and sending messages.
 // Off until both TURNSTILE_SITE_KEY (variable) and TURNSTILE_SECRET (secret) are set.
 async function isPerson(c, token) {
@@ -193,13 +327,19 @@ app.post('/api/cards', async (c) => {
   if (moment === 'memory' && tone === 'hype') tone = 'quiet' // big energy never fits a memorial
   const rules = Array.isArray(b.rules) ? b.rules.map((r) => sanitize(r, 80)).filter(Boolean).slice(0, 5) : []
   const clipSeconds = Number(b.clipSeconds) === 30 ? 30 : 15
-  const hostEmail = sanitize(b.hostEmail, 120)?.toLowerCase() || null
+  let hostEmail = sanitize(b.hostEmail, 120)?.toLowerCase() || null
+  const byGoogle = !!b.googleCredential
+  if (byGoogle) {
+    hostEmail = await googleEmail(c.env, b.googleCredential)
+    if (!hostEmail) return bad(c, "Google sign-in didn't go through. Tap the Google button again, or use your email instead.", 401)
+  }
   const deadlineAt = b.deadlineAt ? new Date(b.deadlineAt).toISOString() : null
 
   if (!recipientName) return bad(c, "Who's it for? Even just a first name.")
   if (!hostName) return bad(c, "Add your name so people know who's asking.")
   if (!prompt) return bad(c, 'Write the one question everyone will answer.')
   if (emailOn(c.env) && !looksLikeEmail(hostEmail)) return bad(c, "Add your email. It's where the link to your card and the finished reel go.")
+  if (emailOn(c.env) && !byGoogle && (await hasBounced(c.env.DB, hostEmail))) return bad(c, "Email to that address bounces. Check it for a typo, or use a different one.")
 
   const id = newId(8)
   const hostToken = newToken()
@@ -215,17 +355,13 @@ app.post('/api/cards', async (c) => {
   await logEvent(c.env.DB, id, 'created')
 
   const base = c.env.APP_URL
-  if (emailOn(c.env)) {
+  if (emailOn(c.env) && byGoogle) {
+    // Google already confirmed the address: open the card now, and email the board link as a keepsake
+    c.executionCtx.waitUntil(sendBoardEmail(c.env, { to: hostEmail, recipientName, hostName, hostToken }))
+  } else if (emailOn(c.env)) {
     // the board link is the key, so it only goes to the inbox; opening it confirms the email and opens the card
     await logEvent(c.env.DB, id, 'needs_verify')
-    const first = recipientName.split(' ')[0]
-    const sent = await sendEmail(c.env, {
-      to: hostEmail,
-      subject: `Your card for ${first}: open it to get your invite link`,
-      lines: [`Hi ${hostName.split(' ')[0]},`, `Your card for ${first} is ready to go. Open it to get the invite link, then send it to everyone who loves ${first}.`],
-      button: { label: 'Open my card', url: `${base}/h/${hostToken}` },
-      after: ['Keep this email. Your card page is private to you, and this link is how you get back to it from any phone or computer.'],
-    })
+    const sent = await sendBoardEmail(c.env, { to: hostEmail, recipientName, hostName, hostToken })
     if (!sent.ok) return bad(c, "We couldn't send the email. Check the address and try once more.", 502)
     return c.json({ id, checkEmail: true, email: hostEmail })
   }

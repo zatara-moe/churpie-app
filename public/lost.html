@@ -17,9 +17,14 @@
   <form class="card stack" id="lostForm">
     <h1>Find your card.</h1>
     <p class="muted">Enter the email you used when you made the card. We'll send you the link to every card made with it.</p>
+    <div id="lostGoogle" class="stack hidden" style="gap: 8px; align-items: center">
+      <div id="lostGoogleBtn" style="min-height: 44px"></div>
+      <p class="ghost" style="margin: 0">or get the links by email</p>
+    </div>
     <label class="field">Your email<input type="email" name="email" required maxlength="120" autocomplete="email" placeholder="you@example.com"></label>
     <button class="btn primary" type="submit" id="lostBtn">Email me my cards</button>
   </form>
+  <div class="card stack hidden" id="lostList"></div>
   <div class="card stack hidden" id="lostDone">
     <h2>Check your email.</h2>
     <p class="muted">If there are cards made with that address, the links are on their way. Nothing there in a minute? Check spam.</p>
@@ -27,7 +32,21 @@
   </div>
 </main>
 <script type="module">
-import { api, $, toast, botCheck } from '/app.js'
+import { api, $, toast, botCheck, googleButton, escapeHtml } from '/app.js'
+const { google } = await api('/api/catalog').catch(() => ({}))
+if (google) {
+  $('#lostGoogle').classList.remove('hidden')
+  googleButton($('#lostGoogleBtn'), google, async (credential) => {
+    try {
+      const r = await api('/api/lost/google', { method: 'POST', body: { credential } })
+      if (r.cards.length === 1) return (location.href = r.cards[0].url)
+      $('#lostForm').classList.add('hidden'); $('#lostList').classList.remove('hidden')
+      $('#lostList').innerHTML = r.cards.length
+        ? `<h2>Your cards</h2>` + r.cards.map((c) => `<a class="btn outline" href="${escapeHtml(c.url)}">${escapeHtml(c.name)}</a>`).join('')
+        : `<h2>No cards for ${escapeHtml(r.email)}</h2><p class="muted">Your cards are filed under the email you used when you made them. Try that one below.</p><a class="btn outline" href="/lost">Use a different email</a>`
+    } catch (err) { toast(err.message) }
+  }, { hideOnFail: $('#lostGoogle') })
+}
 $('#lostForm').addEventListener('submit', async (e) => {
   e.preventDefault()
   const btn = $('#lostBtn'); btn.disabled = true; btn.textContent = 'Sending...'
