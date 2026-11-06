@@ -102,6 +102,59 @@ function stickerHtml(name, location) {
     .l { background: #7ECDD5; color: #1A1410; font-weight: 700; font-size: 24px; padding: 5px 16px; border-radius: 999px; }
   </style></head><body><div class="s"><span class="n">${e(name)}</span>${location ? `<span class="l">${e(location)}</span>` : ''}</div></body></html>`
 }
+
+// ── Written notes: taped onto the reel, not a break in it ───────────────────────────────────────────
+// A note sits on lined paper, taped over a soft blur of the person beside it, with the same name tag every video gets.
+// Back-to-back notes become one moment: "A few words for Rosa", taped on one at a time.
+const PAPERS = ['#FFFCF4', '#FDF1E2', '#EEF7F8']
+const TAPES = ['rgba(247,217,108,0.9)', 'rgba(126,205,213,0.88)', 'rgba(244,192,209,0.9)']
+function bgCss(bg, theme) {
+  if (bg) return `background: url(data:image/jpeg;base64,${fs.readFileSync(bg).toString('base64')}) center/cover; filter: blur(30px) saturate(1.1) brightness(0.82); transform: scale(1.1);`
+  const [paper] = THEME[theme] || THEME.postcard
+  return `background: ${paper};`
+}
+function noteHtml(inner, { bg, theme }) {
+  return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>
+    * { box-sizing: border-box; margin: 0; }
+    body { width: 720px; height: 1280px; position: relative; overflow: hidden; font-family: 'DM Sans', sans-serif; background: #1A1410; }
+    .bg { position: absolute; inset: -60px; ${bgCss(bg, theme)} }
+    .wash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(245,240,232,0.18), rgba(26,20,16,${bg ? 0.32 : 0.06})); }
+    .stripe { position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #D4266A; z-index: 5; }
+    .s { position: absolute; left: 40px; top: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; z-index: 4; }
+    .n { background: #fff; color: #1A1410; font-weight: 700; font-size: 40px; padding: 8px 20px; border-radius: 14px; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+    .l { background: #7ECDD5; color: #1A1410; font-weight: 700; font-size: 24px; padding: 5px 16px; border-radius: 999px; }
+    .note { position: absolute; left: 70px; right: 70px; border-radius: 6px; box-shadow: 0 26px 56px rgba(0,0,0,0.32); background-image: repeating-linear-gradient(0deg, transparent 0 63px, rgba(201,186,150,0.45) 63px 65px); }
+    .note .tape { position: absolute; top: -22px; left: 50%; width: 170px; height: 44px; margin-left: -85px; }
+    .one { top: 50%; padding: 70px 54px 54px; }
+    .one .m { font-family: 'Caveat', cursive; font-weight: 500; line-height: 65px; color: #1A1410; overflow-wrap: anywhere; }
+    .sig { font-family: 'Caveat', cursive; font-weight: 700; color: #D4266A; text-align: right; }
+    .one .sig { font-size: 48px; margin-top: 22px; }
+    .heart { position: absolute; left: -26px; bottom: -40px; width: 82px; height: 94px; background: #D4266A; border: 6px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 40px; transform: rotate(-8deg); box-shadow: 0 6px 14px rgba(0,0,0,0.2); }
+    .hint { position: absolute; left: 0; right: 0; bottom: 120px; text-align: center; color: #fff; font-weight: 700; font-size: 26px; text-shadow: 0 2px 8px rgba(0,0,0,0.45); }
+    .top { position: absolute; top: 96px; left: 40px; right: 40px; text-align: center; font-family: 'DM Serif Display', serif; font-size: 54px; line-height: 1.05; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+    .wall { padding: 44px 40px 28px; }
+    .wall .m { font-family: 'Caveat', cursive; font-weight: 500; font-size: 48px; line-height: 1.05; color: #1A1410; overflow-wrap: anywhere; }
+    .wall .sig { font-size: 38px; margin-top: 6px; }
+  </style></head><body><div class="bg"></div><div class="wash"></div><div class="stripe"></div>${inner}</body></html>`
+}
+// longer notes get a smaller hand, so every note fits the paper
+const noteSize = (t) => { const n = String(t).length; return n < 60 ? 72 : n < 110 ? 64 : n < 170 ? 54 : 46 }
+const wallSize = (t) => { const n = String(t).length; return n < 70 ? 48 : n < 130 ? 40 : 34 }
+export const NOTES = {
+  one: (j) => `<div class="s"><span class="n">${e(j.name)}</span>${j.location ? `<span class="l">${e(j.location)}</span>` : ''}</div>
+    <div class="note one" style="background-color: ${PAPERS[0]}; transform: translateY(-46%) rotate(-2deg)"><span class="tape" style="background: ${TAPES[0]}; transform: rotate(3deg)"></span>
+      <div class="m" style="font-size: ${noteSize(j.text)}px; line-height: ${Math.round(noteSize(j.text) * 0.98)}px">${e(j.text)}</div><div class="sig">— ${e(j.name)}</div><div class="heart">&#9829;</div></div>
+    <div class="hint">${j.memory ? 'wrote this' : 'wrote this for you'}</div>`,
+  // notes: the ones taped on so far (1 to 3); each new one lands below the last
+  wall: (j) => {
+    const tops = j.notes.length === 1 ? [470] : j.notes.length === 2 ? [330, 700] : [250, 560, 870]
+    const turns = [-3, 2.5, -1.5]
+    return `<div class="top">${j.memory ? 'A few words about' : 'A few words for'} ${e(j.first)}</div>` + j.notes.map((x, i) =>
+      `<div class="note wall" style="top: ${tops[i]}px; background-color: ${PAPERS[i % 3]}; transform: rotate(${turns[i % 3]}deg)"><span class="tape" style="background: ${TAPES[(i + 1) % 3]}; width: 120px; height: 34px; margin-left: -60px; top: -16px"></span>
+        <div class="m" style="font-size: ${wallSize(x.text)}px">${e(x.text)}</div><div class="sig">— ${e(x.name)}${x.location ? `, ${e(x.location)}` : ''}</div></div>`).join('')
+  },
+}
+
 export async function openPainter() {
   const { chromium } = await loadPlaywright()
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-gpu'] })
@@ -117,6 +170,7 @@ export async function openPainter() {
   return {
     card: (kind, data, theme, file) => paint(cardHtml(theme, CARDS[kind](data)), file, false),
     sticker: (name, location, file) => paint(stickerHtml(name, location), file, true),
+    note: (kind, data, opts, file) => paint(noteHtml(NOTES[kind](data), opts), file, false),
     close: () => browser.close(),
   }
 }

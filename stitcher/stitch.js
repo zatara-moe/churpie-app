@@ -147,6 +147,24 @@ async function makeCard(dst, png, seconds) {
   ])
 }
 
+// A note is never a frozen frame: it drifts in very slowly (about 4% over its time on screen).
+async function makeDrift(dst, png, seconds) {
+  const frames = Math.round(seconds * FPS)
+  await ffmpeg([
+    '-i', png, '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
+    '-filter_complex', `[0:v]scale=${W * 2}:${H * 2},zoompan=z='1+0.04*on/${frames}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${frames}:s=${W}x${H}:fps=${FPS},format=yuv420p[v]`,
+    '-map', '[v]', '-map', '1:a', '-t', String(seconds),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
+  ])
+}
+// one still frame from a finished clip: its last moment (the note after them) or its first (the note before them)
+async function grabFrame(src, dst, atEnd) {
+  await ffmpeg([...(atEnd ? ['-sseof', '-0.4'] : ['-ss', '0.3']), '-i', src, '-frames:v', '1', '-q:v', '4', dst]).catch(() => {})
+  return fs.existsSync(dst) ? dst : null
+}
+// time on screen follows the note: about 3 seconds plus reading time, never under 4 or over 9
+const readSeconds = (text) => Math.min(9, Math.max(4, 3 + String(text || '').trim().split(/\s+/).length * 0.3))
+
 // Concat, loop the music under it with ducking so voices always win, stamp the watermark. One encode.
 async function finalize(parts, dst, { music, withMusic }) {
   const list = path.join(path.dirname(dst), 'concat.txt')
@@ -215,25 +233,50 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       await push(norm, { kind: 'intro', name: job.hostName, clipId: null })
     }
 
-    // 3. every message, in the host's order
+    // 3a. every video first, so a written note can borrow the colors of the person next to it
+    const items = []
     let i = 0
     for (const clip of job.clips) {
       i++
-      const norm = path.join(tmp, `clip-${i}.mp4`)
-      if (clip.kind === 'text') {
-        await makeCard(norm, await painter.card('text', { text: clip.text, name: clip.name, location: clip.location }, theme, png(`text-${i}`)), 8)
-        await push(norm, { kind: 'text', name: clip.name, location: clip.location, clipId: clip.id })
-        continue
-      }
-      const raw = path.join(tmp, `clip-${i}-raw`)
+      if (clip.kind === 'text') { items.push({ clip }); continue }
+      const norm = path.join(tmp, `clip-${i}.mp4`), raw = path.join(tmp, `clip-${i}-raw`)
       log(`[${job.cardId}] clip ${i}/${job.clips.length} ${clip.name}`)
       await fetchClip(clip.key, raw)
       const info = await probe(raw)
       const { flags } = await analyze(raw, info)
       await onFlags(clip.id, flags, info.duration)
       await normalizeClip(raw, norm, { seconds: job.clipSeconds, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(clip.name, clip.location, png(`sticker-${i}`)) })
-      await push(norm, { kind: 'video', name: clip.name, location: clip.location, clipId: clip.id, flags })
+      items.push({ clip, norm, flags })
       fs.rmSync(raw, { force: true })
+    }
+
+    // 3b. the host's order. A note is taped over a blur of the person before it (or after it, if it opens the reel);
+    //     notes in a row become one "A few words for Rosa" moment, taped on one at a time, three to a screen.
+    const memory = job.moment === 'memory'
+    let k = 0, n = 0
+    while (k < items.length) {
+      const it = items[k]
+      if (it.norm) { await push(it.norm, { kind: 'video', name: it.clip.name, location: it.clip.location, clipId: it.clip.id, flags: it.flags }); k++; continue }
+      const run = []
+      while (k < items.length && !items[k].norm) run.push(items[k++].clip)
+      const before = [...items.slice(0, k - run.length)].reverse().find((x) => x.norm), after = items.slice(k).find((x) => x.norm)
+      const bg = before ? await grabFrame(before.norm, png(`bg-${k}`).replace('.png', '.jpg'), true) : after ? await grabFrame(after.norm, png(`bg-${k}`).replace('.png', '.jpg'), false) : null
+      const look = { bg, theme }
+      if (run.length === 1) {
+        const c = run[0], dst = path.join(tmp, `note-${++n}.mp4`)
+        await makeDrift(dst, await painter.note('one', { text: c.text, name: c.name, location: c.location, memory }, look, png(`note-${n}`)), readSeconds(c.text))
+        await push(dst, { kind: 'text', name: c.name, location: c.location, clipId: c.id })
+        continue
+      }
+      for (let g = 0; g < run.length; g += 3) {
+        const group = run.slice(g, g + 3)
+        for (let j = 0; j < group.length; j++) {
+          const c = group[j], dst = path.join(tmp, `note-${++n}.mp4`)
+          const shown = group.slice(0, j + 1).map((x) => ({ text: x.text, name: x.name, location: x.location }))
+          await makeCard(dst, await painter.note('wall', { notes: shown, first, memory }, look, png(`note-${n}`)), readSeconds(c.text))
+          await push(dst, { kind: 'text', name: c.name, location: c.location, clipId: c.id })
+        }
+      }
     }
 
     // 4. end card: the growth loop

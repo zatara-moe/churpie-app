@@ -1,0 +1,14 @@
+# churpie · rebuilds the reel maker and puts it live on Cloud Run, every time a push to main changes something in stitcher/.
+# Set up once with cloud-run/auto-deploy.sh. Keeps the service's settings and secrets as they are; only the code changes.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-t', 'us-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/churpie-stitcher:$SHORT_SHA', 'stitcher']
+  - name: gcr.io/cloud-builders/docker
+    args: ['push', 'us-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/churpie-stitcher:$SHORT_SHA']
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args: ['run', 'deploy', 'churpie-stitcher', '--image', 'us-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/churpie-stitcher:$SHORT_SHA', '--region', 'us-west1', '--quiet']
+images: ['us-west1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/churpie-stitcher:$SHORT_SHA']
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s

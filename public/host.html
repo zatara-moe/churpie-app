@@ -305,14 +305,16 @@ function invite() {
 
 // your own invite page, opened over the board: to add yours, or to see what guests see
 function openSheet(mode) {
-  $('#sheetNote').textContent = mode === 'record' ? `Adding yours for ${first}` : 'What your guests see'
-  $('#sheetFrame').src = `/c/${data.card.id}?from=board${mode === 'record' ? '&go=1' : ''}`
+  $('#sheetNote').textContent = mode === 'record' ? `Adding yours for ${first}` : mode === 'behalf' ? 'Adding a video someone sent you' : 'What your guests see'
+  $('#sheetFrame').src = `/c/${data.card.id}?from=board${mode === 'record' ? '&go=1' : mode === 'behalf' ? '&behalf=1' : ''}`
   $('#sheet').showModal()
 }
 $('#sheetBack').onclick = () => $('#sheet').close()
 $('#sheet').addEventListener('close', () => { $('#sheetFrame').src = 'about:blank'; refresh().catch(() => {}) })
 window.addEventListener('message', async (e) => {
   if (e.origin !== location.origin || e.data?.churpie !== 'added') return
+  // a video someone sent the host: back to the board, no invite prompt
+  if (e.data.behalf) { setTimeout(async () => { $('#sheet').close(); await refresh(); const who = String(e.data.name || '').trim().slice(0, 30); toast(who ? `${who}'s message is in.` : 'Their message is in.') }, 1400); return }
   // your message is in: back to the board, where the next step is waiting
   setTimeout(async () => {
     $('#sheet').close()
@@ -379,6 +381,7 @@ function goFirst() {
       <div><i>2</i><span>Send the invite to the group chat</span></div>
       <div><i>3</i><span>Make the reel when everyone's in</span></div>
     </div>
+    <button class="btn quiet" data-act="addFor" style="align-self: flex-start; width: auto; min-height: 44px; padding: 0; color: var(--pink-deep); font-size: 15px">Someone sent you their video? Add it for them</button>
     <div id="dockSlot"></div>`
   dock(`<button class="btn primary big" data-act="record" id="recordFirst"><span style="width: 14px; height: 14px; border-radius: 50%; background: #fff"></span>Record mine first</button>
     <button class="btn soft" id="skipFirst">Skip, invite people now</button>`)
@@ -413,6 +416,7 @@ function collecting() {
       <div class="stack" style="gap: 14px">
         <div><h1 class="hero">${headline}</h1><p class="sub" style="margin-top: 6px">${hint} <span class="live" title="New messages show up here on their own"><i></i>Live</span></p></div>
         ${facesRow(ready, { add: canInvite, me: canInvite && !mine })}
+        ${canInvite ? `<button class="btn quiet" data-act="addFor" style="align-self: flex-start; width: auto; min-height: 44px; padding: 0; color: var(--pink-deep); font-size: 15px">Someone sent you their video? Add it for them</button>` : ''}
         ${notes.join('')}
         ${!ready.length ? `<div class="invite-card stack" style="gap: 10px">
           <p class="ghost" style="text-transform: uppercase; letter-spacing: 1px">What they'll get</p>
@@ -579,6 +583,7 @@ document.addEventListener('click', async (e) => {
   const post = async (path, body) => { try { await api(`/api/host/${token}/${path}`, { method: 'POST', body }); return true } catch (err) { toast(err.message); return false } }
   if (act === 'invite') invite()
   else if (act === 'record') openSheet('record')
+  else if (act === 'addFor') openSheet('behalf')
   else if (act === 'preview') openSheet('preview')
   else if (act === 'nudge') { const t = nudgeText(); try { await navigator.clipboard.writeText(t) } catch {} ; share({ title: `A video for ${first}`, text: t }) }
   else if (act === 'make') confirmSend()

@@ -113,6 +113,7 @@
 <script type="module" src="/brand.js"></script>
 <main class="wrap stack" id="app" style="padding-bottom: 24px; padding-top: 16px">
   <span id="hostLine" hidden></span><span id="title" hidden></span>
+  <p class="rulebox hidden" id="behalfNote" style="margin: 0"><b>Adding a video someone sent you.</b> Tap Upload a video and pick it from your phone, then add their name. It goes in the reel as theirs.</p>
 
   <!-- the brief -->
   <div class="note" id="note">
@@ -197,8 +198,8 @@
       <h2>Write it instead</h2>
       <p class="muted">It shows up in the reel as a postcard with your name on it. Up to 280 characters.</p>
       <label class="field">Your message<textarea name="text" required maxlength="280"></textarea></label>
-      <label class="field">Your name<input type="text" name="name" required maxlength="40"></label>
-      <label class="field">Where you are (optional)<input type="text" name="location" maxlength="40"></label>
+      <label class="field"><span>Your name <span class="eg">· like Grandma J</span></span><input type="text" name="name" required maxlength="40" autocapitalize="words"></label>
+      <label class="field"><span>Where you are <span class="eg">· optional, like Phoenix, AZ</span></span><input type="text" name="location" maxlength="40" autocapitalize="words"></label>
       <div class="row">
         <button class="btn outline" type="button" id="writeBack">Back</button>
         <button class="btn primary" type="submit">Send it</button>
@@ -262,6 +263,16 @@ if (card.clipCount && card.names?.length && !editToken) {
 if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
 // opened over the board (a sheet) or on its own: either way the host always has a way back
 const embedded = window.self !== window.top
+// the host adding a video someone sent them: same page, but every "you" becomes "they"
+const behalf = embedded && new URLSearchParams(location.search).has('behalf')
+if (behalf) {
+  $('#behalfNote').classList.remove('hidden')
+  document.querySelectorAll('#checkForm label.field > span:first-child, #writeForm label.field > span:first-child').forEach((s) => { s.firstChild.textContent = s.firstChild.textContent.replace('Your name', 'Their name').replace('Where you are', 'Where they are') })
+  document.querySelectorAll('#writeForm label.field').forEach((l) => { if (l.firstChild?.nodeType === 3) l.firstChild.textContent = l.firstChild.textContent.replace('Your message', 'Their message') })
+  document.querySelector('#asReel .cap').textContent = "This is how they'll appear in the reel"
+  $('#tagName').textContent = 'Their name'
+  $('#retake').textContent = 'Pick another'
+}
 if (embedded) document.querySelector('.tnav')?.remove() // the card page's sheet already has its own bar
 if (myBoard && !embedded) {
   // in the top bar's right corner, where "Your cards" lives on every other page
@@ -405,7 +416,7 @@ function reviewBlob(b, seconds) {
   $('#checkNotes').innerHTML = notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('')
   v.onloadedmetadata = () => {
     if (isFinite(v.duration) && v.duration > LIMIT + 1) notes.push(`This one is ${Math.round(v.duration)} seconds and ${hostFirst} asked for ${LIMIT}. We'll use the first ${LIMIT}, so put the good part up front, or trim it on your phone first.`)
-    $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : `<p class="muted">Looks good. Does it answer ${escapeHtml(hostFirst)}'s question? Then add your name and send it.</p>`) + `<p class="ghost">${escapeHtml(hostFirst)} asked: “${escapeHtml(card.prompt)}”</p>`
+    $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : `<p class="muted">Looks good. Does it answer ${escapeHtml(hostFirst)}'s question? Then add ${behalf ? 'their' : 'your'} name and send it.</p>`) + `<p class="ghost">${escapeHtml(hostFirst)} asked: “${escapeHtml(card.prompt)}”</p>`
   }
   step(2); show('check')
   // the next thing to do is add your name and send, so bring that into view
@@ -414,7 +425,7 @@ function reviewBlob(b, seconds) {
 if ($('#retake')) $('#retake').onclick = () => { blob = null; tooBig = false; $('#sendClip').disabled = false; step(1); show('record') }
 
 // the sticker shows their name as they type, the way the reel will
-$('#checkForm [name=name]').addEventListener('input', (e) => { $('#tagName').textContent = e.target.value.trim() || 'Your name' })
+$('#checkForm [name=name]').addEventListener('input', (e) => { $('#tagName').textContent = e.target.value.trim() || (behalf ? 'Their name' : 'Your name') })
 $('#checkForm [name=location]').addEventListener('input', (e) => { const t = e.target.value.trim(); $('#tagPlace').textContent = t; $('#tagPlace').classList.toggle('hidden', !t) })
 // fold the tips away once someone starts, and remember they've seen them
 try { if (localStorage.getItem('churpie:tips-seen')) $('#howto').open = false; else if (matchMedia('(min-width: 960px)').matches) $('#howto').open = true } catch {}
@@ -458,8 +469,8 @@ function finish(reg, name) {
   $('#laterText').textContent = `You can swap or remove your message until ${hostFirst} makes the reel. Save your private link.`
   $('#editText').href = `sms:?&body=${encodeURIComponent(`My churpie message for ${first} (to redo it): ${reg.editUrl}`)}`
   $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
-  try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {}
-  if (embedded) { try { parent.postMessage({ churpie: 'added' }, location.origin) } catch {} }
+  if (!behalf) try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {} // someone else's video isn't "yours" to edit from here
+  if (embedded) { try { parent.postMessage({ churpie: 'added', behalf, name }, location.origin) } catch {} }
   if (myBoard) {
     // the host is done with this page; the next job (inviting people) lives on the board
     $('#shareOn').textContent = 'Back to your card'
