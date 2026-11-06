@@ -20,7 +20,16 @@ export function wordmark({ size = 26, hop = true } = {}) {
   return `<span class="wordmark" style="font-size:${size}px">churpie<span class="wm-bird${hop ? ' hop' : ''}">${bird({ size: Math.round(size * 0.72) })}</span></span>`
 }
 
-function cardCount() { try { return JSON.parse(localStorage.getItem('churpie:boards') || '[]').length } catch { return 0 } }
+// live cards only: the ones this device made (host links) that we haven't deleted yet
+function cardCount() { try { return JSON.parse(localStorage.getItem('churpie:boards') || '[]').filter((b) => /\/h\//.test(b.url || '') && b.status !== 'gone' && b.status !== 'expired').length } catch { return 0 } }
+// recount after a page learns a card's fresh state
+export function refreshNavCount() {
+  const a = document.querySelector('.tnav-cards'); if (!a) return
+  const n = cardCount(); let b = a.querySelector('.badge')
+  if (!n) { b?.remove(); return }
+  if (!b) { b = document.createElement('span'); b.className = 'badge'; a.append(b) }
+  b.textContent = n
+}
 
 // The top bar: logo left (always home), the page's name in the middle, Your cards on the right.
 // <header class="tnav" data-middle="..." data-right="start|cards|none"></header>

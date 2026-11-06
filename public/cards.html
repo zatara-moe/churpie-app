@@ -71,8 +71,8 @@
 <div class="dock" id="dock"><a class="btn primary" href="/new">Start a card</a></div>
 
 <script type="module">
-import { $, escapeHtml as esc, myBoards, forgetBoard, fmtDays, toast } from '/app.js'
-import { icon, bird } from '/brand.js'
+import { $, escapeHtml as esc, myBoards, forgetBoard, noteStatus, fmtDays, toast } from '/app.js'
+import { icon, bird, refreshNavCount } from '/brand.js'
 
 const MOMENT = { birthday: 'Birthday', congrats: 'Congrats', thankyou: 'Thank you', getwell: 'Get well', missyou: 'Miss you', memory: 'In memory', team: 'Team send-off', business: 'For a business' }
 const COLORS = ['#D4266A', '#0B9DAA']
@@ -140,12 +140,14 @@ async function draw() {
     $('#list').innerHTML = groups.map(([label, l]) => `<section class="group"><p class="eyebrow">${label}</p>${l.map((b) => row(b, i++)).join('')}</section>`).join('')
   }
   paint(saved)
-  paint(await Promise.all(saved.map(fresh)))
+  const now = await Promise.all(saved.map(fresh))
+  now.forEach((b) => noteStatus(b.url, b.status)); refreshNavCount()
+  paint(now)
 }
 
 $('#list').addEventListener('click', (e) => {
   const x = e.target.closest('[data-forget]'); if (!x) return
-  forgetBoard(x.dataset.forget); toast('Removed from this device.'); draw()
+  forgetBoard(x.dataset.forget); toast('Removed from this device.'); refreshNavCount(); draw()
 })
 document.addEventListener('click', (e) => { $$('details.more[open]').forEach((d) => { if (!d.contains(e.target)) d.open = false }) })
 function $$(s) { return [...document.querySelectorAll(s)] }

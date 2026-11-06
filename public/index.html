@@ -29,13 +29,6 @@
   .h-sec h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; }
   .h-sec h2 + p { color: var(--ink-faded); font-size: 15px; }
 
-  /* returning host: a slim airmail strip, only when this device has cards */
-  .back { margin-top: 16px; display: flex; align-items: center; gap: 14px; background: #fff; border-radius: var(--radius); padding: 12px 16px 12px 22px; position: relative; overflow: hidden; text-decoration: none; color: var(--ink); animation: rise-in 420ms ease-out both; }
-  .back::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: repeating-linear-gradient(180deg, var(--pink) 0 10px, #fff 10px 16px, var(--cyan) 16px 26px, #fff 26px 32px); }
-  .back .postmark { width: 50px; height: 50px; font-size: 7px; color: var(--pink); --rot: -8deg; transform: rotate(-8deg); }
-  .back span.t { flex: 1; font-size: 14px; line-height: 1.35; } .back span.t b { font-size: 15px; }
-  .back span.go { font-weight: 700; color: var(--pink-deep); white-space: nowrap; }
-
   /* hero */
   .hero { padding-top: 32px; display: grid; gap: 28px; }
   .hero .copy { display: flex; flex-direction: column; gap: 18px; }
@@ -131,11 +124,46 @@
   .foot-made .postmark { width: 72px; height: 72px; font-size: 8px; margin-top: 4px; transform: rotate(-12deg); }
   .foot-base { max-width: 1160px; margin: 0 auto; padding: 14px 20px 28px; border-top: 1px solid var(--paper-dark); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--ink-ghost); }
 
-  /* phone: once the hero button scrolls away, a slim bar keeps "Start a card" in reach */
-  .float { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; padding: 10px 16px calc(14px + env(safe-area-inset-bottom)); background: rgba(245,240,232,0.95); border-top: 1px solid #E2DACB; transform: translateY(110%); transition: transform 240ms ease; }
-  .float.on { transform: none; }
-  .float .btn { min-height: 52px; font-weight: 700; }
-  @media (prefers-reduced-motion: reduce) { .float { transition: none; } }
+  /* app shell: the first screen is the start of a card */
+  html { -webkit-tap-highlight-color: transparent; }
+  .start { gap: 14px !important; }
+  .start h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 34px; line-height: 1.06; letter-spacing: -0.3px; }
+  .start .sub { color: var(--ink-faded); font-size: 15px; margin-top: -4px; max-width: 480px; }
+  .start .namebox { gap: 6px; }
+  .start .stamps { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .start .occ { flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 10px 4px 9px; }
+  .start .occ .stamp { width: 44px; height: 50px; }
+  .start .occ strong { font-size: 12px; line-height: 1.15; }
+  .occ:active { transform: scale(0.96); }
+  .start .plain { font-size: 14px; color: var(--ink-faded); } .start .plain a { color: var(--pink-deep); font-weight: 700; }
+  .join { display: flex; align-items: center; gap: 10px; background: var(--cyan-pale); border-radius: var(--radius); padding: 10px 10px 10px 14px; color: #075E66; }
+  .join label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; min-width: 0; }
+  .join input { padding: 9px 12px !important; font-size: 15px !important; border-radius: 10px !important; border-color: var(--cyan-light) !important; }
+  .join .btn { width: auto; min-height: 42px; padding: 0 16px; align-self: flex-end; font-size: 14px; }
+  .join-err { font-size: 13px; font-weight: 600; color: var(--pink-deep); margin-top: -6px; }
+
+  /* returning host: their cards come first */
+  .mine { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; animation: rise-in 420ms ease-out both; }
+  .mine .hd { display: flex; justify-content: space-between; align-items: baseline; }
+  .mine .hd h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; letter-spacing: -0.2px; }
+  .mine .hd a { font-size: 14px; font-weight: 700; color: var(--pink-deep); }
+  .mc { display: flex; align-items: center; gap: 12px; background: #fff; border-radius: 0 var(--radius) var(--radius) 0; border-left: 5px solid var(--amber, #F2B33D); padding: 12px 14px; text-decoration: none; color: var(--ink); }
+  .mc:active { transform: scale(0.98); }
+  .mc.ready { border-left-color: var(--pink); } .mc.done { border-left-color: var(--cyan); }
+  .mc .t { flex: 1; min-width: 0; } .mc .t b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mc .t span { font-size: 13px; font-weight: 600; color: var(--ink-faded); }
+  .mc .go { font-size: 14px; font-weight: 700; color: var(--ink-faded); white-space: nowrap; }
+  .mc.ready .go { color: #fff; background: var(--pink); padding: 7px 14px; border-radius: 999px; }
+  .start.back .eyebrow, .start.back .sub { display: none; }
+  .start.back h1 { font-size: 26px !important; margin-top: 8px; }
+
+  /* phone: a bottom tab bar, like an app */
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(245,240,232,0.96); border-top: 1px solid #E2DACB; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .tabs a, .tabs button { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; font-size: 11px; font-weight: 700; color: var(--ink-faded); position: relative; border-radius: 12px; }
+  .tabs .on { color: var(--pink-deep); }
+  .tabs :focus-visible { outline: 3px solid var(--cyan); }
+  .tabs .badge { position: absolute; top: 2px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pink); color: #fff; font-size: 11px; line-height: 18px; text-align: center; box-sizing: border-box; }
+  @media (max-width: 719px) { body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); } .hero .ticks { display: none; } }
 
   dialog.sample { border: 0; padding: 0; background: transparent; max-width: 92vw; }
   dialog.sample::backdrop { background: rgba(26,20,16,0.7); }
@@ -153,11 +181,14 @@
     .faq { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
     .foot-in { grid-template-columns: 1.5fr 1fr 1fr 1fr; padding: 48px 40px 24px; } .foot-brand { grid-column: auto; }
     .foot-base { padding: 16px 40px 32px; }
-    .float { display: none; }
+    .tabs { display: none; }
+    .start h1 { font-size: 46px; }
+    .start .occ .stamp { width: 52px; height: 60px; }
+    .start .occ strong { font-size: 14px; }
   }
   @media (min-width: 960px) {
     .hero { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 56px; align-items: center; padding-top: 56px; }
-    .hero .display { font-size: 64px; }
+    .start h1 { font-size: 58px; }
     .hero .lede { font-size: 19px; }
     .pc { width: 340px; }
     .h-sec { padding-top: 96px; gap: 28px; }
@@ -169,19 +200,24 @@
 <body>
 <header class="tnav" data-right="start"></header>
 <main class="home">
-  <a class="back hidden" id="back" href="/cards"></a>
 
   <section class="hero">
-    <div class="copy">
+    <div class="copy start" id="start">
+      <section class="mine hidden" id="mine" aria-label="Your cards"></section>
       <p class="eyebrow">Group video cards · free</p>
-      <h1 class="display">A video card from everyone who loves them</h1>
-      <p class="tagline">So they know they're loved.</p>
-      <p class="lede">On their biggest day or their hardest week, they hear from everyone at once. One link, a few seconds each, and one reel they'll play again and again.</p>
-      <p class="ghost" style="margin: 0 0 8px"><span class="pill" style="background:#E6F7F9;color:#0B6C78;border-radius:999px;padding:2px 9px;font-weight:700">New</span> Start your card with one tap of Google. No email to wait for.</p>
-      <div class="ctas">
-        <a class="btn primary" href="/new" id="heroStart"><span data-icon="pencil-simple-line" data-line="#fff" data-tint="rgba(255,255,255,0.3)"></span>Start a card</a>
-        <button class="btn outline" type="button" id="sampleBtn"><span data-icon="play" data-tint="var(--tint-cyan)"></span>Watch a sample</button>
-      </div>
+      <h1>Who needs to hear from everyone?</h1>
+      <p class="sub">A free video card from everyone who loves them. One link, a few seconds each, one reel they'll play again and again.</p>
+      <form class="namebox" id="forForm" action="/new" autocomplete="off">
+        <label class="field">Their first name<input type="text" id="forName" name="for" maxlength="60" placeholder="Rosa" enterkeyhint="next" autocapitalize="words"></label>
+      </form>
+      <nav class="stamps" aria-label="Pick the moment to start their card" id="stamps"></nav>
+      <p class="plain">Something else? <a href="/new" id="heroStart">Start a card</a></p>
+      <form class="join" id="join" novalidate>
+        <span data-icon="link" data-size="22" data-tint="transparent"></span>
+        <label>Got a link from someone?<input type="text" id="joinLink" inputmode="url" placeholder="Paste it here" autocomplete="off"></label>
+        <button class="btn" type="submit">Open</button>
+      </form>
+      <p class="join-err hidden" id="joinErr" role="alert">That doesn't look like a churpie link. They start with churpie.me/c/</p>
       <p class="ticks"><span><span data-icon="check" data-size="16" data-tint="transparent"></span>Free</span><span><span data-icon="check" data-size="16" data-tint="transparent"></span>About a minute</span><span><span data-icon="check" data-size="16" data-tint="transparent"></span>No sign-in to join</span></p>
     </div>
     <div class="pc-wrap">
@@ -204,13 +240,9 @@
       <li class="step"><div class="art mail" aria-hidden="true"><span class="b">I'm making a video for Rosa and I'd love you in it</span><span class="l"><span data-icon="link" data-size="14" data-tint="transparent"></span>churpie.me/c/7yae565r</span></div><div class="t"><span class="n">2</span><strong>Share one link</strong><span class="who">Everyone</span></div><p>Paste it in the group chat. Each person taps, records 15 seconds, done. No sign-in needed.</p></li>
       <li class="step"><div class="art faces" aria-hidden="true" id="stepFaces"></div><div class="t"><span class="n">3</span><strong>Send the reel</strong><span class="who">You</span></div><p>Watch every message first and hide any you like. We even out the sound and add music and names. Then send one reel they keep.</p></li>
     </ol>
-  </section>
-
-  <section class="h-sec">
-    <header class="split"><div class="stack" style="gap: 8px"><p class="eyebrow">Occasions</p><h2>Any moment worth gathering for</h2></div><p class="muted" style="font-size: 15px">Each one starts a card with a question and a look that fit.</p></header>
-    <nav class="stamps" aria-label="Start a card for a moment" id="stamps"></nav>
     <p class="guides">Ideas and questions to ask: <a href="/birthday">birthdays</a> · <a href="/retirement">retirements</a> · <a href="/get-well">get well</a> · <a href="/memorial">in memory</a> · <a href="/compare">vs. paid apps</a></p>
   </section>
+
 
   <section class="h-sec">
     <div class="promises">
@@ -247,12 +279,16 @@
   </div>
   <div class="foot-base"><span>© 2026 Sherwood Digital</span><span>Free for people, always · Everything deleted 14 days after the reel is made</span></div>
 </footer>
-<div class="float" id="float"><a class="btn primary" href="/new">Start a card</a></div>
+<nav class="tabs" aria-label="churpie">
+  <a href="/new" id="tabNew" class="on" aria-current="page"><span data-icon="pencil-simple-line" data-size="24" data-tint="var(--pink-pale)"></span>New card</a>
+  <a href="/cards" id="tabCards"><span data-icon="mailbox" data-size="24" data-tint="var(--cyan-pale)"></span>Your cards<b class="badge hidden" id="tabCount"></b></a>
+  <button type="button" id="tabSample"><span data-icon="play" data-size="24" data-tint="var(--amber-pale, #FBEBC8)"></span>Watch a sample</button>
+</nav>
 <dialog class="sample" id="sample" aria-label="A sample churpie reel"><video id="sampleVid" controls playsinline preload="none"></video><button class="btn" type="button" id="sampleClose">Close</button></dialog>
 
 <script type="module">
   import { DEMO_PEOPLE, personSVG } from '/people.js'
-  import { icon, wordmark } from '/brand.js'
+  import { icon, wordmark, refreshNavCount } from '/brand.js'
   const $ = (s) => document.querySelector(s)
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
   document.querySelectorAll('[data-icon]').forEach((el) => { el.outerHTML = icon(el.dataset.icon, { size: Number(el.dataset.size || 20), line: el.dataset.line || 'currentColor', tint: el.dataset.tint || 'var(--tint)' }) })
@@ -260,7 +296,26 @@
 
   // occasions: a sheet of stamps, two colors, one icon each
   const OCC = [['birthday', 'Birthday', 'cake'], ['congrats', 'Graduation', 'graduation-cap'], ['welcome', 'Welcome home', 'house'], ['getwell', 'Get well', 'hand-heart'], ['retirement', 'Retirement', 'clock-countdown'], ['thankyou', 'Thank you', 'heart'], ['team', 'Team send-off', 'users-three'], ['memory', 'In memory', 'flower-lotus']]
-  $('#stamps').innerHTML = OCC.map(([id, label, ic], i) => `<a class="occ" href="/new?moment=${id}"><span class="stamp${i % 2 ? ' cyan' : ''}"><span>${icon(ic, { size: 30, line: '#fff', tint: 'rgba(255,255,255,0.35)' })}</span></span><strong>${label}</strong></a>`).join('')
+  $('#stamps').innerHTML = OCC.map(([id, label, ic], i) => `<a class="occ" href="/new?moment=${id}" data-moment="${id}"><span class="stamp${i % 2 ? ' cyan' : ''}"><span>${icon(ic, { size: 30, line: '#fff', tint: 'rgba(255,255,255,0.35)' })}</span></span><strong>${label}</strong></a>`).join('')
+
+  // a stamp starts that kind of card, carrying the name if they typed one
+  const nameNow = () => $('#forName').value.trim().slice(0, 60)
+  const startUrl = (moment) => { const q = new URLSearchParams(); if (moment) q.set('moment', moment); if (nameNow()) q.set('for', nameNow()); const t = q.toString(); return '/new' + (t ? '?' + t : '') }
+  $('#stamps').addEventListener('click', (e) => { const a = e.target.closest('.occ'); if (!a) return; e.preventDefault(); location.href = startUrl(a.dataset.moment) })
+  $('#forForm').addEventListener('submit', (e) => { e.preventDefault(); if (!nameNow()) return $('#forName').focus(); $('#stamps .occ').focus() })
+  $('#heroStart').addEventListener('click', (e) => { e.preventDefault(); location.href = startUrl() })
+
+  // "Got a link?": a pasted churpie link (or just its code) opens that card
+  $('#join').addEventListener('submit', (e) => {
+    e.preventDefault()
+    const v = $('#joinLink').value.trim(), m = v.match(/\/c\/([A-Za-z0-9_-]{4,})/) || v.match(/^([A-Za-z0-9_-]{6,})$/)
+    $('#joinErr').classList.toggle('hidden', !!m || !v)
+    if (m) location.href = '/c/' + m[1]; else if (!v) $('#joinLink').focus()
+  })
+  $('#joinLink').addEventListener('input', () => $('#joinErr').classList.add('hidden'))
+
+  // tab bar: New card brings you back to the name box
+  $('#tabNew').addEventListener('click', (e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' }); setTimeout(() => $('#forName').focus({ preventScroll: true }), still ? 0 : 350) })
 
   // the postcard reel: people cycling through, or the real sample once it's there
   const screen = $('#screen'), segs = $('#segs')
@@ -279,26 +334,55 @@
   fetch('/demo/reel.mp4', { method: 'HEAD' }).then((r) => { if (r.ok && (r.headers.get('content-type') || '').startsWith('video')) { hasSample = true; const v = $('#demoVid'); v.src = '/demo/reel.mp4'; v.classList.remove('hidden'); segs.classList.add('hidden') } }).catch(() => {})
 
   // "Watch a sample": the real reel, with sound
-  $('#sampleBtn').onclick = () => {
+  function openSample() {
     if (!hasSample) { document.getElementById('how').scrollIntoView({ behavior: still ? 'auto' : 'smooth' }); return }
     const v = $('#sampleVid'); if (!v.src) v.src = '/demo/reel.mp4'
     $('#sample').showModal(); v.currentTime = 0; v.play().catch(() => {})
   }
+  $('#tabSample').onclick = openSample
+  $('.pc .in').addEventListener('click', openSample); $('.pc .in').style.cursor = 'pointer'
   $('#sampleClose').onclick = () => $('#sample').close()
   $('#sample').addEventListener('close', () => $('#sampleVid').pause())
 
-  // returning host: one slim strip pointing to their cards
-  import('/app.js').then(({ myBoards }) => {
+  // returning host: their cards come first, freshest state from the server
+  import('/app.js').then(async ({ myBoards, fmtDays, noteStatus }) => {
     const boards = myBoards().filter((b) => /\/h\//.test(b.url)); if (!boards.length) return
-    const ready = boards.find((b) => b.status === 'ready')
-    const first = (n) => String(n || '').trim().split(/\s+/)[0]
-    const back = $('#back')
-    back.innerHTML = `<span class="postmark" aria-hidden="true"><span>${ready ? 'ready' : 'your'}</span><b>${ready ? 'send' : 'cards'}</b></span><span class="t">${ready ? `<b>${esc(first(ready.name))}'s reel is ready.</b><br>` : '<b>Welcome back.</b><br>'}You have ${boards.length} ${boards.length === 1 ? 'card' : 'cards'} on this device.</span><span class="go">Open →</span>`
-    back.classList.remove('hidden')
+    $('#tabCount').textContent = boards.length; $('#tabCount').classList.remove('hidden')
+    const first = (n) => String(n || '').trim().split(/\s+/)[0] || 'someone'
+    const fresh = async (b) => {
+      try {
+        const r = await fetch(`/api/host/${new URL(b.url, location.origin).pathname.split('/')[2]}`)
+        if (r.status === 404) return { ...b, status: 'gone' }
+        if (!r.ok) return b
+        const { card, clips } = await r.json()
+        return { ...b, name: card.recipientName, moment: card.moment, status: card.status, n: clips.filter((c) => c.status === 'ready').length, deadlineAt: card.deadlineAt, deadlinePassed: card.deadlinePassed }
+      } catch { return b }
+    }
+    const line = (b) => {
+      const s = b.status, n = b.n || 0, ppl = `${n} ${n === 1 ? 'person' : 'people'} in`
+      if (s === 'ready') return ['ready', 'Their reel is ready', 'Send it']
+      if (s === 'failed') return ['ready', 'The reel needs another try', 'Open']
+      if (s === 'queued' || s === 'stitching') return ['', 'We are making the reel', 'Open']
+      if (s === 'sent') return ['done', 'Delivered', 'Open']
+      if (b.n === undefined) return ['', 'Your card', 'Open']
+      if (!n) return ['', 'Nobody yet. Share the link', 'Open']
+      return ['', b.deadlineAt && !b.deadlinePassed ? `${ppl} · ${fmtDays(b.deadlineAt)} left` : ppl, 'Open']
+    }
+    const paint = (list) => {
+      const live = list.filter((b) => b.status !== 'gone' && b.status !== 'expired')
+      $('#tabCount').textContent = live.length; $('#tabCount').classList.toggle('hidden', !live.length)
+      if (!live.length) { $('#mine').classList.add('hidden'); $('#start').classList.remove('back'); $('#start h1').textContent = 'Who needs to hear from everyone?'; return }
+      const order = { ready: 0, failed: 0 }, top = [...live].sort((x, y) => (order[x.status] ?? 1) - (order[y.status] ?? 1)).slice(0, 3)
+      $('#mine').innerHTML = `<div class="hd"><h2>Your cards</h2>${live.length > 3 ? `<a href="/cards">See all ${live.length}</a>` : ''}</div>` +
+        top.map((b) => { const [cls, txt, go] = line(b); return `<a class="mc ${cls}" href="${esc(b.url)}"><span class="t"><b>${b.moment === 'memory' ? 'In memory of' : 'For'} ${esc(first(b.name))}</b><span>${esc(txt)}</span></span><span class="go">${go}</span></a>` }).join('')
+      $('#mine').classList.remove('hidden'); $('#start').classList.add('back'); $('#start h1').textContent = 'Start another card'
+    }
+    paint(boards)
+    const now = await Promise.all(boards.map(fresh))
+    now.forEach((b) => noteStatus(b.url, b.status)); refreshNavCount()
+    paint(now)
   }).catch(() => {})
 
-  // phone: keep "Start a card" in reach once the hero button scrolls off
-  if ('IntersectionObserver' in window) new IntersectionObserver(([e]) => $('#float').classList.toggle('on', !e.isIntersecting && e.boundingClientRect.top < 0)).observe($('#heroStart'))
 </script>
 </body>
 </html>

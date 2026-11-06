@@ -101,6 +101,14 @@ export function rememberBoard(entry) {
     localStorage.setItem('churpie:last-host', entry.url)
   } catch {}
 }
+// remember a card's latest state, so counts can leave out cards we've deleted
+export function noteStatus(url, status) {
+  try {
+    const list = JSON.parse(localStorage.getItem(BOARDS) || '[]'), b = list.find((x) => x.url === url)
+    if (!b || !status || b.status === status) return
+    b.status = status; localStorage.setItem(BOARDS, JSON.stringify(list))
+  } catch {}
+}
 export function forgetBoard(url) {
   try {
     localStorage.setItem(BOARDS, JSON.stringify(myBoards().filter((b) => b.url !== url)))
