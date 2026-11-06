@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="/app.css">
 <style>
   .home { max-width: 1160px; margin: 0 auto; padding: 0 20px; }
+  .h-sec, .hero { scroll-margin-top: 70px; }
   .h-sec { padding-top: 64px; display: flex; flex-direction: column; gap: 22px; }
   .h-sec > header { display: flex; flex-direction: column; gap: 8px; }
   .h-sec h2 { font-size: 26px; font-weight: 700; letter-spacing: -0.4px; }
@@ -158,7 +159,7 @@
   .start.back h1 { font-size: 26px !important; margin-top: 8px; }
 
   /* phone: a bottom tab bar, like an app */
-  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(245,240,232,0.96); border-top: 1px solid #E2DACB; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); padding: 6px 8px calc(8px + env(safe-area-inset-bottom)); background: rgba(245,240,232,0.96); border-top: 1px solid #E2DACB; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
   .tabs a, .tabs button { all: unset; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; font-size: 11px; font-weight: 700; color: var(--ink-faded); position: relative; border-radius: 12px; }
   .tabs .on { color: var(--pink-deep); }
   .tabs :focus-visible { outline: 3px solid var(--cyan); }
@@ -201,7 +202,7 @@
 <header class="tnav" data-right="start"></header>
 <main class="home">
 
-  <section class="hero">
+  <section class="hero" id="top">
     <div class="copy start" id="start">
       <section class="mine hidden" id="mine" aria-label="Your cards"></section>
       <p class="eyebrow">Group video cards · free</p>
@@ -280,9 +281,10 @@
   <div class="foot-base"><span>© 2026 Sherwood Digital</span><span>Free for people, always · Everything deleted 14 days after the reel is made</span></div>
 </footer>
 <nav class="tabs" aria-label="churpie">
-  <a href="/new" id="tabNew" class="on" aria-current="page"><span data-icon="pencil-simple-line" data-size="24" data-tint="var(--pink-pale)"></span>New card</a>
-  <a href="/cards" id="tabCards"><span data-icon="mailbox" data-size="24" data-tint="var(--cyan-pale)"></span>Your cards<b class="badge hidden" id="tabCount"></b></a>
-  <button type="button" id="tabSample"><span data-icon="play" data-size="24" data-tint="var(--amber-pale, #FBEBC8)"></span>Watch a sample</button>
+  <a href="#top" id="tabNew" class="on" data-spy="top"><span data-icon="pencil-simple-line" data-size="24" data-tint="var(--pink-pale)"></span>Start</a>
+  <a href="/cards" id="tabCards" class="hidden"><span data-icon="mailbox" data-size="24" data-tint="var(--cyan-pale)"></span>Your cards<b class="badge hidden" id="tabCount"></b></a>
+  <a href="#how" id="tabHow" data-spy="how"><span data-icon="question" data-size="24" data-tint="var(--cyan-pale)"></span>How it works</a>
+  <a href="#faq" id="tabFaq" data-spy="faq"><span data-icon="chat-circle-text" data-size="24" data-tint="var(--amber-pale)"></span>Questions</a>
 </nav>
 <dialog class="sample" id="sample" aria-label="A sample churpie reel"><video id="sampleVid" controls playsinline preload="none"></video><button class="btn" type="button" id="sampleClose">Close</button></dialog>
 
@@ -295,7 +297,7 @@
   $('#footMark').innerHTML = wordmark({ size: 30, hop: false })
 
   // occasions: a sheet of stamps, two colors, one icon each
-  const OCC = [['birthday', 'Birthday', 'cake'], ['congrats', 'Graduation', 'graduation-cap'], ['welcome', 'Welcome home', 'house'], ['getwell', 'Get well', 'hand-heart'], ['retirement', 'Retirement', 'clock-countdown'], ['thankyou', 'Thank you', 'heart'], ['team', 'Team send-off', 'users-three'], ['memory', 'In memory', 'flower-lotus']]
+  const OCC = [['birthday', 'Birthday', 'cake'], ['getwell', 'Get well', 'hand-heart'], ['thankyou', 'Thank you', 'heart'], ['retirement', 'Retirement', 'clock-countdown'], ['congrats', 'Graduation', 'graduation-cap'], ['welcome', 'Welcome home', 'house'], ['team', 'Team send-off', 'users-three'], ['memory', 'In memory', 'flower-lotus']]
   $('#stamps').innerHTML = OCC.map(([id, label, ic], i) => `<a class="occ" href="/new?moment=${id}" data-moment="${id}"><span class="stamp${i % 2 ? ' cyan' : ''}"><span>${icon(ic, { size: 30, line: '#fff', tint: 'rgba(255,255,255,0.35)' })}</span></span><strong>${label}</strong></a>`).join('')
 
   // a stamp starts that kind of card, carrying the name if they typed one
@@ -315,7 +317,14 @@
   $('#joinLink').addEventListener('input', () => $('#joinErr').classList.add('hidden'))
 
   // tab bar: New card brings you back to the name box
-  $('#tabNew').addEventListener('click', (e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' }); setTimeout(() => $('#forName').focus({ preventScroll: true }), still ? 0 : 350) })
+  $('#tabNew').addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', location.pathname); window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' }); setTimeout(() => $('#forName').focus({ preventScroll: true }), still ? 0 : 350) })
+
+  // the tab for the part of the page you're reading lights up
+  if ('IntersectionObserver' in window) {
+    const tabs = [...document.querySelectorAll('.tabs [data-spy]')]
+    const spy = new IntersectionObserver((es) => es.forEach((x) => { if (!x.isIntersecting) return; tabs.forEach((t) => { const on = t.dataset.spy === x.target.id; t.classList.toggle('on', on); on ? t.setAttribute('aria-current', 'location') : t.removeAttribute('aria-current') }) }), { rootMargin: '-45% 0px -50% 0px' })
+    ;['top', 'how', 'faq'].forEach((id) => document.getElementById(id) && spy.observe(document.getElementById(id)))
+  }
 
   // the postcard reel: people cycling through, or the real sample once it's there
   const screen = $('#screen'), segs = $('#segs')
@@ -339,7 +348,6 @@
     const v = $('#sampleVid'); if (!v.src) v.src = '/demo/reel.mp4'
     $('#sample').showModal(); v.currentTime = 0; v.play().catch(() => {})
   }
-  $('#tabSample').onclick = openSample
   $('.pc .in').addEventListener('click', openSample); $('.pc .in').style.cursor = 'pointer'
   $('#sampleClose').onclick = () => $('#sample').close()
   $('#sample').addEventListener('close', () => $('#sampleVid').pause())
@@ -347,7 +355,6 @@
   // returning host: their cards come first, freshest state from the server
   import('/app.js').then(async ({ myBoards, fmtDays, noteStatus }) => {
     const boards = myBoards().filter((b) => /\/h\//.test(b.url)); if (!boards.length) return
-    $('#tabCount').textContent = boards.length; $('#tabCount').classList.remove('hidden')
     const first = (n) => String(n || '').trim().split(/\s+/)[0] || 'someone'
     const fresh = async (b) => {
       try {
@@ -371,6 +378,7 @@
     const paint = (list) => {
       const live = list.filter((b) => b.status !== 'gone' && b.status !== 'expired')
       $('#tabCount').textContent = live.length; $('#tabCount').classList.toggle('hidden', !live.length)
+      $('#tabCards').classList.toggle('hidden', !live.length); $('#tabFaq').classList.toggle('hidden', !!live.length)
       if (!live.length) { $('#mine').classList.add('hidden'); $('#start').classList.remove('back'); $('#start h1').textContent = 'Who needs to hear from everyone?'; return }
       const order = { ready: 0, failed: 0 }, top = [...live].sort((x, y) => (order[x.status] ?? 1) - (order[y.status] ?? 1)).slice(0, 3)
       $('#mine').innerHTML = `<div class="hd"><h2>Your cards</h2>${live.length > 3 ? `<a href="/cards">See all ${live.length}</a>` : ''}</div>` +

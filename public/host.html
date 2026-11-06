@@ -339,7 +339,8 @@ function render() {
   $('#title').textContent = first
   $('#forLine').textContent = memorial ? 'In memory of' : 'For'
   document.title = `Your card for ${first} · churpie.`
-  rememberBoard({ url: location.origin + location.pathname, id: card.id, host: card.hostName, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
+  // opened from the admin page (?peek=1): look, but don't add it to this device's "Your cards"
+  if (!new URLSearchParams(location.search).has('peek')) rememberBoard({ url: location.origin + location.pathname, id: card.id, host: card.hostName, name: card.recipientName, n: ready.length, max, status: card.status, deadlineAt: card.deadlineAt, moment: card.moment })
   $('#extras').innerHTML = ''
   const chip = $('#topChip'); chip.className = 'chip hidden'
   const setChip = (text, dark) => { chip.textContent = text; chip.className = `chip${dark ? ' dark' : ''}` }

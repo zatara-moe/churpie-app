@@ -270,6 +270,8 @@ if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
 // arriving from a closed or full card (/new?for=Rosa) starts a card for the same person
 const forName = new URLSearchParams(location.search).get('for')
 if (forName) $('#step1 [name=recipientName]').value = forName.slice(0, 60)
+// they already picked a name and a moment on the home page, so the next thing to fill is their own name
+if (forName && picked) setTimeout(() => $('#step1 [name=hostName]').focus({ preventScroll: true }), 300)
 const TONES = [['funny', 'Fun', 'a laugh is welcome'], ['heartfelt', 'Heartfelt', 'say the real thing'], ['hype', 'Big energy', 'cheer them on'], ['quiet', 'Gentle', 'slow down, plain words']]
 const RULES = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Kids welcome']
 

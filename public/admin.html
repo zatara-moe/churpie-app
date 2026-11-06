@@ -208,7 +208,7 @@ async function openCard(id) {
     <div class="abar"><h1 style="font-size:24px">For ${e(c.recipient_name)}</h1><button class="btn quiet" id="x">Close</button></div>
     <div>${pill(c.status)} ${pill(c.email_state)} ${c.account_type === 'business' ? pill('business') : ''}</div>
     <div class="acts">
-      <a class="btn primary" href="${e(d.links.host)}" target="_blank" rel="noopener">Open their board</a>
+      <a class="btn primary" href="${e(d.links.host)}?peek=1" target="_blank" rel="noopener">Open their board</a>
       <button class="btn outline" data-copy="${e(d.links.host)}">Copy board link</button>
       <button class="btn outline" data-copy="${e(d.links.invite)}">Copy invite link</button>
       ${['ready', 'sent'].includes(c.status) ? `<a class="btn outline" href="${e(d.links.watch)}" target="_blank" rel="noopener">Watch the reel</a>` : ''}
