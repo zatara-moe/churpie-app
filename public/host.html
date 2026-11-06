@@ -273,7 +273,7 @@ function nudgeText() {
   const when = left === 'today' ? 'Last day' : left ? `${left[0].toUpperCase()}${left.slice(1)} left` : 'Still time'
   return memorial
     ? `${when} to add a memory of ${first}. ${c.clipSeconds} seconds, no sign-in: ${c.links.invite}`
-    : `${when} to add yours for ${first}! It takes ${c.clipSeconds} seconds, no sign-in. ${c.links.invite}`
+    : `${when} to add yours for ${first}. It takes ${c.clipSeconds} seconds, no sign-in. ${c.links.invite}`
 }
 function invite() {
   const link = data.card.links.invite
@@ -422,7 +422,7 @@ function collecting() {
         ${canInvite && ready.length ? `<div class="panel stack" style="gap: 10px">
           <div class="row between"><strong>Nudge the group</strong><span class="ghost">a ready message</span></div>
           <p class="bubble" id="nudgeText">${esc(nudgeText())}</p>
-          <button class="btn line" data-act="nudge">Copy and share</button>
+          <button class="btn line" data-act="nudge">Send this reminder</button>
         </div>` : ''}
         <div id="extrasSlot" class="stack"></div>
       </div>
@@ -559,7 +559,7 @@ function allMessages() {
 
 function moreBox() {
   const { card } = data
-  $('#extras').insertAdjacentHTML('beforeend', `<details class="more"><summary>The question, your intro, delete</summary><div class="stack">
+  $('#extras').insertAdjacentHTML('beforeend', `<details class="more"><summary>Change the question, add an intro, or delete</summary><div class="stack">
     <div><p class="ghost">${esc(firstName(card.hostName))} asks</p><p style="font-size: 17px">${esc(card.prompt)}</p></div>
     <div class="stack" style="gap: 8px"><p class="ghost">Your intro (optional). Everyone you invite can tap to hear you first.</p>
       <div class="row"><button class="btn" data-act="introRecord">${card.hasIntro ? 'Record again' : 'Record it'}</button><button class="btn" data-act="introUpload">Upload it</button></div>

@@ -67,6 +67,8 @@ p { margin: 0; }
 
 /* forms */
 label.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
+/* an example lives in the label, never as gray text inside the box (it reads as already filled in) */
+label.field .eg { font-weight: 500; color: var(--ink-ghost); }
 input[type=text], input[type=email], input[type=datetime-local], textarea, select {
   font: inherit; font-weight: 500; font-size: 17px; color: var(--ink);
   padding: 14px 16px; border-radius: 14px; border: 1.5px solid var(--paper-dark); background: #fff; width: 100%;

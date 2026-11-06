@@ -181,8 +181,8 @@
     </div>
     <div class="card stack" id="checkNotes"></div>
     <form class="card stack" id="checkForm">
-      <label class="field">Your name<input type="text" name="name" required maxlength="40" placeholder="Grandma J"></label>
-      <label class="field">Where you are (optional)<input type="text" name="location" maxlength="40" placeholder="Phoenix, AZ"></label>
+      <label class="field"><span>Your name <span class="eg">· like Grandma J</span></span><input type="text" name="name" required maxlength="40" autocapitalize="words"></label>
+      <label class="field"><span>Where you are <span class="eg">· optional, like Phoenix, AZ</span></span><input type="text" name="location" maxlength="40" autocapitalize="words"></label>
       <div class="row">
         <button class="btn outline" type="button" id="retake">Retake</button>
         <button class="btn primary" type="submit" id="sendClip">Send it</button>
@@ -408,6 +408,8 @@ function reviewBlob(b, seconds) {
     $('#checkNotes').innerHTML = (notes.length ? notes.map((n) => `<p class="rulebox">${escapeHtml(n)}</p>`).join('') : `<p class="muted">Looks good. Does it answer ${escapeHtml(hostFirst)}'s question? Then add your name and send it.</p>`) + `<p class="ghost">${escapeHtml(hostFirst)} asked: “${escapeHtml(card.prompt)}”</p>`
   }
   step(2); show('check')
+  // the next thing to do is add your name and send, so bring that into view
+  setTimeout(() => $('#checkForm').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'end' }), 400)
 }
 if ($('#retake')) $('#retake').onclick = () => { blob = null; tooBig = false; $('#sendClip').disabled = false; step(1); show('record') }
 

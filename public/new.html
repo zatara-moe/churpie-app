@@ -66,6 +66,8 @@
   .occs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .occs .choice { display: flex; align-items: center; gap: 10px; min-height: 56px; }
   .occ-ic { width: 36px; height: 36px; border-radius: 10px; background: var(--paper); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .occs.folded { grid-template-columns: 1fr; } .occs.folded .choice:not([aria-pressed=true]) { display: none; }
+  .when { display: flex; flex-wrap: wrap; gap: 8px; } .when .choice { min-height: 44px; padding: 8px 14px; width: auto; }
   .occs .choice[aria-pressed=true] .occ-ic { background: var(--pink); color: #fff; --tint: rgba(255,255,255,0.35); }
   .asked { display: flex; flex-direction: column; gap: 4px; background: #FFFCF4; border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 1.5px var(--paper-aged); }
   .asked:empty { display: none; }
@@ -87,10 +89,11 @@
   <!-- step 1: who and what -->
   <form id="step1" class="stack card" autocomplete="off">
     <h1>Who's this one for?</h1>
-    <label class="field">Their first name<input type="text" name="recipientName" required maxlength="60" placeholder="Rosa"></label>
-    <label class="field">Your name (so people know who's asking)<input type="text" name="hostName" required maxlength="60" placeholder="Maria"></label>
+    <label class="field"><span>Their first name <span class="eg">· like Rosa</span></span><input type="text" name="recipientName" required maxlength="60" autocapitalize="words"></label>
+    <label class="field"><span>Your name <span class="eg">· so people know who's asking</span></span><input type="text" name="hostName" required maxlength="60" autocapitalize="words" autocomplete="given-name"></label>
     <h2 style="margin-top: 6px">What's the occasion?</h2>
     <div class="choices occs" id="moments" role="group" aria-label="occasion"></div>
+    <button type="button" class="btn quiet hidden" id="occChange" style="align-self: flex-start; min-height: 0; padding: 0; color: var(--pink-deep); width: auto">Change the occasion</button>
     <div class="asked" id="asked" aria-live="polite"></div>
     <button class="btn primary" type="submit">Next: the question</button>
   </form>
@@ -124,16 +127,27 @@
     <h1>Pick the card</h1>
     <p class="muted">Every message gets taped inside it. It sets the music, too.</p>
     <div class="themes" id="themes" role="group" aria-label="card"></div>
-    <label class="field">Last day to add a message (optional)<input type="datetime-local" name="deadlineAt"></label>
+    <h2 style="margin-top: 8px">Where should we send your card?</h2>
     <div id="googleBox" class="stack hidden" style="gap: 8px; align-items: center">
       <div id="googleBtn" style="min-height: 44px"></div>
       <p class="ghost" style="margin: 0">or use your email</p>
     </div>
     <p id="googleDone" class="hidden" style="margin: 0; background: #E6F7F9; border-radius: 14px; padding: 12px 14px">✓ Signed in as <b id="googleEmail"></b>. Your card opens right away. <a href="#" id="googleUndo">Use a different email</a></p>
     <div id="emailBox" class="stack" style="gap: 0">
-      <label class="field"><span id="emailLabel">Your email</span><input type="email" name="hostEmail" maxlength="120" placeholder="you@example.com" autocomplete="email"></label>
+      <label class="field"><span id="emailLabel">Your email</span><input type="email" name="hostEmail" maxlength="120" autocomplete="email"></label>
     </div>
-    <p class="ghost" id="emailNote" style="margin-top: -6px">The link to your card and the finished reel come here. No newsletter.</p>
+    <p class="ghost" id="emailNote" style="margin-top: -6px">We'll email you a link to open your card, and the finished reel later. No newsletter.</p>
+    <div class="stack" style="gap: 8px">
+      <strong style="font-size: 14px">Last day for people to add a message</strong>
+      <div class="when" id="when" role="group" aria-label="last day">
+        <button type="button" class="choice" data-days="" aria-pressed="true">No end date</button>
+        <button type="button" class="choice" data-days="3" aria-pressed="false">3 days</button>
+        <button type="button" class="choice" data-days="7" aria-pressed="false">A week</button>
+        <button type="button" class="choice" data-days="pick" aria-pressed="false">Pick a day</button>
+      </div>
+      <input type="datetime-local" name="deadlineAt" id="deadlineAt" class="hidden" aria-label="Last day to add a message">
+      <p class="ghost" id="whenNote" style="margin: 0">You can close it yourself any time by making the reel.</p>
+    </div>
     <div class="row">
       <button class="btn outline" type="button" id="back3">Back</button>
       <button class="btn primary" type="submit" id="makeBtn">Make the card</button>
@@ -146,16 +160,13 @@
     <h1>Check your email.</h1>
     <p class="muted">We sent your card for <span id="checkFirst"></span> to <b id="checkTo"></b>. Open it to get your invite link.</p>
     <p class="muted">It can take a minute. If it's not in your inbox, look in Spam or Promotions.</p>
-    <div class="row" style="width: 100%">
-      <a class="btn outline" href="https://mail.google.com/mail/u/0/#search/from%3Achurpie.me" target="_blank" rel="noopener">Open Gmail</a>
-      <a class="btn outline" href="https://outlook.live.com/mail/0/" target="_blank" rel="noopener">Open Outlook</a>
-    </div>
+    <div class="row" style="width: 100%" id="mailApps"></div>
     <div id="bounced" class="hidden" style="width: 100%; text-align: left; background: #FDE7EF; border-radius: 14px; padding: 14px 16px">
       <b>That address didn't take it.</b>
       <p class="muted" style="margin: 4px 0 0">The email to <b id="bouncedTo"></b> bounced back. It's usually a small typo. Fix it below and we'll send it again.</p>
     </div>
     <form id="fixEmail" class="stack hidden" style="width: 100%; gap: 8px" autocomplete="off">
-      <label class="field" style="text-align: left">Your email<input type="email" name="email" maxlength="120" required autocomplete="email" placeholder="you@example.com"></label>
+      <label class="field" style="text-align: left">Your email<input type="email" name="email" maxlength="120" required autocomplete="email"></label>
       <p class="ghost hidden" id="fixHint" style="text-align: left"></p>
       <button class="btn primary" type="submit" id="fixBtn">Send it to this address</button>
     </form>
@@ -266,7 +277,8 @@ if (google && emailOn) {
 }
 // arriving from a moment on the home page (/new?moment=getwell) preselects it and its card
 const picked = moments.find((m) => m.id === new URLSearchParams(location.search).get('moment'))
-if (picked) { state.moment = picked.id; state.vibe = picked.vibe }
+if (picked) { state.moment = picked.id; state.vibe = picked.vibe; $('#moments').classList.add('folded'); $('#occChange').classList.remove('hidden') }
+$('#occChange').onclick = () => { $('#moments').classList.remove('folded'); $('#occChange').classList.add('hidden') }
 // arriving from a closed or full card (/new?for=Rosa) starts a card for the same person
 const forName = new URLSearchParams(location.search).get('for')
 if (forName) $('#step1 [name=recipientName]').value = forName.slice(0, 60)
@@ -359,6 +371,17 @@ $('#promptIdeas').addEventListener('click', (e) => {
 $('#back2').onclick = () => go(1)
 $('#step2').addEventListener('submit', (e) => { e.preventDefault(); go(3) })
 $('#back3').onclick = () => go(2)
+// last day: plain choices; "Pick a day" opens the phone's own date picker
+$('#when').addEventListener('click', (e) => {
+  const b = e.target.closest('.choice'); if (!b) return
+  $$('#when .choice').forEach((x) => x.setAttribute('aria-pressed', x === b))
+  const inp = $('#deadlineAt'), d = b.dataset.days
+  inp.classList.toggle('hidden', d !== 'pick')
+  if (d === 'pick') { inp.focus(); inp.showPicker?.() }
+  else if (!d) inp.value = ''
+  else { const t = new Date(Date.now() + Number(d) * 86400000); t.setHours(21, 0, 0, 0); const p = (n) => String(n).padStart(2, '0'); inp.value = `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}T21:00` }
+  $('#whenNote').textContent = !d ? 'You can close it yourself any time by making the reel.' : d === 'pick' ? 'Pick the day and time.' : `Open until ${new Date(inp.value).toLocaleString([], { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric' })}.`
+})
 
 // ── waiting for the host to open their email ─────────────────────────────────
 // The browser that made the card remembers it, so a refresh or coming back later
@@ -366,12 +389,26 @@ $('#back3').onclick = () => go(2)
 const PENDING = 'churpie:pending'
 function remember(p) { try { localStorage.setItem(PENDING, JSON.stringify(p)) } catch {} }
 function forget() { try { localStorage.removeItem(PENDING) } catch {} }
+// "Open Gmail" for a gmail address, "Open Apple Mail" for iCloud, and so on: the button for the inbox they actually use
+function mailButtons(email) {
+  const d = String(email || '').split('@')[1] || '', apple = /iPhone|iPad|Macintosh/.test(navigator.userAgent)
+  const APPS = {
+    gmail: ['Open Gmail', 'https://mail.google.com/mail/u/0/#search/from%3Achurpie.me'],
+    apple: ['Open Apple Mail', 'message://'],
+    outlook: ['Open Outlook', 'https://outlook.live.com/mail/0/'],
+    yahoo: ['Open Yahoo Mail', 'https://mail.yahoo.com/'],
+    aol: ['Open AOL Mail', 'https://mail.aol.com/'],
+  }
+  const pick = /gmail|googlemail/.test(d) ? ['gmail'] : /icloud|me\.com|mac\.com/.test(d) ? ['apple'] : /outlook|hotmail|live\.|msn/.test(d) ? ['outlook'] : /yahoo|ymail|sbcglobal|att\.net/.test(d) ? ['yahoo'] : /aol/.test(d) ? ['aol'] : apple ? ['apple', 'gmail'] : ['gmail', 'outlook']
+  $('#mailApps').innerHTML = pick.map((k) => `<a class="btn outline" href="${APPS[k][1]}"${APPS[k][1].startsWith('http') ? ' target="_blank" rel="noopener"' : ''}>${APPS[k][0]}</a>`).join('')
+}
 function showCheckEmail(res, first) {
   // the board link only travels by email; opening it confirms the address and opens the card
   ;[1, 2, 3].forEach((i) => $(`#step${i}`).classList.add('hidden'))
   $('#live').classList.add('hidden'); $('#stepLabel').textContent = 'Check your email'
   $('#checkEmail').classList.remove('hidden')
   $('#checkTo').textContent = res.email
+  mailButtons(res.email)
   $('#checkFirst').textContent = first
   $('#resendBtn').onclick = async () => {
     $('#resendBtn').disabled = true
