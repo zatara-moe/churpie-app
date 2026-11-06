@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Admin · churpie.</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F5F0E8">
+<link rel="icon" href="/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css">
+<style>
+  main.admin { max-width: 1180px; margin: 0 auto; padding: 20px 16px 60px; }
+  .abar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .abar h1 { margin: 0; font: italic 30px 'DM Serif Display', Georgia, serif; }
+  .abar h1 span { color: #D4266A; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tabs button { border: 0; background: #fff; border-radius: 999px; padding: 9px 16px; font: 600 14px 'DM Sans', sans-serif; cursor: pointer; color: #1A1410; }
+  .tabs button.on { background: #1A1410; color: #fff; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: #fff; border-radius: 16px; padding: 14px 16px; }
+  .tile b { display: block; font: 30px 'DM Serif Display', Georgia, serif; line-height: 1.1; }
+  .tile small { color: #7A6E5C; font-weight: 600; font-size: 12px; }
+  .tile.warn { background: #FDE7EF; }
+  .panel { background: #fff; border-radius: 18px; padding: 16px; margin-bottom: 16px; overflow-x: auto; }
+  .panel h2 { margin: 0 0 10px; font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; color: #7A6E5C; font-weight: 700; padding: 6px 8px; border-bottom: 1px solid #EDE6DA; white-space: nowrap; }
+  td { padding: 8px; border-bottom: 1px solid #F3EEE5; vertical-align: top; }
+  tr.click { cursor: pointer; } tr.click:hover td { background: #FBF8F3; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #F1ECE3; color: #1A1410; white-space: nowrap; }
+  .pill.bounced, .pill.failed, .pill.spam { background: #FDE7EF; color: #B01E58; }
+  .pill.waiting, .pill.queued, .pill.stitching { background: #FFF1D6; color: #8A5A00; }
+  .pill.google, .pill.confirmed, .pill.ready, .pill.sent { background: #E6F7F9; color: #0B6C78; }
+  .pill.hidden { background: #EEE; color: #555; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .filters input, .filters select, .fix input { border: 1px solid #E2D9CB; border-radius: 12px; padding: 9px 12px; font: 15px 'DM Sans', sans-serif; background: #fff; }
+  .filters input { flex: 1; min-width: 200px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
+  .bars div { flex: 1; background: #22B8C8; border-radius: 6px 6px 0 0; min-height: 2px; position: relative; }
+  .bars div span { position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-size: 11px; font-weight: 700; }
+  .bars-x { display: flex; gap: 4px; font-size: 10px; color: #7A6E5C; margin-top: 4px; } .bars-x span { flex: 1; text-align: center; }
+  .drawer { position: fixed; inset: 0; background: rgba(26,20,16,.35); display: flex; justify-content: flex-end; z-index: 50; }
+  .drawer > div { background: #F5F0E8; width: min(640px, 100%); height: 100%; overflow-y: auto; padding: 18px 16px 40px; }
+  .kv { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; font-size: 14px; }
+  .kv dt { color: #7A6E5C; font-weight: 600; } .kv dd { margin: 0; word-break: break-word; }
+  .acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .fix { display: flex; gap: 8px; flex-wrap: wrap; } .fix input { flex: 1; min-width: 200px; }
+  .muted-s { color: #7A6E5C; font-size: 12px; }
+  #signin { max-width: 420px; margin: 60px auto; text-align: center; }
+</style>
+</head>
+<body>
+<main class="admin">
+  <section id="signin" class="card stack hidden" style="align-items: center; gap: 12px">
+    <h1>churpie<span style="color:#D4266A">.</span> admin</h1>
+    <p class="muted" id="signinNote">Sign in with an approved Google account.</p>
+    <div id="gbtn" style="min-height: 44px"></div>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="abar">
+      <h1>churpie<span>.</span> admin</h1>
+      <span class="muted-s" id="who"></span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="overview" class="on">Overview</button>
+      <button data-tab="cards">Cards</button>
+      <button data-tab="hosts">Hosts</button>
+      <button data-tab="messages">Messages</button>
+      <button data-tab="emails">Email problems</button>
+    </nav>
+    <div id="view"></div>
+  </section>
+</main>
+<div id="drawer" class="drawer hidden"><div id="drawerBody"></div></div>
+
+<script type="module">
+import { api, $, toast, escapeHtml, googleButton } from '/app.js'
+
+const e = (v) => escapeHtml(v ?? '')
+const when = (iso) => iso ? new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+const ago = (iso) => { if (!iso) return ''; const m = (Date.now() - new Date(iso)) / 60000; return m < 60 ? `${Math.round(m)}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : `${Math.round(m / 1440)}d ago` }
+const pill = (t) => t ? `<span class="pill ${e(String(t).split(' ')[0])}">${e(t)}</span>` : ''
+const mb = (b) => b > 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round((b || 0) / 1e6)} MB`
+
+// the Google sign-in token is the key; kept for this tab only
+let token = sessionStorage.getItem('churpie:admin')
+const call = async (path, opts = {}) => {
+  try { return await api(path, { ...opts, headers: { authorization: `Bearer ${token}` } }) }
+  catch (err) { if (/admin Google/.test(err.message)) { signOut(err.message); throw err } toast(err.message); throw err }
+}
+function signOut(msg) {
+  sessionStorage.removeItem('churpie:admin'); token = null
+  $('#app').classList.add('hidden'); $('#signin').classList.remove('hidden')
+  if (msg) $('#signinNote').textContent = 'That account isn\'t on the admin list, or the sign-in ran out (about an hour). Sign in again.'
+}
+
+const { google } = await api('/api/catalog')
+if (!google) $('#signinNote').textContent = 'Google sign-in isn\'t set up yet (GOOGLE_CLIENT_ID).'
+googleButton($('#gbtn'), google, (cred) => { token = cred; sessionStorage.setItem('churpie:admin', cred); start() })
+
+async function start() {
+  if (!token) return signOut()
+  try { const me = await call('/api/admin/whoami'); $('#who').textContent = me.email } catch { return }
+  $('#signin').classList.add('hidden'); $('#app').classList.remove('hidden')
+  show(location.hash.slice(1) || 'overview')
+}
+
+$('#tabs').onclick = (ev) => { const b = ev.target.closest('[data-tab]'); if (b) show(b.dataset.tab) }
+function show(tab) {
+  if (!views[tab]) tab = 'overview'
+  history.replaceState(null, '', `#${tab}`)
+  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab))
+  $('#view').onclick = null
+  $('#view').innerHTML = '<p class="muted">Loading…</p>'
+  views[tab]()
+}
+
+const views = {
+  async overview() {
+    const s = await call('/api/admin/stats')
+    const st = s.status || {}
+    const open = (st.open || 0), making = (st.queued || 0) + (st.stitching || 0), done = (st.ready || 0) + (st.sent || 0)
+    const tile = (n, label, warn) => `<div class="tile${warn && n ? ' warn' : ''}"><b>${n}</b><small>${label}</small></div>`
+    const max = Math.max(1, ...s.daily.map((d) => d.n))
+    const days = Array.from({ length: 14 }, (_, i) => new Date(Date.now() - (13 - i) * 86400e3).toISOString().slice(0, 10))
+    const byDay = Object.fromEntries(s.daily.map((d) => [d.day, d.n]))
+    $('#view').innerHTML = `
+      <div class="tiles">
+        ${tile(s.cards, 'cards made')}${tile(s.cards7, 'new this week')}${tile(s.hosts, 'hosts')}
+        ${tile(open, 'open for messages')}${tile(making, 'reels being made')}${tile(done, 'reels finished')}
+        ${tile(s.opened, 'reels watched')}${tile(s.messages, 'messages')}${tile(s.messages7, 'messages this week')}
+        ${tile(s.replies, 'thank-yous back')}${tile(s.business, 'business cards')}${tile(mb(s.bytes), 'video stored now')}
+        ${tile(s.waiting, 'waiting on first email', true)}${tile(s.emailProblems30, 'email problems, 30 days', true)}
+        ${tile(st.failed || 0, 'reels that failed', true)}${tile(s.hidden, 'messages hidden', false)}
+      </div>
+      <div class="panel"><h2>Cards made, last 14 days</h2>
+        <div class="bars">${days.map((d) => `<div style="height:${((byDay[d] || 0) / max) * 100}%"><span>${byDay[d] || ''}</span></div>`).join('')}</div>
+        <div class="bars-x">${days.map((d) => `<span>${d.slice(8)}</span>`).join('')}</div>
+      </div>
+      <div class="panel"><h2>Moments</h2><table><tbody>${s.moments.map((m) => `<tr><td>${e(m.moment)}</td><td style="text-align:right">${m.n}</td></tr>`).join('')}</tbody></table></div>`
+  },
+
+  async cards() {
+    $('#view').innerHTML = `<div class="filters">
+        <input id="q" placeholder="Search host email, host name, who it's for, or card id">
+        <select id="st"><option value="">All</option><option value="email">Email trouble</option><option>open</option><option>queued</option><option>stitching</option><option>ready</option><option>sent</option><option>failed</option><option>expired</option></select>
+      </div><div class="panel" id="list"><p class="muted">Loading…</p></div>`
+    const load = async () => {
+      const r = await call(`/api/admin/cards?q=${encodeURIComponent($('#q').value.trim())}&status=${$('#st').value}`)
+      $('#list').innerHTML = r.cards.length ? `<table><thead><tr><th>Made</th><th>For</th><th>Host</th><th>Email</th><th>Status</th><th>Messages</th><th>Moment</th></tr></thead><tbody>
+        ${r.cards.map((c) => `<tr class="click" data-id="${e(c.id)}"><td title="${e(c.created_at)}">${ago(c.created_at)}</td><td><b>${e(c.recipient_name)}</b></td>
+          <td>${e(c.host_name)}<div class="muted-s">${e(c.host_email)}</div></td><td>${pill(c.email_state)}</td><td>${pill(c.status)}${c.stitch_error ? ' ⚠️' : ''}</td>
+          <td>${c.messages}${c.hidden ? ` <span class="muted-s">+${c.hidden} hidden</span>` : ''}</td><td>${e(c.moment)}${c.account_type === 'business' ? ' · biz' : ''}</td></tr>`).join('')}
+        </tbody></table>` : '<p class="muted">No cards match.</p>'
+    }
+    let t; $('#q').oninput = () => { clearTimeout(t); t = setTimeout(load, 300) }
+    $('#st').onchange = load
+    $('#list').onclick = (ev) => { const r = ev.target.closest('[data-id]'); if (r) openCard(r.dataset.id) }
+    load()
+  },
+
+  async hosts() {
+    const r = await call('/api/admin/hosts')
+    $('#view').innerHTML = `<div class="panel"><p class="muted-s" style="margin-top:0">Hosts are the people who make cards. There are no accounts: a host is their email. Tap one to see their cards.</p>
+      <table><thead><tr><th>Email</th><th>Name</th><th>Cards</th><th>Reels</th><th>Type</th><th>First</th><th>Latest</th></tr></thead><tbody>
+      ${r.hosts.map((h) => `<tr class="click" data-q="${e(h.email)}"><td>${e(h.email)}</td><td>${e(h.name)}</td><td>${h.cards}</td><td>${h.reels}</td><td>${e(h.type)}</td><td>${when(h.first)}</td><td>${ago(h.last)}</td></tr>`).join('')}
+      </tbody></table></div>`
+    $('#view').onclick = async (ev) => { const r2 = ev.target.closest('[data-q]'); if (!r2) return; $('#view').onclick = null; show('cards'); setTimeout(() => { $('#q').value = r2.dataset.q; $('#q').dispatchEvent(new Event('input')) }, 50) }
+  },
+
+  async messages() {
+    $('#view').innerHTML = `<div class="filters"><label class="muted-s" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="fl" style="min-width:0;flex:none"> Only flagged or hidden</label></div><div class="panel" id="list"></div>`
+    const load = async () => {
+      const r = await call(`/api/admin/messages${$('#fl').checked ? '?flagged=1' : ''}`)
+      $('#list').innerHTML = `<p class="muted-s" style="margin-top:0">Contributors leave a name, not an email. Flags are set automatically when the video is made (too quiet, too dark, too short, no name said). Hosts can hide any message from their board.</p>
+        <table><thead><tr><th>When</th><th>From</th><th>Card</th><th>Type</th><th>Flags</th><th>Status</th></tr></thead><tbody>
+        ${r.messages.map((m) => `<tr class="click" data-id="${e(m.card_id)}"><td>${ago(m.created_at)}</td><td><b>${e(m.contributor_name)}</b><div class="muted-s">${e(m.location)}</div></td>
+          <td>for ${e(m.recipient_name)}<div class="muted-s">by ${e(m.host_name)}</div></td><td>${m.kind === 'text' ? `note: <span class="muted-s">${e(m.text)}</span>` : `video${m.duration ? ` · ${Math.round(m.duration)}s` : ''}`}</td>
+          <td>${m.flags.map(pill).join(' ')}</td><td>${pill(m.status)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">Nothing here.</td></tr>'}
+        </tbody></table>`
+    }
+    $('#fl').onchange = load
+    $('#list').onclick = (ev) => { const r = ev.target.closest('[data-id]'); if (r) openCard(r.dataset.id) }
+    load()
+  },
+
+  async emails() {
+    const r = await call('/api/admin/emails')
+    const label = { email_bounced: 'bounced', email_complained: 'spam report', email_changed: 'address changed' }
+    $('#view').innerHTML = `<div class="panel"><p class="muted-s" style="margin-top:0">Bounces and spam reports come from Resend. "Address changed" is a host (or you) fixing it. Tap a row to fix or resend.</p>
+      <table><thead><tr><th>When</th><th>What</th><th>Card for</th><th>Host</th><th>Email now</th><th>Card</th></tr></thead><tbody>
+      ${r.events.map((x) => `<tr class="click" data-id="${e(x.card_id)}"><td>${ago(x.at)}</td><td>${pill(label[x.type])}</td><td>${e(x.recipient_name)}</td><td>${e(x.host_name)}</td><td>${e(x.host_email)}</td><td>${pill(x.status)}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">No email problems. Nice.</td></tr>'}
+      </tbody></table></div>`
+    $('#view').onclick = (ev) => { const r2 = ev.target.closest('[data-id]'); if (r2) openCard(r2.dataset.id) }
+  },
+}
+
+// ── one card, with support tools ─────────────────────────────────────────────
+async function openCard(id) {
+  $('#drawer').classList.remove('hidden'); $('#drawerBody').innerHTML = '<p class="muted">Loading…</p>'
+  const d = await call(`/api/admin/cards/${encodeURIComponent(id)}`).catch(() => null)
+  if (!d) return $('#drawer').classList.add('hidden')
+  const c = d.card
+  let rules = []; try { rules = JSON.parse(c.rules || '[]') } catch {}
+  $('#drawerBody').innerHTML = `
+    <div class="abar"><h1 style="font-size:24px">For ${e(c.recipient_name)}</h1><button class="btn quiet" id="x">Close</button></div>
+    <div>${pill(c.status)} ${pill(c.email_state)} ${c.account_type === 'business' ? pill('business') : ''}</div>
+    <div class="acts">
+      <a class="btn primary" href="${e(d.links.host)}" target="_blank" rel="noopener">Open their board</a>
+      <button class="btn outline" data-copy="${e(d.links.host)}">Copy board link</button>
+      <button class="btn outline" data-copy="${e(d.links.invite)}">Copy invite link</button>
+      ${['ready', 'sent'].includes(c.status) ? `<a class="btn outline" href="${e(d.links.watch)}" target="_blank" rel="noopener">Watch the reel</a>` : ''}
+    </div>
+    <p class="muted-s">The board link gives full host control (hide messages, make the reel, delete). Only send it to the host.</p>
+    <div class="panel"><h2>Host email</h2>
+      <form class="fix" id="fix"><input type="email" name="email" value="${e(c.host_email)}" required><button class="btn primary">Save &amp; send board link</button></form>
+      <div class="acts" style="margin-bottom:0"><button class="btn quiet" id="resend">Resend board link to current address</button></div>
+    </div>
+    <div class="panel"><h2>Card</h2><dl class="kv">
+      <dt>Host</dt><dd>${e(c.host_name)}</dd><dt>Made</dt><dd>${when(c.created_at)}</dd>
+      <dt>Moment · card</dt><dd>${e(c.moment)} · ${e(c.vibe)}${c.tone ? ` · ${e(c.tone)}` : ''}</dd>
+      <dt>Question</dt><dd>${e(c.prompt)}</dd>${rules.length ? `<dt>House rules</dt><dd>${rules.map(e).join(' · ')}</dd>` : ''}
+      <dt>Clip length</dt><dd>${c.clip_seconds}s</dd>${c.deadline_at ? `<dt>Last day</dt><dd>${when(c.deadline_at)}</dd>` : ''}
+      ${c.sent_at ? `<dt>Reel started</dt><dd>${when(c.sent_at)}</dd>` : ''}${c.expires_at ? `<dt>Deletes</dt><dd>${when(c.expires_at)}</dd>` : ''}
+      ${c.stitch_error ? `<dt>Reel error</dt><dd style="color:#B01E58">${e(c.stitch_error)}</dd>` : ''}
+      <dt>Thank-yous back</dt><dd>${d.replies}</dd><dt>Card id</dt><dd>${e(c.id)}</dd>
+    </dl></div>
+    <div class="panel"><h2>Contributors (${d.clips.length})</h2>
+      <table><thead><tr><th>Name</th><th>Type</th><th>Flags</th><th>Status</th><th>When</th></tr></thead><tbody>
+      ${d.clips.map((k) => `<tr><td><b>${e(k.contributor_name)}</b><div class="muted-s">${e(k.location)}</div></td><td>${k.kind === 'text' ? `note<div class="muted-s">${e(k.text)}</div>` : `video${k.duration ? ` · ${Math.round(k.duration)}s` : ''}${k.bytes ? ` · ${mb(k.bytes)}` : ''}`}</td>
+        <td>${k.flags.map(pill).join(' ')}</td><td>${pill(k.status)}</td><td>${ago(k.created_at)}</td></tr>`).join('') || '<tr><td colspan="5" class="muted">No messages yet.</td></tr>'}
+      </tbody></table></div>
+    <div class="panel"><h2>History</h2><table><tbody>
+      ${d.events.map((x) => `<tr><td>${e(x.type.replace(/_/g, ' '))}</td><td class="muted-s">${when(x.at)}</td></tr>`).join('')}
+    </tbody></table></div>`
+  $('#x').onclick = () => $('#drawer').classList.add('hidden')
+  $('#drawerBody').querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => { await navigator.clipboard.writeText(b.dataset.copy); toast('Copied.') })
+  $('#fix').onsubmit = async (ev) => {
+    ev.preventDefault()
+    await call(`/api/admin/cards/${encodeURIComponent(id)}/email`, { method: 'POST', body: { email: new FormData(ev.target).get('email') } })
+    toast('Saved. Board link sent.'); openCard(id)
+  }
+  $('#resend').onclick = async () => { await call(`/api/admin/cards/${encodeURIComponent(id)}/resend`, { method: 'POST' }); toast('Sent.') }
+}
+$('#drawer').onclick = (ev) => { if (ev.target.id === 'drawer') $('#drawer').classList.add('hidden') }
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') $('#drawer').classList.add('hidden') })
+
+if (token) start(); else signOut()
+</script>
+</body>
+</html>

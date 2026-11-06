@@ -356,6 +356,7 @@ app.post('/api/cards', async (c) => {
 
   const base = c.env.APP_URL
   if (emailOn(c.env) && byGoogle) {
+    await logEvent(c.env.DB, id, 'google')
     // Google already confirmed the address: open the card now, and email the board link as a keepsake
     c.executionCtx.waitUntil(sendBoardEmail(c.env, { to: hostEmail, recipientName, hostName, hostToken }))
   } else if (emailOn(c.env)) {
@@ -896,11 +897,154 @@ app.post('/api/stitch/failed/:cardId', async (c) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Admin: churpie.me/admin. Sign in with Google; only addresses in the ADMIN_EMAILS secret
+// (comma-separated) get in. The Google sign-in token rides along on every call, so there's
+// no admin password or session to look after. It lasts about an hour, then sign in again.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function adminEmail(c) {
+  const email = await googleEmail(c.env, (c.req.header('authorization') || '').replace(/^Bearer\s+/i, ''))
+  const allowed = String(c.env.ADMIN_EMAILS || '').toLowerCase().split(/[\s,]+/).filter(Boolean)
+  return email && allowed.includes(email) ? email : null
+}
+app.use('/api/admin/*', async (c, next) => {
+  const email = await adminEmail(c)
+  if (!email) return bad(c, 'Sign in with an admin Google account.', 403)
+  c.set('admin', email)
+  await next()
+})
+
+const EMAIL_STATE = `CASE
+    WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'email_bounced'
+                AND at > COALESCE((SELECT MAX(at) FROM events WHERE card_id = c.id AND type = 'email_changed'), '')) THEN 'bounced'
+    WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'email_complained') THEN 'spam report'
+    WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'google') THEN 'google'
+    WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'verified') THEN 'confirmed'
+    WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'needs_verify') THEN 'waiting'
+    ELSE 'none' END`
+
+app.get('/api/admin/whoami', (c) => c.json({ email: c.get('admin') }))
+
+app.get('/api/admin/stats', async (c) => {
+  const db = c.env.DB
+  const since = (days) => new Date(Date.now() - days * 86400e3).toISOString()
+  const one = (sql, ...v) => db.prepare(sql).bind(...v).first()
+  const [byStatus, totals, waiting, problems, daily, moments] = await Promise.all([
+    db.prepare(`SELECT status, COUNT(*) AS n FROM cards GROUP BY status`).all(),
+    one(`SELECT
+        (SELECT COUNT(*) FROM cards) AS cards,
+        (SELECT COUNT(*) FROM cards WHERE created_at >= ?1) AS cards7,
+        (SELECT COUNT(*) FROM cards WHERE account_type = 'business') AS business,
+        (SELECT COUNT(DISTINCT host_email) FROM cards WHERE host_email IS NOT NULL) AS hosts,
+        (SELECT COUNT(*) FROM clips WHERE status IN ('ready','hidden')) AS messages,
+        (SELECT COUNT(*) FROM clips WHERE status IN ('ready','hidden') AND created_at >= ?1) AS messages7,
+        (SELECT COUNT(*) FROM clips WHERE status = 'hidden') AS hidden,
+        (SELECT COUNT(*) FROM replies) AS replies,
+        (SELECT COUNT(DISTINCT card_id) FROM events WHERE type = 'opened') AS opened,
+        (SELECT COALESCE(SUM(bytes), 0) FROM clips WHERE status IN ('uploading','ready','hidden')) AS bytes`, since(7)),
+    one(`SELECT COUNT(*) AS n FROM cards c WHERE EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'needs_verify')
+         AND NOT EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'verified')`),
+    one(`SELECT COUNT(*) AS n FROM events WHERE type IN ('email_bounced','email_complained') AND at >= ?`, since(30)),
+    db.prepare(`SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM cards WHERE created_at >= ? GROUP BY day ORDER BY day`).bind(since(14)).all(),
+    db.prepare(`SELECT moment, COUNT(*) AS n FROM cards GROUP BY moment ORDER BY n DESC`).all(),
+  ])
+  return c.json({
+    status: Object.fromEntries(byStatus.results.map((r) => [r.status, r.n])),
+    ...totals, waiting: waiting.n, emailProblems30: problems.n,
+    daily: daily.results, moments: moments.results,
+  })
+})
+
+app.get('/api/admin/cards', async (c) => {
+  const q = sanitize(c.req.query('q') || '', 120).toLowerCase()
+  const status = sanitize(c.req.query('status') || '', 20)
+  const like = `%${q}%`
+  const { results } = await c.env.DB.prepare(`SELECT c.id, c.recipient_name, c.host_name, c.host_email, c.status, c.moment, c.account_type,
+        c.created_at, c.expires_at, c.deadline_at, c.stitch_error,
+        (SELECT COUNT(*) FROM clips WHERE card_id = c.id AND status = 'ready') AS messages,
+        (SELECT COUNT(*) FROM clips WHERE card_id = c.id AND status = 'hidden') AS hidden,
+        ${EMAIL_STATE} AS email_state
+      FROM cards c
+      WHERE (?1 = '' OR lower(c.host_email) LIKE ?2 OR lower(c.host_name) LIKE ?2 OR lower(c.recipient_name) LIKE ?2 OR c.id = ?1)
+        AND (?3 = '' OR c.status = ?3 OR (?3 = 'email' AND (${EMAIL_STATE}) IN ('bounced','spam report','waiting')))
+      ORDER BY c.created_at DESC LIMIT 200`).bind(q, like, status).all()
+  return c.json({ cards: results })
+})
+
+app.get('/api/admin/cards/:id', async (c) => {
+  const db = c.env.DB, id = c.req.param('id')
+  const card = await db.prepare(`SELECT c.*, ${EMAIL_STATE} AS email_state FROM cards c WHERE c.id = ?`).bind(id).first()
+  if (!card) return bad(c, 'No card with that id.', 404)
+  const [clips, replies, events] = await Promise.all([
+    db.prepare(`SELECT id, contributor_name, location, kind, substr(text, 1, 200) AS text, status, flags, duration, bytes, created_at
+                FROM clips WHERE card_id = ? ORDER BY created_at`).bind(id).all(),
+    db.prepare(`SELECT COUNT(*) AS n FROM replies WHERE card_id = ?`).bind(id).first(),
+    db.prepare(`SELECT type, at FROM events WHERE card_id = ? ORDER BY at DESC LIMIT 100`).bind(id).all(),
+  ])
+  const base = c.env.APP_URL
+  const { host_token, watch_token, manifest, ...rest } = card
+  return c.json({
+    card: rest,
+    links: { host: `${base}/h/${host_token}`, invite: `${base}/c/${card.id}`, watch: `${base}/w/${watch_token}` },
+    clips: clips.results.map((r) => ({ ...r, flags: r.flags ? JSON.parse(r.flags) : [] })),
+    replies: replies.n, events: events.results,
+  })
+})
+
+// support: put the right address on a card and send the board link to it
+app.post('/api/admin/cards/:id/email', async (c) => {
+  const b = await c.req.json().catch(() => ({}))
+  const card = await getCard(c.env.DB, 'id', c.req.param('id'))
+  if (!card) return bad(c, 'No card with that id.', 404)
+  const email = sanitize(b.email, 120)?.toLowerCase()
+  if (!looksLikeEmail(email)) return bad(c, 'Check the email address.')
+  await c.env.DB.prepare(`UPDATE cards SET host_email = ?, account_type = ? WHERE id = ?`)
+    .bind(email, isBusinessEmail(email) ? 'business' : 'personal', card.id).run()
+  await logEvent(c.env.DB, card.id, 'email_changed')
+  const sent = await sendBoardEmail(c.env, { to: email, recipientName: card.recipient_name, hostName: card.host_name, hostToken: card.host_token })
+  return sent.ok ? c.json({ ok: true }) : bad(c, 'Saved the address, but the email did not send. Check Resend.', 502)
+})
+
+app.post('/api/admin/cards/:id/resend', async (c) => {
+  const card = await getCard(c.env.DB, 'id', c.req.param('id'))
+  if (!card?.host_email) return bad(c, 'This card has no email.', 404)
+  const sent = await sendBoardEmail(c.env, { to: card.host_email, recipientName: card.recipient_name, hostName: card.host_name, hostToken: card.host_token })
+  return sent.ok ? c.json({ ok: true }) : bad(c, 'The email did not send. Check Resend.', 502)
+})
+
+app.get('/api/admin/hosts', async (c) => {
+  const { results } = await c.env.DB.prepare(`SELECT host_email AS email, MAX(host_name) AS name, COUNT(*) AS cards,
+        SUM(CASE WHEN status IN ('ready','sent') THEN 1 ELSE 0 END) AS reels,
+        MAX(account_type) AS type, MIN(created_at) AS first, MAX(created_at) AS last
+      FROM cards WHERE host_email IS NOT NULL GROUP BY host_email ORDER BY last DESC LIMIT 300`).all()
+  return c.json({ hosts: results })
+})
+
+// contributors leave a name, not an email: this is the stream of what they sent, newest first,
+// with the automatic flags (quiet, dark, short, no name) so odd ones are easy to spot
+app.get('/api/admin/messages', async (c) => {
+  const flagged = c.req.query('flagged') === '1'
+  const { results } = await c.env.DB.prepare(`SELECT k.id, k.card_id, k.contributor_name, k.location, k.kind, substr(k.text, 1, 160) AS text,
+        k.status, k.flags, k.duration, k.created_at, c.recipient_name, c.host_name
+      FROM clips k JOIN cards c ON c.id = k.card_id
+      WHERE k.status IN ('ready','hidden','uploading') ${flagged ? "AND ((k.flags IS NOT NULL AND k.flags != '[]') OR k.status = 'hidden')" : ''}
+      ORDER BY k.created_at DESC LIMIT 200`).all()
+  return c.json({ messages: results.map((r) => ({ ...r, flags: r.flags ? JSON.parse(r.flags) : [] })) })
+})
+
+app.get('/api/admin/emails', async (c) => {
+  const { results } = await c.env.DB.prepare(`SELECT e.type, e.at, c.id AS card_id, c.recipient_name, c.host_name, c.host_email, c.status
+      FROM events e JOIN cards c ON c.id = e.card_id
+      WHERE e.type IN ('email_bounced','email_complained','email_changed') ORDER BY e.at DESC LIMIT 200`).all()
+  return c.json({ events: results })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Pages: static HTML from /public with link-preview metadata filled in
 // ─────────────────────────────────────────────────────────────────────────────
 
 // private pages (invites, boards, reels) and "not here" pages stay out of search results
-const PRIVATE = /^\/(c|h|w)\//
+const PRIVATE = /^\/((c|h|w)\/|admin)/
 async function page(c, file, meta, status = 200) {
   const res = await c.env.ASSETS.fetch(new URL(`/${file}`, c.req.url))
   let body = await res.text()
@@ -925,6 +1069,7 @@ app.get('/', (c) => page(c, 'index.html', {}))
 app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }))
 app.get('/lost', (c) => page(c, 'lost.html', { title: 'Find your card · churpie.' }))
 app.get('/cards', (c) => page(c, 'cards.html', { title: 'Your cards · churpie.' }))
+app.get('/admin', (c) => page(c, 'admin.html', { title: 'Admin · churpie.' }))
 
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
