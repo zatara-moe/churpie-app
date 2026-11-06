@@ -130,7 +130,8 @@
     <h2 style="margin-top: 8px">Where should we send your card?</h2>
     <div id="googleBox" class="stack hidden" style="gap: 8px; align-items: center">
       <div id="googleBtn" style="min-height: 44px"></div>
-      <p class="ghost" style="margin: 0">or use your email</p>
+      <p class="muted" style="margin: 0; font-size: 14px">One tap, and your card opens right away.</p>
+      <button type="button" class="btn quiet hidden" id="useEmail" style="width: auto; min-height: 44px; color: var(--pink-deep); font-size: 15px">No Google account? Use your email</button>
     </div>
     <p id="googleDone" class="hidden" style="margin: 0; background: #E6F7F9; border-radius: 14px; padding: 12px 14px">✓ Signed in as <b id="googleEmail"></b>. Your card opens right away. <a href="#" id="googleUndo">Use a different email</a></p>
     <div id="emailBox" class="stack" style="gap: 0">
@@ -260,20 +261,29 @@ if (google && emailOn) {
         const email = JSON.parse(atob(r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email
         $('#googleEmail').textContent = email
         emailInput.value = email; emailInput.required = false
-        ;['#googleBox', '#emailBox'].forEach((x) => $(x).classList.add('hidden'))
+        ;['#googleBox', '#emailBox', '#emailNote'].forEach((x) => $(x).classList.add('hidden'))
         $('#googleDone').classList.remove('hidden')
       },
     })
     window.google.accounts.id.renderButton($('#googleBtn'), { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 300 })
+    // Google is the easy way (no email to go find), so it leads; typing an email is one tap away
+    showEmail(false)
   }
   gsi.onerror = () => $('#googleBox').classList.add('hidden') // blocked or offline: the email box still works
   document.head.appendChild(gsi)
   $('#googleUndo').onclick = (e) => {
     e.preventDefault(); googleCredential = null
     emailInput.value = ''; emailInput.required = true
-    ;['#googleBox', '#emailBox'].forEach((x) => $(x).classList.remove('hidden'))
+    $('#googleBox').classList.remove('hidden'); showEmail(true)
     $('#googleDone').classList.add('hidden'); emailInput.focus()
   }
+  $('#useEmail').onclick = () => { showEmail(true); emailInput.focus() }
+}
+// the typed-email path: shown when Google isn't there, or when they ask for it
+function showEmail(on) {
+  $('#emailBox').classList.toggle('hidden', !on); $('#emailNote').classList.toggle('hidden', !on)
+  $('#useEmail').classList.toggle('hidden', on)
+  emailInput.required = on && !googleCredential
 }
 // arriving from a moment on the home page (/new?moment=getwell) preselects it and its card
 const picked = moments.find((m) => m.id === new URLSearchParams(location.search).get('moment'))
@@ -469,6 +479,7 @@ function showCheckEmail(res, first) {
 // ── make it, then the share moment ───────────────────────────────────────────
 $('#step3').addEventListener('submit', async (e) => {
   e.preventDefault()
+  if (emailOn && !googleCredential && $('#emailBox').classList.contains('hidden')) { toast('Tap Continue with Google, or use your email.'); $('#googleBox').scrollIntoView({ block: 'center' }); return }
   const f1 = new FormData($('#step1')), f2 = new FormData($('#step2')), f3 = new FormData($('#step3'))
   const typed = f3.get('hostEmail'), better = emailOn && !googleCredential && suggestEmail(typed)
   if (better && $('#emailNote').dataset.warned !== typed) {
