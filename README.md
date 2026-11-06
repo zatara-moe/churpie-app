@@ -2,7 +2,7 @@
 
 a group video card that edits itself and plays like a reel.
 
-One link to share. People open it on any phone, record 15 seconds (or upload, or write), no app, no account. The host previews, hides anything, taps send. A stitcher weaves one reel: blurred-fill framing (no black bars), leveled sound, music ducked under voices, name stickers, a title card with the prompt, an end card. The recipient opens an envelope, watches, saves it to their phone. Thirty days later everything is deleted.
+One link to share. People open it on any phone, record 15 seconds (or upload, or write), no sign-in needed. The host previews, hides anything, taps send. A stitcher weaves one reel: blurred-fill framing (no black bars), leveled sound, music ducked under voices, name stickers, a title card with the prompt, an end card. The recipient opens an envelope, watches, saves it to their phone. Thirty days later everything is deleted.
 
 ## What's in here
 

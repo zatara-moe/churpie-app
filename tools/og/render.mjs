@@ -14,11 +14,11 @@ const THEMES = ['postcard', 'confettipop', 'milestonegold', 'airmail', 'quietnot
 // Invite: what a friend sees when the host shares the invite link. Words follow the voice guide.
 const INVITE = {
   kind: 'invite', eyebrow: "You're invited", title: 'Add to a <em>surprise</em> video card',
-  sub: "Everyone records a few seconds. They'll get one reel.", facts: ['No app', 'About 15 seconds', 'Free'],
+  sub: "Everyone records a few seconds. They'll get one reel.", facts: ['No sign-in', 'About 15 seconds', 'Free'],
 }
 const INVITE_MEMORY = {
   kind: 'invite', eyebrow: "You're invited", title: 'Share a memory, in <em>your</em> words',
-  sub: 'A few seconds each, gathered into one video for the family.', facts: ['No app', 'Take your time', 'Free'],
+  sub: 'A few seconds each, gathered into one video for the family.', facts: ['No sign-in', 'Take your time', 'Free'],
 }
 // Reel: what the person it's for sees when the finished card is shared with them.
 const REEL = {
@@ -31,11 +31,11 @@ const REEL_MEMORY = {
 }
 // Site: the home page and the occasion pages.
 const SITE = {
-  site: { theme: 'postcard', eyebrow: 'Free group video cards', title: 'A video card from <em>everyone</em> who loves them', facts: ['One link', '15 seconds each', 'No app'] },
-  birthday: { theme: 'confettipop', eyebrow: 'Birthday video cards', title: 'A birthday video from <em>everyone</em>', facts: ['One link', 'No app', 'Free'] },
-  retirement: { theme: 'milestonegold', eyebrow: 'Retirement video cards', title: 'A send-off from <em>everyone</em> they worked with', facts: ['One link', 'No app', 'Free'] },
-  'get-well': { theme: 'quietnote', eyebrow: 'Get well video cards', title: 'A little company while they <em>rest up</em>', facts: ['One link', 'No app', 'Free'] },
-  memorial: { theme: 'pressedflower', eyebrow: 'Memorial video tributes', title: 'Gather what everyone <em>remembers</em>', facts: ['One link', 'No app', 'Free'] },
+  site: { theme: 'postcard', eyebrow: 'Free group video cards', title: 'A video card from <em>everyone</em> who loves them', facts: ['One link', '15 seconds each', 'No sign-in'] },
+  birthday: { theme: 'confettipop', eyebrow: 'Birthday video cards', title: 'A birthday video from <em>everyone</em>', facts: ['One link', 'No sign-in', 'Free'] },
+  retirement: { theme: 'milestonegold', eyebrow: 'Retirement video cards', title: 'A send-off from <em>everyone</em> they worked with', facts: ['One link', 'No sign-in', 'Free'] },
+  'get-well': { theme: 'quietnote', eyebrow: 'Get well video cards', title: 'A little company while they <em>rest up</em>', facts: ['One link', 'No sign-in', 'Free'] },
+  memorial: { theme: 'pressedflower', eyebrow: 'Memorial video tributes', title: 'Gather what everyone <em>remembers</em>', facts: ['One link', 'No sign-in', 'Free'] },
 }
 
 const jobs = [

@@ -165,7 +165,7 @@
       </button>
       <button class="side" id="writeBtn" type="button"><span style="background: var(--cyan-pale)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h8"/></svg></span>Write instead</button>
     </div>
-    <p class="ghost" style="text-align: center" id="footnote">No account. No app.</p>
+    <p class="ghost" style="text-align: center" id="footnote">No sign-in needed.</p>
   </section>
 
   <!-- CHECK -->
@@ -288,7 +288,7 @@ if (card.hasIntro) {
   $('#hearBtn').classList.remove('hidden'); $('#hearBtn').lastChild.textContent = `Hear ${hostFirst}`
   $('#hearBtn').onclick = () => { const v = $('#introVid'); v.src = `/api/cards/${cardId}/intro`; v.classList.toggle('hidden'); if (!v.classList.contains('hidden')) v.play() }
 }
-$('#footnote').textContent = card.clipCount && !card.names?.length ? `No account. No app. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No account. No app.'
+$('#footnote').textContent = card.clipCount && !card.names?.length ? `No sign-in needed. ${card.clipCount} ${card.clipCount === 1 ? 'person is' : 'people are'} already in.` : 'No sign-in needed.'
 // closed or full: never a dead end, and never "go ask someone". Offer a card of their own for the same person.
 if (card.notYet) {
   $('#howto').classList.add('hidden')

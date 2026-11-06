@@ -1,5 +1,6 @@
 // churpie · one Worker: pages + API + nightly sweep
-// No accounts. The host link is the account. Everything in R2 self-deletes.
+// No accounts to make. Hosts confirm an email (typed, or one tap of Google); the host link is the key.
+// Contributors and recipients never sign in. Everything in R2 self-deletes.
 
 import { Hono } from 'hono'
 import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml } from './lib.js'
@@ -1077,7 +1078,7 @@ app.get('/c/:id', async (c) => {
   const first = card.recipient_name.split(' ')[0]
   return page(c, 'contribute.html', {
     title: `${card.host_name} is making a surprise video for ${first}`,
-    description: `Add your ${card.clip_seconds} seconds. No app, no account. ${card.prompt}`,
+    description: `Add your ${card.clip_seconds} seconds. No sign-in needed. ${card.prompt}`,
     image: `${c.env.APP_URL}/og/${card.vibe}.png`,
   })
 })

@@ -265,15 +265,15 @@ matchMedia('(min-width: 960px)').addEventListener?.('change', placeDock)
 
 // ── shares ──────────────────────────────────────────────────────────────────
 const inviteText = () => memorial
-  ? `I'm gathering memories of ${first} into one video, and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds. No app needed.`
-  : `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds, done. No app needed. (Shh, don't tell ${first}.)`
+  ? `I'm gathering memories of ${first} into one video, and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds. No sign-in needed.`
+  : `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${data.card.clipSeconds} seconds, done. No sign-in needed. (Shh, don't tell ${first}.)`
 function nudgeText() {
   const c = data.card
   const left = c.deadlineAt && !c.deadlinePassed ? fmtDays(c.deadlineAt) : ''
   const when = left === 'today' ? 'Last day' : left ? `${left[0].toUpperCase()}${left.slice(1)} left` : 'Still time'
   return memorial
-    ? `${when} to add a memory of ${first}. ${c.clipSeconds} seconds, no app: ${c.links.invite}`
-    : `${when} to add yours for ${first}! It takes ${c.clipSeconds} seconds, no app. ${c.links.invite}`
+    ? `${when} to add a memory of ${first}. ${c.clipSeconds} seconds, no sign-in: ${c.links.invite}`
+    : `${when} to add yours for ${first}! It takes ${c.clipSeconds} seconds, no sign-in. ${c.links.invite}`
 }
 function invite() {
   const link = data.card.links.invite
@@ -282,7 +282,7 @@ function invite() {
   const canShare = !!navigator.share
   $('#dlgBody').innerHTML = `
     <div class="row between"><h2>Invite ${F}'s people</h2><button class="btn quiet" data-close style="width: auto; min-height: 0; padding: 4px 8px">Close</button></div>
-    <p class="muted">Send this to a group chat, a family thread, a work channel. Anyone with it can add a ${data.card.clipSeconds}-second video. No app, no sign-up.</p>
+    <p class="muted">Send this to a group chat, a family thread, a work channel. Anyone with it can add a ${data.card.clipSeconds}-second video. No sign-in needed.</p>
     <div class="invite-card">
       <p class="ghost" style="text-transform: uppercase; letter-spacing: 1px">What they'll get</p>
       <p class="bubble" style="margin-top: 8px">${esc(inviteText())}</p>

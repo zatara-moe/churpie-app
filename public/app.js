@@ -81,7 +81,7 @@ export function installPrompt() {
 }
 
 // ── "your cards" on this device ─────────────────────────────────────────────
-// No account: the board link is the key. We keep every board this browser has opened, so hosts can
+// The board link is the key (nobody makes an account). We keep every board this browser has opened, so hosts can
 // find their way back from the home page. It never leaves this device.
 const BOARDS = 'churpie:boards'
 export function myBoards() {

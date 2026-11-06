@@ -194,7 +194,7 @@
     <div class="host-card">
       <div class="key"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l3 3"/></svg></div>
       <div class="stack" style="gap: 10px">
-        <div><h3>Save your card link</h3><p class="muted" style="margin-top: 4px">This link is your key. There's no account, so it's how you get back to see who's in, hide any message, and send <span id="firstName3"></span> the finished reel. This phone remembers it too, under "Your cards".</p></div>
+        <div><h3>Save your card link</h3><p class="muted" style="margin-top: 4px">This link is your key. It's how you get back to see who's in, hide any message, and send <span id="firstName3"></span> the finished reel. This phone remembers it too, under "Your cards", and if you started with Google, one tap at churpie.me/lost finds it from any phone.</p></div>
         <a class="btn primary" id="hostText" href="#">Text it to myself</a>
         <div class="row">
           <button class="btn" id="copyHost" type="button">Copy link</button>
@@ -454,7 +454,7 @@ $('#step3').addEventListener('submit', async (e) => {
     $('#doneTitle').textContent = `${first}'s card is ready.`
     $('#doneSub').textContent = `Now send it to everyone who loves ${first}. Each person adds a few seconds.`
     $('#firstName3').textContent = first
-    $('#msg').value = `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${secs} seconds, done. No app needed. (Shh, don't tell ${first}.)`
+    $('#msg').value = `I'm making a surprise video for ${first} and I'd love you in it. Tap the link, record ${secs} seconds, done. No sign-in needed. (Shh, don't tell ${first}.)`
     $('#unfurl').innerHTML = `<img src="/og/${state.vibe}.png" alt="" style="display:block;width:100%;aspect-ratio:1200/630"><div class="t"><b>${escapeHtml(host)} is making a surprise video for ${escapeHtml(first)}</b><span>${escapeHtml(new URL(invite).host)}</span></div>`
     const text = () => `${$('#msg').value}\n${invite}`
     const wire = () => {

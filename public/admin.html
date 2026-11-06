@@ -163,7 +163,7 @@ const views = {
 
   async hosts() {
     const r = await call('/api/admin/hosts')
-    $('#view').innerHTML = `<div class="panel"><p class="muted-s" style="margin-top:0">Hosts are the people who make cards. There are no accounts: a host is their email. Tap one to see their cards.</p>
+    $('#view').innerHTML = `<div class="panel"><p class="muted-s" style="margin-top:0">Hosts are the people who make cards. Nobody makes an account: a host is their email, typed in or confirmed by Google. Tap one to see their cards.</p>
       <table><thead><tr><th>Email</th><th>Name</th><th>Cards</th><th>Reels</th><th>Type</th><th>First</th><th>Latest</th></tr></thead><tbody>
       ${r.hosts.map((h) => `<tr class="click" data-q="${e(h.email)}"><td>${e(h.email)}</td><td>${e(h.name)}</td><td>${h.cards}</td><td>${h.reels}</td><td>${e(h.type)}</td><td>${when(h.first)}</td><td>${ago(h.last)}</td></tr>`).join('')}
       </tbody></table></div>`
