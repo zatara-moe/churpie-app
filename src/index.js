@@ -945,6 +945,13 @@ app.use('/api/admin/*', async (c, next) => {
   await next()
 })
 
+// From card to thank-you: how many cards reach each step. Counted from the events log, which outlives a card's
+// videos and names, so the numbers stay true after cards are deleted. since = '' counts every card ever made.
+const FUNNEL_STEPS = [['clip', 'messaged'], ['sent', 'reelMade'], ['opened', 'opened'], ['saved', 'saved'], ['replied', 'thanked']]
+const FUNNEL_SQL = `WITH born AS (SELECT card_id FROM events WHERE type = 'created' AND at >= ?1 GROUP BY card_id)
+  SELECT (SELECT COUNT(*) FROM born) AS started,
+  ${FUNNEL_STEPS.map(([type, name]) => `(SELECT COUNT(*) FROM born b WHERE EXISTS(SELECT 1 FROM events e WHERE e.card_id = b.card_id AND e.type = '${type}')) AS ${name}`).join(',\n  ')}`
+
 const EMAIL_STATE = `CASE
     WHEN EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'email_bounced'
                 AND at > COALESCE((SELECT MAX(at) FROM events WHERE card_id = c.id AND type = 'email_changed'), '')) THEN 'bounced'
@@ -960,7 +967,7 @@ app.get('/api/admin/stats', async (c) => {
   const db = c.env.DB
   const since = (days) => new Date(Date.now() - days * 86400e3).toISOString()
   const one = (sql, ...v) => db.prepare(sql).bind(...v).first()
-  const [byStatus, totals, waiting, problems, daily, moments] = await Promise.all([
+  const [byStatus, totals, waiting, problems, daily, moments, funnel30, funnelAll, repeat] = await Promise.all([
     db.prepare(`SELECT status, COUNT(*) AS n FROM cards GROUP BY status`).all(),
     one(`SELECT
         (SELECT COUNT(*) FROM cards) AS cards,
@@ -978,11 +985,15 @@ app.get('/api/admin/stats', async (c) => {
     one(`SELECT COUNT(*) AS n FROM events WHERE type IN ('email_bounced','email_complained') AND at >= ?`, since(30)),
     db.prepare(`SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS n FROM cards WHERE created_at >= ? GROUP BY day ORDER BY day`).bind(since(14)).all(),
     db.prepare(`SELECT moment, COUNT(*) AS n FROM cards GROUP BY moment ORDER BY n DESC`).all(),
+    one(FUNNEL_SQL, since(30)),
+    one(FUNNEL_SQL, ''),
+    one(`SELECT COUNT(*) AS n FROM (SELECT host_email FROM cards WHERE host_email IS NOT NULL GROUP BY host_email HAVING COUNT(*) > 1)`),
   ])
   return c.json({
     status: Object.fromEntries(byStatus.results.map((r) => [r.status, r.n])),
     ...totals, waiting: waiting.n, emailProblems30: problems.n,
     daily: daily.results, moments: moments.results,
+    funnel30, funnelAll, repeatHosts: repeat.n,
   })
 })
 

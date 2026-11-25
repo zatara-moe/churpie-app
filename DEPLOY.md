@@ -84,7 +84,7 @@ The stitcher is the only piece that isn't a Cloudflare page. It needs FFmpeg, so
 
 ## Test, then ship
 
-churpie.me is built by Cloudflare from GitHub: it updates when you **push** in GitHub Desktop. (`npm run deploy` only updates the Worker named in `wrangler.toml`, at its workers.dev address. That is a different Worker from the one that has churpie.me, and both use the same database.)
+churpie.me is built by Cloudflare from GitHub: it updates when you **push** in GitHub Desktop. (`npm run deploy` only updates the Worker named in `wrangler.toml`, at its workers.dev address. The Worker that has churpie.me and www.churpie.me is named `churpie-app`; both Workers use the same database.)
 
 - `TEST-LOCAL-MAC.command`, before you push: starts a private local copy with an empty database, walks one whole card through it (make, message, admin preview, reel, open, love, thank-you) and prints what passed. Nothing live is touched.
 - Commit and push in GitHub Desktop.

@@ -19,4 +19,8 @@ for p in /terms /privacy /llms.txt; do say "$APP$p"; curl -s -o /dev/null -D - -
 say; say "--- where churpie.me points"; (dig +short "${APP#https://}" 2>/dev/null | head -4 | sed 's/^/    /') | tee -a "$LOG"
 say; say "--- latest deployments of the worker named in wrangler.toml"
 npx wrangler deployments list 2>&1 < /dev/null | tail -24 | tee -a "$LOG"
+say; say "--- bot check on $APP"
+# an empty request makes no card either way: refused as "not a person" (403) means the check is on; a plain "who's it for?" (400) means it's off
+C=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -X POST -H 'content-type: application/json' -d '{}' "$APP/api/cards")
+if [ "$C" = "403" ]; then say "    ON: requests without a person check are refused"; elif [ "$C" = "400" ]; then say "    OFF: nothing is being checked yet (run BOTCHECK-MAC.command)"; else say "    unclear (answered $C)"; fi
 say; say "RESULT: done."
