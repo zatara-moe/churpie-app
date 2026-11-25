@@ -112,7 +112,7 @@ if (data.peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status
 const first = firstName(card.recipientName)
 const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds
-const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '', welcome: 'to welcome you home', retirement: 'for your retirement', holiday: 'for the holidays', newyear: 'for the new year', baby: 'to welcome you' }
+const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '', welcome: 'to welcome you home', retirement: 'for your retirement', holiday: 'for the holidays', newyear: 'for the new year', baby: 'to welcome you', anniversary: 'for your anniversary', wedding: 'for your wedding' }
 
 // a memorial reel is watched by the people who loved them, so it never speaks to the person as "you"
 const memorial = card.moment === 'memory'
@@ -159,7 +159,8 @@ function pickSource() {
   const src = wide ? data.reelWideUrl : data.reelUrl
   if (vid.getAttribute('src') !== src) { const t = vid.currentTime, playing = !vid.paused; vid.src = src; vid.currentTime = t; if (playing) vid.play().catch(() => {}) }
   $('#saveBtn').href = src
-  $('#saveBtn').download = wide ? `churpie-${first.toLowerCase()}-wide.mp4` : `churpie-${first.toLowerCase()}.mp4`
+  const fileName = first.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'reel'
+  $('#saveBtn').download = wide ? `churpie-${fileName}-wide.mp4` : `churpie-${fileName}.mp4`
   $('#otherSize').classList.toggle('hidden', !data.reelWideUrl)
   $('#otherSize').textContent = wide ? 'Phone-shaped version' : 'Wide version for laptops and TVs'
   $('#otherSize').href = wide ? data.reelUrl : data.reelWideUrl

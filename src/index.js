@@ -3,7 +3,7 @@
 // Contributors and recipients never sign in. Everything in R2 self-deletes.
 
 import { Hono } from 'hono'
-import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml } from './lib.js'
+import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml, firstName } from './lib.js'
 import { MOMENTS, VIBES, vibesFor } from './catalog.js'
 
 const app = new Hono()
@@ -145,7 +145,7 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4', extra = {
 // Catalog (moments, vibes, ready-made prompts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: c.env.TURNSTILE_SITE_KEY || null, email: emailOn(c.env), google: c.env.GOOGLE_CLIENT_ID || null, keepDays: LIFETIME(c.env) }))
+app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: (c.env.TURNSTILE_SECRET && c.env.TURNSTILE_SITE_KEY) || null, email: emailOn(c.env), google: c.env.GOOGLE_CLIENT_ID || null, keepDays: LIFETIME(c.env) }))
 
 // ── email: the host's board link, the finished reel, and a reminder before it's deleted ─────────────
 // Sent through Resend. Off until RESEND_API_KEY (secret) is set; then hosts give a verified email.
@@ -217,7 +217,7 @@ async function tellContributors(env) {
     if (!claim.meta.changes) continue
     if (!notes.has(r.card_id)) notes.set(r.card_id, (await db.prepare(`SELECT text FROM replies WHERE card_id = ? ORDER BY created_at DESC LIMIT 1`).bind(r.card_id).first())?.text || '')
     const note = notes.get(r.card_id)
-    const first = r.recipient_name.split(' ')[0]
+    const first = firstName(r.recipient_name)
     const you = String(r.contributor_name || '').trim().split(/\s+/)[0] || 'Hi'
     const memorial = r.moment === 'memory'
     const until = r.expires_at ? new Date(r.expires_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }) : ''
@@ -254,7 +254,7 @@ async function needsVerify(db, cardId) {
 
 // The first email: the board link. Opening it confirms the address and opens the card.
 function sendBoardEmail(env, { to, recipientName, hostName, hostToken }) {
-  const first = recipientName.split(' ')[0]
+  const first = firstName(recipientName)
   return sendEmail(env, {
     to,
     subject: `Your card for ${first}: open it to get your invite link`,
@@ -815,7 +815,7 @@ app.post('/api/lost', async (c) => {
   if (results.length) {
     c.executionCtx.waitUntil(sendEmail(c.env, {
       to: email,
-      subject: results.length === 1 ? `Your churpie card for ${results[0].recipient_name.split(' ')[0]}` : 'Your churpie cards',
+      subject: results.length === 1 ? `Your churpie card for ${firstName(results[0].recipient_name)}` : 'Your churpie cards',
       lines: ['Here are the cards made with this email:', ...results.map((r) => `${r.recipient_name}: ${c.env.APP_URL}/h/${r.host_token}`)],
       after: ['Keep this email. Each link is private to you.'],
     }))
@@ -837,7 +837,7 @@ app.get('/api/host/:token/reel.mp4', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card?.final_key) return c.notFound()
   // "Save video": the same file, as a download with a name people recognize in their Files app
-  const name = `${card.recipient_name.split(' ')[0].replace(/[^\w-]+/g, '') || 'churpie'}-churpie.mp4`
+  const name = `${firstName(card.recipient_name).replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'churpie'}-churpie.mp4`
   return streamObject(c, card.final_key, 'video/mp4', c.req.query('download') ? { 'content-disposition': `attachment; filename="${name}"` } : {})
 })
 
@@ -1056,7 +1056,7 @@ app.put('/api/stitch/final/:cardId', async (c) => {
     .bind(key, manifest ? decodeURIComponent(manifest) : null, nowIso(), cardId)
     .run()
   // originals stay until the reel is sent (or 3 days), so the host can still fix something after watching it first
-  const first = card.recipient_name.split(' ')[0]
+  const first = firstName(card.recipient_name)
   c.executionCtx.waitUntil(sendEmail(c.env, {
     to: card.host_email,
     subject: `${first}'s reel is ready`,
@@ -1271,7 +1271,7 @@ app.get('/admin', (c) => page(c, 'admin.html', { title: 'Admin · churpie.' }))
 app.get('/c/:id', async (c) => {
   const card = await getCard(c.env.DB, 'id', c.req.param('id'))
   if (!card) return page(c, 'gone.html', { title: "This card isn't here anymore" }, 404)
-  const first = card.recipient_name.split(' ')[0]
+  const first = firstName(card.recipient_name)
   return page(c, 'contribute.html', {
     title: `${card.host_name} is making a surprise video for ${first}`,
     description: `Add your ${card.clip_seconds} seconds. No sign-in needed. ${card.prompt}`,
@@ -1369,7 +1369,7 @@ async function sweep(env) {
        AND NOT EXISTS (SELECT 1 FROM events e WHERE e.card_id = c.id AND e.type = 'reminded')`
   ).bind(soon, now).all()
   for (const card of remind) {
-    const first = card.recipient_name.split(' ')[0]
+    const first = firstName(card.recipient_name)
     await sendEmail(env, {
       to: card.host_email,
       subject: `${first}'s reel is deleted in 2 days`,

@@ -52,9 +52,11 @@ const hol = cat?.moments?.find((m) => m.id === 'holiday')
 ok(!!hol && !!cat.moments.find((m) => m.id === 'newyear') && !!cat.moments.find((m) => m.id === 'baby'), 'the holiday, New Year and new baby moments are on offer')
 ok(!!hol?.byTone?.funny && cat.moments.filter((m) => m.byTone).length >= 12, 'every moment has a question for each feeling')
 ok(cat?.vibes?.some((v) => v.id === hol?.vibe && v.moments.includes('holiday')), "the holiday moment's card suits it")
-const hc = await call('/api/cards', { method: 'POST', body: { recipientName: 'Nana', hostName: 'Sam', hostEmail: 'sam@example.com', prompt: 'A holiday question', moment: 'holiday', vibe: 'kraft', deadlineAt: new Date(Date.now() + 3 * 86400000).toISOString() } })
+const hc = await call('/api/cards', { method: 'POST', body: { recipientName: 'Nana and Pop Garcia', hostName: 'Sam', hostEmail: 'sam@example.com', prompt: 'A holiday question', moment: 'holiday', vibe: 'kraft', deadlineAt: new Date(Date.now() + 3 * 86400000).toISOString() } })
 const hpub = hc.json?.id ? (await call(`/api/cards/${hc.json.id}/public`)).json : null
 ok(hpub?.moment === 'holiday' && hpub?.vibe === 'kraft' && !!hpub?.deadlineAt && hpub?.deadlinePassed === false, 'a holiday card is made with its card and its last day')
+ok(!!cat.moments.find((m) => m.id === 'wedding') && !!cat.moments.find((m) => m.id === 'anniversary'), 'weddings and anniversaries are on offer')
+ok(((await waitMail('sam@example.com'))[0]?.text || '').includes('Your card for Nana & Pop is ready'), 'a card for two people is named for both of them')
 
 console.log('\n2 · make a card: the link goes to the host by email, and opening it opens the card')
 const made = await call('/api/cards', { method: 'POST', body: { recipientName: 'Rosa Test', hostName: 'Maria Test', hostEmail: 'maria@example.com', prompt: 'What is your favorite memory with Rosa?', moment: 'birthday' } })

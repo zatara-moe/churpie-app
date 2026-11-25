@@ -71,10 +71,10 @@
 <div class="dock" id="dock"><a class="btn primary" href="/new">Start a card</a></div>
 
 <script type="module">
-import { $, escapeHtml as esc, myBoards, forgetBoard, noteStatus, fmtDays, toast } from '/app.js'
+import { $, escapeHtml as esc, myBoards, forgetBoard, noteStatus, fmtDays, toast, firstName } from '/app.js'
 import { icon, bird, refreshNavCount } from '/brand.js'
 
-const MOMENT = { birthday: 'Birthday', congrats: 'Congrats', thankyou: 'Thank you', getwell: 'Get well', missyou: 'Miss you', memory: 'In memory', team: 'Team send-off', business: 'For a business', brand: 'For a business', welcome: 'Welcome home', retirement: 'Retirement', holiday: 'Holidays', newyear: 'New Year', baby: 'New baby' }
+const MOMENT = { birthday: 'Birthday', congrats: 'Congrats', thankyou: 'Thank you', getwell: 'Get well', missyou: 'Miss you', memory: 'In memory', team: 'Team send-off', business: 'For a business', brand: 'For a business', welcome: 'Welcome home', retirement: 'Retirement', holiday: 'Holidays', newyear: 'New Year', baby: 'New baby', anniversary: 'Anniversary', wedding: 'Wedding' }
 const COLORS = ['#D4266A', '#0B9DAA']
 const short = (iso) => new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
 if (/iPhone|Android|Mobile/i.test(navigator.userAgent)) $('#where').innerHTML = 'Saved on this phone. On another device? <a href="/lost">Find your card by email</a>'
@@ -93,7 +93,7 @@ async function fresh(b) {
 
 function row(b, i) {
   const s = b.status
-  const first = String(b.name || '').trim().split(/\s+/)[0] || 'someone'
+  const first = firstName(b.name) || 'someone'
   const who = b.moment === 'memory' ? `In memory of ${esc(first)}` : `For ${esc(first)}`
   const chip = s === 'ready' ? ['ready', 'Ready to send']
     : s === 'failed' ? ['ready', 'Needs a retry']

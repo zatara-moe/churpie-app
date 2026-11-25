@@ -24,7 +24,7 @@ const MOMENT_LINE = {
   birthday: (c) => c.age ? `turning ${c.age}` : 'happy birthday', congrats: () => 'you did it', thankyou: () => 'with thanks', getwell: () => 'get well soon',
   missyou: () => 'we miss you', memory: () => 'in memory', team: () => 'from the team', brand: () => 'from all of us',
   welcome: () => 'welcome home', retirement: () => 'happy retirement',
-  holiday: () => 'happy holidays', newyear: () => 'happy new year', baby: () => 'welcome to the world',
+  holiday: () => 'happy holidays', newyear: () => 'happy new year', baby: () => 'welcome to the world', anniversary: () => 'happy anniversary', wedding: () => 'congratulations',
 }
 
 export async function renderFrames(job, outDir) {
@@ -33,7 +33,7 @@ export async function renderFrames(job, outDir) {
   try {
     const html = fs.readFileSync(path.join(HERE, 'cards/card.html'), 'utf8')
     const name = job.recipientName.trim()
-    const first = name.length <= 14 ? name : name.split(' ')[0]
+    const first = name.length <= 14 ? name : (/ (?:&|\+|and) /i.test(name) ? name.split(/ (?:&|\+|and) /i).map((p) => p.trim().split(' ')[0]).join(' & ') : name.split(' ')[0])
     const n = job.clips.length
     const card = {
       theme: job.theme || 'postcard', recipient: job.recipientName, first, host: job.hostName, n,

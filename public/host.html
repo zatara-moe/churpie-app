@@ -185,7 +185,7 @@
 <input type="file" id="introFile" accept="video/*" class="hidden">
 
 <script type="module">
-import { api as liveApi, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload as liveUpload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
+import { api as liveApi, $, $$, toast, share, escapeHtml, firstName, verb, fmtDays, fmtWhen, upload as liveUpload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
 // Opened from the admin page (?peek=<pass>): a read-only look. Reading still works; anything that would change
@@ -452,7 +452,7 @@ function collecting() {
   const rec = `<button class="btn soft" data-act="record">Record yours</button>`
   if (!ready.length) dock(`<button class="btn primary big" data-act="invite">${ICON.share}Invite people</button>${mine ? '' : rec}`)
   else dock(!canInvite ? make.replace('btn quiet', 'btn primary big') : enough ? make + inv : inv + make)
-  if (ready.length) $('#dock').insertAdjacentHTML('beforeend', `<p class="ghost">${ready.length < 3 ? `Only ${ready.length} so far. Most reels have 5 or more.` : `${F} sees nothing until you send it.`}</p>`)
+  if (ready.length) $('#dock').insertAdjacentHTML('beforeend', `<p class="ghost">${ready.length < 3 ? `Only ${ready.length} so far. Most reels have 5 or more.` : `${F} ${verb(first, 'sees', 'see')} nothing until you send it.`}</p>`)
   allMessages()
   moreBox()
 }
@@ -496,7 +496,7 @@ function readyView() {
       <div class="left"><div class="hreel"><i class="t1"></i><i class="t2"></i><video src="/api/host/${token}/reel.mp4#t=0.1" controls playsinline preload="metadata"></video></div></div>
       <div class="stack" style="gap: 14px">
         <h1 class="hero">${F}'s reel is ready.</h1>
-        <p class="sub">${plural(ready.length, 'person', 'people')}${len}. Only you can see it until you send it.${card.notifyCount ? ` ${plural(card.notifyCount, 'person', 'people')} who added a message asked to see it, so we'll email them the reel once ${memorial ? 'it has been watched' : `${F} opens it`}.` : ''}</p>
+        <p class="sub">${plural(ready.length, 'person', 'people')}${len}. Only you can see it until you send it.${card.notifyCount ? ` ${plural(card.notifyCount, 'person', 'people')} who added a message asked to see it, so we'll email them the reel once ${memorial ? 'it has been watched' : `${F} ${verb(first, 'opens', 'open')} it`}.` : ''}</p>
         ${stackFaces(ready)}
         <div id="dockSlot"></div>
       </div>
@@ -655,7 +655,7 @@ function confirmSend() {
 function confirmEdit() {
   $('#dlgBody').innerHTML = `
     <h2>Change something?</h2>
-    <p class="muted">The card opens again so you can hide a message, change the order or let more people in. Then make the reel again. This one is replaced; ${F} hasn't seen it.</p>
+    <p class="muted">The card opens again so you can hide a message, change the order or let more people in. Then make the reel again. This one is replaced; ${F} ${verb(first, "hasn't", "haven't")} seen it.</p>
     <button class="btn primary big" id="dlgEdit">Open it again</button>
     <button class="btn outline" data-close>Keep this reel</button>`
   $('#dlg').showModal()

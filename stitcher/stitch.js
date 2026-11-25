@@ -19,6 +19,19 @@ const run = promisify(execFile)
 // FFmpeg: use the system one if installed, otherwise the copy npm brought (ffmpeg-static / ffprobe-static). No Homebrew needed.
 import { createRequire } from 'node:module'
 const require_ = createRequire(import.meta.url)
+
+// The short name used everywhere a card speaks about its person: "Rosa Garcia" is Rosa, "Rosa and Sam Lee" is
+// Rosa & Sam, "Aunt Rosa" and "The Garcias" stay whole. A list with commas is kept as typed.
+const NAME_LEAD = /^(the|aunt|auntie|uncle|grandma|grandpa|granny|nana|papa|mama|dr\.?|mr\.?|mrs\.?|ms\.?|miss|coach|pastor|father|sister|brother|professor|prof\.?|tía|tia|tío|tio|abuela|abuelo)$/i
+const oneName = (t) => { const w = t.split(' '); return w.length > 1 && NAME_LEAD.test(w[0]) ? `${w[0]} ${w[1]}` : w[0] }
+function shortName(s) {
+  const t = String(s || '').trim().replace(/\s+/g, ' ')
+  if (!t) return ''
+  if (t.includes(',')) return t.slice(0, 40)
+  const pair = t.split(/ (?:&|\+|and) /i)
+  if (pair.length === 2 && pair[0] && pair[1]) return `${oneName(pair[0])} & ${oneName(pair[1])}`
+  return oneName(t)
+}
 function bin(name, pkg, pick) {
   if (process.env[name.toUpperCase() + '_PATH']) return process.env[name.toUpperCase() + '_PATH']
   try { const p = pick(require_(pkg)); if (p && fs.existsSync(p)) return p } catch {}
@@ -214,7 +227,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
   const theme = job.theme || 'postcard'
   const png = (n) => path.join(tmp, `${n}.png`)
   try {
-    const first = job.recipientName.split(' ')[0]
+    const first = shortName(job.recipientName)
     const parts = [], manifest = []
     let t = 0
     const push = async (file, meta) => { const { duration } = await probe(file); parts.push(file); manifest.push({ ...meta, start: round(t), end: round(t + duration) }); t += duration }

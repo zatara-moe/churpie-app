@@ -30,6 +30,23 @@
     .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; }
   }
   .cam { position: relative; }
+  /* the card's own look around the camera: recording already feels like part of the card they picked.
+     Only an edge and a little tab, so nothing covers a face or the question. Colors match the reel's cards. */
+  .frame[data-vibe] { position: relative; }
+  .skin { position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; }
+  .skin-tab { position: absolute; top: -15px; right: 20px; z-index: 4; background: var(--sk, #D4266A); color: var(--sk-ink, #fff); font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 6px 10px 5px; border-radius: 4px; transform: rotate(3deg); box-shadow: 0 2px 0 rgba(0,0,0,0.12); max-width: 62%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .skin-tab b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-style: italic; font-size: 15px; letter-spacing: 0; text-transform: none; margin-left: 2px; }
+  [data-vibe=postcard] { --sk: #D4266A; } [data-vibe=postcard] .skin { box-shadow: inset 0 0 0 5px rgba(245,240,232,0.94); }
+  [data-vibe=airmail] { --sk: #B22222; } [data-vibe=airmail] .skin { border: 7px solid transparent; border-image: repeating-linear-gradient(135deg, #B22222 0 12px, #F7F3EA 12px 24px, #1F4E8C 24px 36px, #F7F3EA 36px 48px) 7; }
+  [data-vibe=quietnote] { --sk: #0B9DAA; } [data-vibe=quietnote] .skin { box-shadow: inset 0 0 0 4px rgba(243,239,230,0.94), inset 0 0 0 5.5px #0B9DAA; }
+  [data-vibe=kraft] { --sk: #2D5A3A; } [data-vibe=kraft] .skin { box-shadow: inset 0 0 0 7px #C9A678, inset 0 0 0 8px rgba(42,31,18,0.35); }
+  [data-vibe=confettipop] { --sk: #D4266A; } [data-vibe=confettipop] .skin { box-shadow: inset 0 0 0 4px #FFF8EE;
+    background-image: radial-gradient(circle 5px at 9% 5%, #D4266A 97%, transparent), radial-gradient(circle 4px at 24% 3%, #0B9DAA 97%, transparent), radial-gradient(circle 6px at 43% 6%, #F2B63C 97%, transparent), radial-gradient(circle 4px at 62% 3%, #D4266A 97%, transparent), radial-gradient(circle 5px at 80% 6%, #0B9DAA 97%, transparent), radial-gradient(circle 4px at 93% 12%, #F2B63C 97%, transparent),
+      radial-gradient(circle 5px at 6% 95%, #0B9DAA 97%, transparent), radial-gradient(circle 4px at 30% 97%, #F2B63C 97%, transparent), radial-gradient(circle 6px at 55% 95%, #D4266A 97%, transparent), radial-gradient(circle 4px at 91% 96%, #0B9DAA 97%, transparent),
+      radial-gradient(circle 4px at 4% 30%, #F2B63C 97%, transparent), radial-gradient(circle 5px at 96% 38%, #D4266A 97%, transparent), radial-gradient(circle 4px at 5% 62%, #D4266A 97%, transparent), radial-gradient(circle 5px at 95% 70%, #F2B63C 97%, transparent); }
+  [data-vibe=lockernote] { --sk: #1A1410; } [data-vibe=lockernote] .skin { box-shadow: inset 0 0 0 4px #FBFBF9, inset 0 0 0 6px #1A1410; } [data-vibe=lockernote] .skin-tab { transform: rotate(-4deg); }
+  [data-vibe=milestonegold] { --sk: #C9A24C; --sk-ink: #15120F; } [data-vibe=milestonegold] .skin { box-shadow: inset 0 0 0 5px #15120F, inset 0 0 0 6.5px #C9A24C, inset 0 0 0 9px #15120F, inset 0 0 0 10px #C9A24C; }
+  [data-vibe=pressedflower] { --sk: #4A3F30; } [data-vibe=pressedflower] .skin { box-shadow: inset 0 0 0 5px rgba(246,242,234,0.94), inset 0 0 0 6px #4A3F30; } [data-vibe=pressedflower] .skin-tab { transform: none; }
   /* keep Record on the first screen of a phone: the camera gives up height, never the button */
   #record .video.cam:not(.live) { aspect-ratio: auto; height: 190px; }
   #record .video.cam:not(.live) .rail, #record .video.cam:not(.live) .calm { display: none; }
@@ -244,7 +261,7 @@
 </main>
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, recorderMime, uploadVideo, botCheck, myBoards } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, verb, recorderMime, uploadVideo, botCheck, myBoards } from '/app.js'
 import { setNavTitle } from '/brand.js'
 
 const cardId = location.pathname.split('/')[2]
@@ -264,6 +281,12 @@ if (card.clipCount && card.names?.length && !editToken) {
   row.setAttribute('style', 'text-align:center; margin: 2px 0 -4px')
   row.innerHTML = `<b style="color:var(--ink)">${escapeHtml(who)}</b> ${n === 1 ? 'is' : 'are'} already in`
   $('#record')?.prepend(row)
+}
+// the card's own look around the camera and the playback (see .skin above)
+{
+  const eye = card.vibe === 'pressedflower' || card.moment === 'memory' ? 'in memory of' : card.vibe === 'airmail' ? 'par avion ·' : 'for'
+  $$('#record .video.cam, #check .as-reel').forEach((box) => box.insertAdjacentHTML('beforeend', '<div class="skin" aria-hidden="true"></div>'))
+  $$('#record .frame, #check .frame').forEach((fr) => { fr.dataset.vibe = card.vibe || 'postcard'; fr.insertAdjacentHTML('beforeend', `<span class="skin-tab" aria-hidden="true">${eye} <b>${escapeHtml(first)}</b></span>`) })
 }
 // how long is left, when the host set a last day: said up front, not only after it has passed
 if (card.deadlineAt && !card.deadlinePassed && !editToken) {
@@ -482,7 +505,7 @@ function finish(reg, name) {
   $('#youAre').textContent = `#${(card.clipCount || 0) + 1}`
   $('#doneYou').textContent = `${first} will see it in the reel.`
   $('#doneGather').innerHTML = `${escapeHtml(hostFirst)} gathers everyone else<small>${card.clipCount ? `${card.clipCount} ${card.clipCount === 1 ? 'person has' : 'people have'} added theirs so far` : 'you went first'}</small>`
-  $('#doneOpen').innerHTML = `${escapeHtml(first)} opens the reel<small>${escapeHtml(hostFirst)} sends it when it's ready</small>`
+  $('#doneOpen').innerHTML = `${escapeHtml(first)} ${verb(first, 'opens', 'open')} the reel<small>${escapeHtml(hostFirst)} sends it when it's ready</small>`
   $('#shareOn').textContent = `Invite someone else who loves ${first}`
   $('#shareOn').onclick = () => share({ title: `A video for ${first}`, text: `${card.hostName} is making a surprise video for ${first}. Tap, record ${LIMIT} seconds, done. (Shh, don't tell ${first}.)`, url: location.origin + `/c/${cardId}` })
   $('#laterText').textContent = `You can swap or remove your message until ${hostFirst} makes the reel. Save your private link.`
@@ -493,15 +516,15 @@ function finish(reg, name) {
   // hear back once: the reel, and anything said back. Not for the host (they get it all) or a video added for someone else.
   if (card.canNotify && !behalf && !myBoard && reg.clipId && reg.editToken) {
     const memorial = card.moment === 'memory'
-    $('#tellTitle').textContent = memorial ? 'Want to see the reel once it has been watched?' : `Want to see the reel once ${first} opens it?`
-    $('#tellText').textContent = `One email, with the reel${memorial ? '' : ` and anything ${first} says back`}. Your email is deleted with the card.`
+    $('#tellTitle').textContent = memorial ? 'Want to see the reel once it has been watched?' : `Want to see the reel once ${first} ${verb(first, 'opens', 'open')} it?`
+    $('#tellText').textContent = `One email, with the reel${memorial ? '' : ` and anything ${first} ${verb(first, 'says', 'say')} back`}. Your email is deleted with the card.`
     $('#tellMe').classList.remove('hidden')
     $('#tellMe').onsubmit = async (ev) => {
       ev.preventDefault()
       const btn = $('#tellMe button'); btn.disabled = true
       try {
         await api(`/api/clips/${reg.clipId}/notify?edit=${reg.editToken}`, { method: 'POST', body: { email: new FormData(ev.target).get('email') } })
-        $('#tellMe').innerHTML = `<div><h3>Done.</h3><p class="muted" style="margin-top: 4px">${memorial ? "We'll email you once, after it has been watched." : `We'll email you once, after ${escapeHtml(first)} opens it.`}</p></div>`
+        $('#tellMe').innerHTML = `<div><h3>Done.</h3><p class="muted" style="margin-top: 4px">${memorial ? "We'll email you once, after it has been watched." : `We'll email you once, after ${escapeHtml(first)} ${verb(first, 'opens', 'open')} it.`}</p></div>`
       } catch (err) { toast(err.message); btn.disabled = false }
     }
   }
