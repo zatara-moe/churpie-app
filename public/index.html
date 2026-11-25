@@ -63,6 +63,18 @@
   .pc .play { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(255,255,255,0.92); display: flex; align-items: center; justify-content: center; z-index: 3; border: 0; cursor: pointer; }
   .pc .play:focus-visible { outline: 3px solid var(--cyan); }
   @media (prefers-reduced-motion: reduce) { .slide { transition: none; } .segs span.now i { transition: none; } }
+  /* the postcard changes card design every few seconds, so every age sees one that's theirs */
+  .pc .cap { transition: opacity 260ms ease; } .pc.swap .cap { opacity: 0; }
+  .pc[data-look=locker] { background: #1A1410; } .pc[data-look=locker]::before { background: #FBFBF9 repeating-linear-gradient(180deg, transparent 0 25px, #CFE0F2 25px 26.5px); }
+  .pc[data-look=locker] .stamp > span { background: #1A1410; }
+  .pc[data-look=kraft] { background: #C9A678; } .pc[data-look=kraft]::before { background: #FBF7EE; } .pc[data-look=kraft] .stamp > span { background: #2D5A3A; } .pc[data-look=kraft] .cap { color: #2A1F12; }
+  .pc[data-look=gold] { background: #15120F; box-shadow: inset 0 0 0 4px #15120F, inset 0 0 0 5.5px #C9A24C, 0 22px 48px rgba(26,20,16,0.22); } .pc[data-look=gold]::before { background: #15120F; }
+  .pc[data-look=gold] .cap { color: #F2E6CF; } .pc[data-look=gold] .stamp > span { background: #C9A24C; color: #15120F; }
+  .sample-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; margin: 18px auto 0; font-weight: 700; font-size: 15px; color: var(--ink); background: #fff; border-radius: 999px; padding: 10px 18px 10px 12px; box-shadow: 0 1px 2px rgba(26,20,16,0.08), 0 6px 18px rgba(26,20,16,0.08); }
+  .sample-btn i { display: inline-flex; width: 28px; height: 28px; border-radius: 50%; background: var(--pink); color: #fff; align-items: center; justify-content: center; font-style: normal; }
+  .sample-btn small { color: var(--ink-faded); font-weight: 600; font-size: 13px; }
+  .sample-btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+  .pc-col { display: flex; flex-direction: column; align-items: center; }
 
   /* how it works: three equal cards */
   .steps3 { display: grid; gap: 14px; }
@@ -232,8 +244,8 @@
       <p class="join-err hidden" id="joinErr" role="alert">That doesn't look like a churpie link. They start with churpie.me/c/</p>
       <p class="ticks"><span><span data-icon="check" data-size="16" data-tint="transparent"></span>Free to join</span><span><span data-icon="check" data-size="16" data-tint="transparent"></span>A minute to start</span><span><span data-icon="check" data-size="16" data-tint="transparent"></span>Nothing to download</span></p>
     </div>
-    <div class="pc-wrap">
-      <div class="pc m-drop" aria-label="Example: a birthday reel for Rosa, with messages from six people">
+    <div class="pc-col"><div class="pc-wrap">
+      <div class="pc m-drop" data-look="postcard" aria-label="Example churpie cards: a birthday, a graduation, the holidays and an anniversary">
         <span class="tape m-tape" style="transform: rotate(-4deg)"></span>
         <span class="stamp m-thunk" style="transform: rotate(6deg)"><span><b>38</b><small>SHOWED UP</small></span></span>
         <div class="in">
@@ -242,6 +254,8 @@
         </div>
         <span class="postmark m-ink"><span>nov 18</span><b>delivered</b></span>
       </div>
+    </div>
+    <button class="sample-btn" type="button" id="sampleBtn"><i aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg></i>Watch a sample reel <small>· 20 sec, sound on</small></button>
     </div>
   </section>
 
@@ -362,13 +376,25 @@
   let hasSample = false
   fetch('/demo/reel.mp4', { method: 'HEAD' }).then((r) => { if (r.ok && (r.headers.get('content-type') || '').startsWith('video')) { hasSample = true; const v = $('#demoVid'); v.src = '/demo/reel.mp4'; v.classList.remove('hidden'); segs.classList.add('hidden') } }).catch(() => {})
 
-  // "Watch a sample": the real reel, with sound
+  // the postcard's card design and caption change every few seconds (birthday, graduation, holidays, anniversary)
+  const LOOKS = [['postcard', 'happy 60th, Rosa', 38], ['locker', 'congrats, Maya', 24], ['kraft', 'happy holidays, Nana', 52], ['gold', 'happy 40th, Rosa & Sam', 17]]
+  if (!still) {
+    let look = 0
+    const pc = $('.pc')
+    setInterval(() => {
+      look = (look + 1) % LOOKS.length
+      pc.classList.add('swap')
+      setTimeout(() => { const [id, cap, n] = LOOKS[look]; pc.dataset.look = id; $('.pc .cap').textContent = cap; $('.pc .stamp b').textContent = n; pc.classList.remove('swap') }, 260)
+    }, 5600)
+  }
+
+  // "Watch a sample": a whole reel, with music
   function openSample() {
-    if (!hasSample) { document.getElementById('how').scrollIntoView({ behavior: still ? 'auto' : 'smooth' }); return }
-    const v = $('#sampleVid'); if (!v.src) v.src = '/demo/reel.mp4'
+    const v = $('#sampleVid'); if (!v.src) v.src = '/demo/sample.mp4'
     $('#sample').showModal(); v.currentTime = 0; v.play().catch(() => {})
   }
   $('.pc .in').addEventListener('click', openSample); $('.pc .in').style.cursor = 'pointer'
+  $('#sampleBtn').addEventListener('click', openSample)
   $('#sampleClose').onclick = () => $('#sample').close()
   $('#sample').addEventListener('close', () => $('#sampleVid').pause())
 

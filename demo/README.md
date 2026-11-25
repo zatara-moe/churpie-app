@@ -24,3 +24,7 @@ Drop an `.mp4` into `demo/clips/` with the next number (`clip-14.mp4`). Any size
 - Alternate one face and a group. End on a warm gesture; it loops back to a wave.
 - Silent. It autoplays on phones only because it's muted.
 - Name stickers are the same style the real reels get.
+
+## The "Watch a sample reel" video
+
+`public/demo/sample.mp4` is the demo reel with a title card, an end card and churpie's own music (`stitcher/music/uplifting.mp3`). After changing the demo reel, run `./demo/sample.sh` to rebuild it.

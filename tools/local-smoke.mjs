@@ -46,6 +46,9 @@ for (const [p, must] of [['/', 'churpie'], ['/new', 'churpie'], ['/privacy', 'he
   const r = await call(p); ok(r.status === 200 && r.text.includes(must), `${p} loads`, `status ${r.status}`)
 }
 ok((await call('/')).text.includes('href="/terms"'), 'home page footer links to the terms')
+const smp = await fetch(BASE + '/demo/sample.mp4', { method: 'HEAD' })
+ok(smp.status === 200 && (smp.headers.get('content-type') || '').startsWith('video'), 'the sample reel is there to watch')
+ok((await call('/')).text.includes('id="sampleBtn"') && (await call('/')).text.includes('How it started'), 'the home page has the sample button and the makers\' note')
 ok((await call('/api/admin/stats')).status === 403, 'admin data is refused without an admin sign-in')
 const cat = (await call('/api/catalog')).json
 const hol = cat?.moments?.find((m) => m.id === 'holiday')
