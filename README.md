@@ -2,7 +2,7 @@
 
 a group video card that edits itself and plays like a reel.
 
-One link to share. People open it on any phone, record 15 seconds (or upload, or write), no sign-in needed. The host previews, hides anything, taps send. A stitcher weaves one reel: blurred-fill framing (no black bars), leveled sound, music ducked under voices, name stickers, a title card with the prompt, an end card. The recipient opens an envelope, watches, saves it to their phone. Thirty days later everything is deleted.
+One link to share. People open it on any phone, record 15 seconds (or upload, or write), no sign-in needed. The host previews, hides anything, taps send. A stitcher weaves one reel: blurred-fill framing (no black bars), leveled sound, music ducked under voices, name stickers, a title card with the prompt, an end card. The recipient opens an envelope, watches, saves it to their phone. Fourteen days after the reel is made, everything is deleted.
 
 ## What's in here
 
@@ -41,7 +41,7 @@ stitcher polls ──▶ POST /api/stitch/next  (claims the job)
                      │
 recipient ──▶ /w/<token> streams finals/<card>/reel.mp4 with range support
                      │
-nightly cron ──▶ deletes raw clips 48h after the reel exists, deletes everything at day 30
+nightly cron ──▶ deletes raw clips once the reel is sent (or 3 days after it's made), deletes everything 14 days after the reel is made
 ```
 
 The stitcher never holds storage keys or database access: one shared secret, `STITCH_TOKEN`. That's why it can run on a laptop, a free VM, or a pay-per-second container without changing a line.

@@ -79,5 +79,10 @@ The stitcher is the only piece that isn't a Cloudflare page. It needs FFmpeg, so
 ## Optional, later
 
 - **Email backups of links:** `npx wrangler secret put RESEND_API_KEY` after creating a free Resend account; wire-up is a small change in `src/index.js` (search for `RESEND`).
-- **Bot check on uploads:** Cloudflare Turnstile, free; add the secret as `TURNSTILE_SECRET`.
+- **Bot check on making cards and sending messages:** Cloudflare Turnstile, free. Double-click `BOTCHECK-MAC.command`: it opens the Turnstile page, asks for the widget's two keys, checks them, saves them and ships.
 - **Nunito in the reel text:** download the font (see `stitcher/fonts/README.md`) and rebuild the container. Until then the reel uses DejaVu, which is fine.
+
+## Test, then ship
+
+- `TEST-LOCAL-MAC.command` starts a private local copy with an empty database, walks one whole card through it (make, message, admin preview, reel, open, love, thank-you) and prints what passed. Nothing live is touched.
+- `SHIP-MAC.command` deploys this folder to churpie.me and checks the live pages. It asks nothing.

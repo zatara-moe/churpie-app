@@ -49,10 +49,7 @@
   </div>
   <div class="stack" style="margin-top: auto; padding-top: 24px">
     <button class="btn primary" id="openBtn">Open it</button>
-    <div class="row">
-      <button class="btn outline" id="openQuiet">Open without music</button>
-      <button class="btn outline" id="laterBtn">Save for later</button>
-    </div>
+    <button class="btn outline" id="laterBtn">Save for later</button>
     <p class="ghost" style="text-align: center" id="footLine">You can pause, skip, or come back any time.</p>
   </div>
 </main>
@@ -94,8 +91,12 @@
 import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion } from '/app.js'
 
 const token = location.pathname.split('/')[2]
-const data = await api(`/api/watch/${token}`).catch((e) => { $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden'); $('#notReadyBody').innerHTML = `<h2>${escapeHtml(e.message)}</h2>`; throw e })
+// opened from the admin page (?peek=<pass>): a preview that is never counted as the recipient opening it
+const peekPass = new URLSearchParams(location.search).get('peek')
+const data = await api(`/api/watch/${token}${peekPass ? `?peek=${encodeURIComponent(peekPass)}` : ''}`).catch((e) => { $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden'); $('#notReadyBody').innerHTML = `<h2>${escapeHtml(e.message)}</h2>`; throw e })
 const { card, people, manifest } = data
+const peek = !!data.peek
+if (peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status" style="position: fixed; left: 0; right: 0; top: 0; z-index: 99; background: #1A1410; color: #fff; text-align: center; font: 600 13px \'DM Sans\', sans-serif; padding: 8px 12px">Admin preview · not counted as opened. Loves, saves and replies are off.</div>')
 const first = firstName(card.recipientName)
 const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds
@@ -120,7 +121,7 @@ $('#quietLine').textContent = memorial
 // videos and written notes are counted apart, so one written note never reads as "1 short video"
 const notes = people.filter((p) => p.kind === 'text').length, vids = n - notes
 const parts = [vids ? `${vids} short ${vids === 1 ? 'video' : 'videos'}` : '', notes ? `${notes} ${notes === 1 ? 'note' : 'notes'}` : ''].filter(Boolean)
-$('#whatChips').innerHTML = [...parts, 'Music plays', 'Captions on'].map((t) => `<span class="pill">${t}</span>`).join('')
+$('#whatChips').innerHTML = [...parts, 'Music plays', 'Names on screen'].map((t) => `<span class="pill">${t}</span>`).join('')
 $('#footLine').textContent = card.expiresAt ? `You can pause, skip, or come back any time for ${fmtDays(card.expiresAt)}.` : 'You can pause, skip, or come back any time.'
 
 if (!data.ready) {
@@ -132,7 +133,7 @@ if (!data.ready) {
 
 // ── reel ─────────────────────────────────────────────────────────────────────
 const vid = $('#vid')
-let withMusic = true, idx = 0
+let idx = 0
 const segsCap = Math.min(20, manifest?.length || n)
 $('#segs').innerHTML = Array.from({ length: segsCap }, () => '<span></span>').join('')
 $('#expiryLine').textContent = card.expiresAt ? `Saves to your phone. This link stays open ${fmtDays(card.expiresAt)}.` : 'Saves to your phone.'
@@ -152,16 +153,13 @@ function pickSource() {
   $('#otherSize').href = wide ? data.reelUrl : data.reelWideUrl
 }
 window.addEventListener('resize', () => { if (!$('#reel').classList.contains('hidden')) pickSource() })
-function open(music) {
-  withMusic = music
+function open() {
   $('#envelope').classList.add('hidden'); $('#reel').classList.remove('hidden')
   pickSource()
   vid.muted = false
-  if (!music) toast('Playing without music. Voices stay on.')
   vid.play().catch(() => {})
 }
-$('#openBtn').onclick = () => open(true)
-$('#openQuiet').onclick = () => open(false)
+$('#openBtn').onclick = () => open()
 $('#laterBtn').onclick = async () => { await share({ title: `${first}, people made you something`, text: 'Your churpie reel. Open it when you have a quiet moment.', url: location.href }); }
 
 function segmentAt(t) {
@@ -181,19 +179,17 @@ vid.addEventListener('timeupdate', () => {
   const p = Math.round(((vid.currentTime - m.start) / Math.max(0.1, m.end - m.start)) * 100)
   $$('#segs span.now').forEach((s) => s.style.setProperty('--p', `${p}%`))
 })
-// The music is mixed into the reel; "without music" lowers the whole track slightly and voices still carry. Full separation comes with a second audio track later.
-vid.addEventListener('play', () => { vid.volume = withMusic ? 1 : 0.85 })
 $('#pauseBtn').onclick = () => { if (vid.paused) { vid.play(); $('#pauseBtn').lastChild.textContent = 'Pause' } else { vid.pause(); $('#pauseBtn').lastChild.textContent = 'Play' } }
 $('#nextBtn').onclick = () => { if (manifest) vid.currentTime = manifest[Math.min(manifest.length - 1, idx + 1)].start + 0.05 }
 $('#backBtn').onclick = () => { if (manifest) vid.currentTime = manifest[Math.max(0, idx - 1)].start + 0.05 }
 $('#muteBtn').onclick = () => { vid.muted = !vid.muted; $('#muteBtn').lastChild.textContent = vid.muted ? 'Sound on' : 'Sound off' }
-$('#loveBtn').onclick = () => { const m = manifest?.[idx]; if (m) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'loved', clipId: m.clipId } }); toast(`${m?.name || 'They'} will know you loved it.`) }
-$('#saveBtn').onclick = () => { api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'saved' } }); toast('Saving to your phone.') }
+$('#loveBtn').onclick = () => { const m = manifest?.[idx]; if (peek) return toast('Admin preview: loves are off.'); if (m) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'loved', clipId: m.clipId } }); toast(`Loved. ${firstName(card.hostName)} will see it and can tell ${m?.name || 'them'}.`) }
+$('#saveBtn').onclick = () => { if (!peek) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'saved' } }); toast('Saving to your phone.') }
 $('#shareBtn').onclick = () => share({ title: `${first}'s reel`, text: `${n} people made this for ${first}.`, url: location.href })
 $('#peopleBtn').onclick = () => $('#people').classList.remove('hidden')
 $('#peopleClose').onclick = () => $('#people').classList.add('hidden')
 $('#peopleList').onclick = (e) => { const b = e.target.closest('[data-i]'); if (!b || !manifest) return; const m = manifest.find((x) => x.clipId === people[b.dataset.i].id); if (m) vid.currentTime = m.start + 0.05; $('#people').classList.add('hidden'); vid.play() }
-$('#replyBtn').onclick = () => $('#dlg').showModal()
+$('#replyBtn').onclick = () => (peek ? toast('Admin preview: replies are off.') : $('#dlg').showModal())
 $('#dlgClose').onclick = () => $('#dlg').close()
 $('#replyForm').addEventListener('submit', async (e) => { e.preventDefault(); await api(`/api/watch/${token}/reply`, { method: 'POST', body: { text: new FormData(e.target).get('text') } }); $('#dlg').close(); toast("It's on its way.") })
 // tap right side of the video to skip, left to go back: a bonus, never the only way

@@ -11,7 +11,7 @@
 - Message length: about 15 seconds each (or 30, if the host chooses). Up to 50 people per card.
 - Host controls: watch messages as they arrive, reorder them, hide any, set a last day to add messages, then make the reel.
 - Occasions: birthdays (kids, teens, milestone birthdays), graduations, retirements, team send-offs, get well soon, welcome home, thank yous, and memorials. Each card has a look and music that suit the moment; memorial cards are quiet and never use party themes.
-- Privacy: invites, card pages and reels are private links and are not indexed. The reel and all messages are deleted 14 days after the reel is made (the host can add 30 days once). Unfinished cards with no new messages for 30 days are deleted 14 days later.
+- Privacy: invites, card pages and reels are private links and are not indexed. The reel and all messages are deleted 14 days after the reel is made (the host can add 14 more days once). Unfinished cards with no new messages for 30 days are deleted 14 days later.
 - Best for: groups of friends, families, classmates, teammates and coworkers who want one shared video for a person, without paying or signing anyone up.
 - Not for: long video editing, live video calls, or hosting videos long-term.
 
@@ -25,3 +25,4 @@
 - [Memorial tribute videos](https://churpie.me/memorial): memories from everyone who loved them, for the family
 - [Churpie vs. VidDay and Tribute](https://churpie.me/compare): an honest comparison of price, accounts, length and what each is best for
 - [Privacy](https://churpie.me/privacy): what churpie keeps, and when it is deleted
+- [Terms](https://churpie.me/terms): the short rules for using churpie, and how to reach a person (hello@sherwooddigital.org)

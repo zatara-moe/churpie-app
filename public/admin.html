@@ -208,12 +208,12 @@ async function openCard(id) {
     <div class="abar"><h1 style="font-size:24px">For ${e(c.recipient_name)}</h1><button class="btn quiet" id="x">Close</button></div>
     <div>${pill(c.status)} ${pill(c.email_state)} ${c.account_type === 'business' ? pill('business') : ''}</div>
     <div class="acts">
-      <a class="btn primary" href="${e(d.links.host)}?peek=1" target="_blank" rel="noopener">Open their board</a>
+      ${d.links.peekHost ? `<a class="btn primary" href="${e(d.links.peekHost)}" target="_blank" rel="noopener">Look at their board</a>` : ''}
       <button class="btn outline" data-copy="${e(d.links.host)}">Copy board link</button>
       <button class="btn outline" data-copy="${e(d.links.invite)}">Copy invite link</button>
-      ${['ready', 'sent'].includes(c.status) ? `<a class="btn outline" href="${e(d.links.watch)}" target="_blank" rel="noopener">Watch the reel</a>` : ''}
+      ${d.links.peekWatch && ['ready', 'sent'].includes(c.status) ? `<a class="btn outline" href="${e(d.links.peekWatch)}" target="_blank" rel="noopener">Preview the reel</a>` : ''}
     </div>
-    <p class="muted-s">The board link gives full host control (hide messages, make the reel, delete). Only send it to the host.</p>
+    <p class="muted-s">Looking at the board or previewing the reel from here is read-only and never counts as the host or ${e(c.recipient_name)} opening it. Those links last about an hour. "Copy board link" is the real key, with full host control (hide messages, make the reel, delete): only send it to the host.</p>
     <div class="panel"><h2>Host email</h2>
       <form class="fix" id="fix"><input type="email" name="email" value="${e(c.host_email)}" required><button class="btn primary">Save &amp; send board link</button></form>
       <div class="acts" style="margin-bottom:0"><button class="btn quiet" id="resend">Resend board link to current address</button></div>

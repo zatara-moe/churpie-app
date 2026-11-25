@@ -82,6 +82,26 @@ function stitchAuth(c) {
   return token && given === token
 }
 
+// Admin "peek" links: a signed, short-lived pass that lets an admin look at a board or a reel without it
+// counting as the host or the recipient opening it. Signed with STITCH_TOKEN; good for this hour and the next.
+const PEEK_EXPIRED = 'This admin preview has run out. Open it again from the admin page.'
+async function peekSig(env, token, hour = Math.floor(Date.now() / 3600e3)) {
+  if (!env.STITCH_TOKEN) return ''
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', enc.encode(env.STITCH_TOKEN), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = await crypto.subtle.sign('HMAC', key, enc.encode(`peek:${token}:${hour}`))
+  return [...new Uint8Array(mac)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+// null = an ordinary visit, 'ok' = a valid admin peek, 'expired' = a peek link that no longer checks out.
+// An expired peek is refused rather than treated as an ordinary visit, so a stale admin tab can never count as "opened".
+async function peekState(c, token) {
+  const given = c.req.query('peek')
+  if (!given) return null
+  const hour = Math.floor(Date.now() / 3600e3)
+  const good = [await peekSig(c.env, token, hour), await peekSig(c.env, token, hour - 1)].filter(Boolean)
+  return good.includes(given) ? 'ok' : 'expired'
+}
+
 // Streams an R2 object with HTTP range support (video scrubbing on phones needs it).
 async function streamObject(c, key, contentTypeFallback = 'video/mp4', extra = {}) {
   const range = c.req.header('range')
@@ -556,7 +576,10 @@ app.get('/api/clips/:clipId/stream', async (c) => {
 app.get('/api/host/:token', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
   if (!card) return bad(c, "We can't find a card at this link. Check that you copied all of it.", 404)
-  if (await needsVerify(c.env.DB, card.id)) await logEvent(c.env.DB, card.id, 'verified')
+  // an admin looking at the board is not the host opening their email: it must not confirm the address
+  const peek = await peekState(c, card.host_token)
+  if (peek === 'expired') return bad(c, PEEK_EXPIRED, 403)
+  if (!peek && await needsVerify(c.env.DB, card.id)) await logEvent(c.env.DB, card.id, 'verified')
   const clips = await listClips(c.env.DB, card.id, { includeHidden: true })
   const base = c.env.APP_URL
   const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
@@ -567,6 +590,7 @@ app.get('/api/host/:token', async (c) => {
     card: {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
       hostEmail: card.host_email,
+      peek: !!peek,
       maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
       hasReel: !!card.final_key,
       keepDays: LIFETIME(c.env),
@@ -586,7 +610,7 @@ app.get('/api/host/:token', async (c) => {
     },
     clips: clips.map((x) => ({
       id: x.id, name: x.contributor_name, location: x.location, kind: x.kind, text: x.text,
-      status: x.status, flags: x.flags, duration: x.duration, position: x.position, createdAt: x.created_at,
+      status: x.status, flags: x.flags, duration: x.duration, position: x.position, createdAt: x.created_at, loved: x.loved || 0,
       streamUrl: x.storage_key ? `/api/clips/${x.id}/stream?host=${card.host_token}` : null,
     })),
   })
@@ -744,15 +768,21 @@ app.get('/api/watch/:token', async (c) => {
   if (!card) return bad(c, "This reel isn't here anymore.", 404)
   const clips = await listClips(c.env.DB, card.id)
   const ready = card.status === 'ready' || card.status === 'sent'
-  if (ready && card.status === 'ready') {
-    await c.env.DB.prepare(`UPDATE cards SET status = 'sent' WHERE id = ?`).bind(card.id).run()
-    c.executionCtx.waitUntil(deleteOriginals(c.env, card.id))
+  // an admin preview is not the recipient: it never marks the reel as sent, clears the originals, or counts as opened
+  const peek = await peekState(c, card.watch_token)
+  if (peek === 'expired') return bad(c, PEEK_EXPIRED, 403)
+  if (!peek) {
+    if (ready && card.status === 'ready') {
+      await c.env.DB.prepare(`UPDATE cards SET status = 'sent' WHERE id = ?`).bind(card.id).run()
+      c.executionCtx.waitUntil(deleteOriginals(c.env, card.id))
+    }
+    await logEvent(c.env.DB, card.id, 'opened')
   }
-  await logEvent(c.env.DB, card.id, 'opened')
   const manifest = card.manifest ? JSON.parse(card.manifest) : null
   return c.json({
     card: { ...publicCard(card, clips.length), expiresAt: card.expires_at, hasIntro: !!card.host_intro_key },
     ready,
+    peek: !!peek,
     expired: card.status === 'expired',
     manifest,
     reelUrl: ready ? `/api/watch/${card.watch_token}/reel.mp4` : null,
@@ -984,9 +1014,15 @@ app.get('/api/admin/cards/:id', async (c) => {
   ])
   const base = c.env.APP_URL
   const { host_token, watch_token, manifest, ...rest } = card
+  // peekHost / peekWatch are the links an admin opens: read-only, and never counted. host is the real key, only for sending to the host.
+  const [hostSig, watchSig] = await Promise.all([peekSig(c.env, host_token), peekSig(c.env, watch_token)])
   return c.json({
     card: rest,
-    links: { host: `${base}/h/${host_token}`, invite: `${base}/c/${card.id}`, watch: `${base}/w/${watch_token}` },
+    links: {
+      host: `${base}/h/${host_token}`, invite: `${base}/c/${card.id}`,
+      peekHost: hostSig ? `${base}/h/${host_token}?peek=${hostSig}` : null,
+      peekWatch: watchSig ? `${base}/w/${watch_token}?peek=${watchSig}` : null,
+    },
     clips: clips.results.map((r) => ({ ...r, flags: r.flags ? JSON.parse(r.flags) : [] })),
     replies: replies.n, events: events.results,
   })

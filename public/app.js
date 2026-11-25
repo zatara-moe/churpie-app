@@ -170,7 +170,9 @@ export async function botCheck() {
   const t = await ts
   if (!t) return null
   return new Promise((resolve, reject) => {
-    const opts = { sitekey: t.key, appearance: 'interaction-only', callback: resolve, 'error-callback': () => reject(new Error('We couldn’t confirm you’re a person. Try once more.')) }
+    // the widget is made once and reused, so each check hands it a fresh pair of callbacks
+    t.done = resolve; t.fail = reject
+    const opts = { sitekey: t.key, appearance: 'interaction-only', callback: (token) => t.done(token), 'error-callback': () => t.fail(new Error('We couldn’t confirm you’re a person. Try once more.')) }
     if (t.id === null) t.id = window.turnstile.render(t.box, opts)
     else { window.turnstile.reset(t.id) }
   })

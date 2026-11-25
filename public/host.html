@@ -185,9 +185,19 @@
 <input type="file" id="introFile" accept="video/*" class="hidden">
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
+import { api as liveApi, $, $$, toast, share, escapeHtml, firstName, fmtDays, fmtWhen, upload as liveUpload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
+// Opened from the admin page (?peek=<pass>): a read-only look. Reading still works; anything that would change
+// the card (hide, reorder, make the reel, reopen, delete, add a message or an intro) is stopped here.
+const peek = new URLSearchParams(location.search).get('peek')
+const READ_ONLY = 'Admin view: read-only. Nothing was changed.'
+const api = !peek ? liveApi : (path, opts = {}) => {
+  if (opts.method && opts.method.toUpperCase() !== 'GET') return Promise.reject(new Error(READ_ONLY))
+  return liveApi(`${path}${path.includes('?') ? '&' : '?'}peek=${encodeURIComponent(peek)}`, opts)
+}
+const upload = !peek ? liveUpload : async () => { toast(READ_ONLY); throw new Error(READ_ONLY) }
+if (peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status" style="position: sticky; top: 0; z-index: 99; background: #1A1410; color: #fff; text-align: center; font: 600 13px \'DM Sans\', sans-serif; padding: 8px 12px">Admin view · read-only. Nothing you tap here changes this card.</div>')
 const esc = escapeHtml
 let data = await load().catch((e) => { $('#stage').innerHTML = `<div class="panel center"><h2>${esc(e.message)}</h2><a class="btn primary big" href="/lost">Find your card</a></div>`; throw e })
 const first = firstName(data.card.recipientName)
@@ -305,6 +315,7 @@ function invite() {
 
 // your own invite page, opened over the board: to add yours, or to see what guests see
 function openSheet(mode) {
+  if (peek) { toast(READ_ONLY); return } // the sheet is the live invite page, where a message could be added
   $('#sheetNote').textContent = mode === 'record' ? `Adding yours for ${first}` : mode === 'behalf' ? 'Adding a video someone sent you' : 'What your guests see'
   $('#sheetFrame').src = `/c/${data.card.id}?from=board${mode === 'record' ? '&go=1' : mode === 'behalf' ? '&behalf=1' : ''}`
   $('#sheet').showModal()
@@ -504,12 +515,21 @@ function sentView() {
       <h1 class="hero" style="margin-top: 10px">${memorial ? 'Someone has opened it.' : `${F} opened it.`}</h1>
       ${card.openedAt ? `<p class="sub">${esc(fmtWhen(card.openedAt))}</p>` : ''}
       <div id="replyBox" style="width: 100%"></div>
+      ${lovedLine()}
       <div id="dockSlot" style="width: 100%"></div>
     </div>`
   dock(`<button class="btn primary big" data-act="tellGroup">${memorial ? 'Tell the group it was shared' : `Tell the group ${F} watched it`}</button>
     <a class="btn line" href="${saveHref()}" download>${ICON.save}Save video</a>
     <p class="ghost">We delete the reel in ${fmtDays(card.expiresAt)}. Save it to keep it forever. <button class="btn quiet" data-act="watchAgain" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Watch it again</button>${card.extended ? '' : `<br><button class="btn quiet" data-act="extend" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Keep it ${card.keepDays} more days</button>`}</p>`)
   showReplies()
+}
+
+// the messages they tapped "Love it" on while watching: only the host sees this, so the host can pass it on
+function lovedLine() {
+  const names = data.clips.filter((c) => c.loved > 0 && c.status !== 'hidden').map((c) => c.name)
+  if (!names.length) return ''
+  const list = names.length > 3 ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} others` : names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]
+  return `<p class="sub" style="margin-top: 6px">${memorial ? 'Loved:' : `${F} loved`} the ${names.length === 1 ? 'message' : 'messages'} from ${esc(list)}. Let them know.</p>`
 }
 
 let replies = null
