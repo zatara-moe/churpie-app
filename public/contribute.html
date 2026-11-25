@@ -219,6 +219,11 @@
         <div><i>3</i><span id="doneOpen">They open the reel</span></div>
       </div>
     </div>
+    <form class="later stack hidden" id="tellMe" style="gap: 10px">
+      <div><h3 id="tellTitle"></h3><p class="muted" style="margin-top: 4px" id="tellText"></p></div>
+      <label class="field" style="margin: 0"><span class="hidden">Your email</span><input type="email" name="email" required maxlength="120" autocomplete="email" inputmode="email" placeholder="you@email.com" aria-label="Your email"></label>
+      <button class="btn" type="submit">Email me when it's opened</button>
+    </form>
     <button class="btn primary" id="shareOn"></button>
     <div class="later stack" style="gap: 10px">
       <div><h3>Want to redo it later?</h3><p class="muted" style="margin-top: 4px" id="laterText"></p></div>
@@ -471,6 +476,21 @@ function finish(reg, name) {
   $('#editLinkBtn').onclick = async () => { await navigator.clipboard.writeText(reg.editUrl); toast('Your private link is copied.') }
   if (!behalf) try { localStorage.setItem(`churpie:edit:${cardId}`, reg.editUrl) } catch {} // someone else's video isn't "yours" to edit from here
   if (embedded) { try { parent.postMessage({ churpie: 'added', behalf, name }, location.origin) } catch {} }
+  // hear back once: the reel, and anything said back. Not for the host (they get it all) or a video added for someone else.
+  if (card.canNotify && !behalf && !myBoard && reg.clipId && reg.editToken) {
+    const memorial = card.moment === 'memory'
+    $('#tellTitle').textContent = memorial ? 'Want to see the reel once it has been watched?' : `Want to see the reel once ${first} opens it?`
+    $('#tellText').textContent = `One email, with the reel${memorial ? '' : ` and anything ${first} says back`}. Your email is deleted with the card.`
+    $('#tellMe').classList.remove('hidden')
+    $('#tellMe').onsubmit = async (ev) => {
+      ev.preventDefault()
+      const btn = $('#tellMe button'); btn.disabled = true
+      try {
+        await api(`/api/clips/${reg.clipId}/notify?edit=${reg.editToken}`, { method: 'POST', body: { email: new FormData(ev.target).get('email') } })
+        $('#tellMe').innerHTML = `<div><h3>Done.</h3><p class="muted" style="margin-top: 4px">${memorial ? "We'll email you once, after it has been watched." : `We'll email you once, after ${escapeHtml(first)} opens it.`}</p></div>`
+      } catch (err) { toast(err.message); btn.disabled = false }
+    }
+  }
   if (myBoard) {
     // the host is done with this page; the next job (inviting people) lives on the board
     $('#shareOn').textContent = 'Back to your card'

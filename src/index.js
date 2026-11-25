@@ -153,7 +153,7 @@ const emailOn = (env) => !!env.RESEND_API_KEY
 const LIFETIME = (env) => Number(env.CLIP_LIFETIME_DAYS || 14)
 const looksLikeEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e || '')
 
-async function sendEmail(env, { to, subject, lines, button, after = [] }) {
+async function sendEmail(env, { to, subject, lines, button, after = [], why = "You're getting this because you made a card on churpie.me." }) {
   if (!emailOn(env) || !to) return { skipped: true }
   const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]))
   const p = (t) => `<p style="margin:0 0 14px;font:16px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#1A1410">${esc(t)}</p>`
@@ -162,7 +162,7 @@ async function sendEmail(env, { to, subject, lines, button, after = [] }) {
     + lines.map(p).join('')
     + (button ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="display:inline-block;background:#D4266A;color:#fff;text-decoration:none;font:700 16px -apple-system,Segoe UI,Helvetica,Arial,sans-serif;padding:14px 22px;border-radius:999px">${esc(button.label)}</a></p>` : '')
     + after.map(p).join('')
-    + `<p style="margin:18px 0 0;font:13px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#7A6E5C">Made by Sherwood Digital in Flagstaff, Arizona. You're getting this because you made a card on churpie.me.</p></div></div>`
+    + `<p style="margin:18px 0 0;font:13px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#7A6E5C">Made by Sherwood Digital in Flagstaff, Arizona. ${esc(why)}</p></div></div>`
   const text = [...lines, ...(button ? [`${button.label}: ${button.url}`] : []), ...after].join('\n\n')
   const r = await fetch(env.RESEND_URL || 'https://api.resend.com/emails', { // RESEND_URL only for local testing
     method: 'POST',
@@ -171,6 +171,69 @@ async function sendEmail(env, { to, subject, lines, button, after = [] }) {
   }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }))
   if (!r.ok) console.error('email failed', r.status, await r.text().catch(() => ''))
   return { ok: r.ok }
+}
+
+// ── "Tell me when it's opened" ──────────────────────────────────────────────
+// A contributor can leave an email after sending a message. They hear back once, a little after the reel is
+// first opened: the reel, whether their message was loved, and the thank-you note if there is one.
+// The email lives in its own small table and is deleted with the card. The table is made on first use, so a
+// deploy needs no database step (migrations/0003_notify.sql is the same statement, for new setups).
+let notifyTable = false
+async function notifyDb(db) {
+  if (!notifyTable) {
+    await db.prepare(`CREATE TABLE IF NOT EXISTS notify (clip_id TEXT PRIMARY KEY, card_id TEXT NOT NULL, email TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), sent_at TEXT)`).run()
+    await db.prepare(`CREATE INDEX IF NOT EXISTS notify_card_idx ON notify(card_id)`).run()
+    notifyTable = true
+  }
+  return db
+}
+
+// Runs every minute with the reel-maker wake-up. Kept tiny: one query when nothing is due.
+async function tellContributors(env) {
+  if (!emailOn(env)) return { skipped: 'email off' }
+  const db = await notifyDb(env.DB)
+  // wait a little after the first open, so the email can carry the love and the thank-you note too
+  const wait = Number(env.NOTIFY_AFTER_MINUTES ?? 30)
+  const cutoff = new Date(Date.now() - wait * 60000).toISOString()
+  const { results } = await db.prepare(
+    `SELECT n.clip_id, n.email, k.contributor_name, k.loved, c.id AS card_id, c.recipient_name, c.moment, c.watch_token, c.expires_at
+       FROM notify n JOIN cards c ON c.id = n.card_id JOIN clips k ON k.id = n.clip_id
+      WHERE n.sent_at IS NULL AND c.status = 'sent' AND k.status = 'ready'
+        AND (SELECT MIN(e.at) FROM events e WHERE e.card_id = c.id AND e.type = 'opened') <= ?
+      LIMIT 20`
+  ).bind(cutoff).all()
+  let told = 0
+  const notes = new Map()
+  for (const r of results) {
+    // claim it first: if two runs overlap, only one sends
+    const claim = await db.prepare(`UPDATE notify SET sent_at = ? WHERE clip_id = ? AND sent_at IS NULL`).bind(nowIso(), r.clip_id).run()
+    if (!claim.meta.changes) continue
+    if (!notes.has(r.card_id)) notes.set(r.card_id, (await db.prepare(`SELECT text FROM replies WHERE card_id = ? ORDER BY created_at DESC LIMIT 1`).bind(r.card_id).first())?.text || '')
+    const note = notes.get(r.card_id)
+    const first = r.recipient_name.split(' ')[0]
+    const you = String(r.contributor_name || '').trim().split(/\s+/)[0] || 'Hi'
+    const memorial = r.moment === 'memory'
+    const until = r.expires_at ? new Date(r.expires_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }) : ''
+    await sendEmail(env, {
+      to: r.email,
+      subject: memorial ? `The reel in memory of ${first} has been watched` : `${first} opened the reel you were part of`,
+      lines: [
+        memorial ? `${you}, the reel in memory of ${first} has been watched.` : `${you}, ${first} watched the reel you helped make.`,
+        ...(r.loved > 0 ? [memorial ? 'Your message was marked as loved.' : `${first} tapped "Love it" on your message.`] : []),
+        ...(note ? [memorial ? `A note came back for everyone: “${note}”` : `${first} wrote back to everyone: “${note}”`] : []),
+        memorial ? 'Here it is, so you can see what everyone remembered.' : 'Here it is, so you can see what everyone said.',
+      ],
+      button: { label: 'Watch the reel', url: `${env.APP_URL}/w/${r.watch_token}?guest=1` },
+      after: [
+        `${until ? `It's there until ${until}. Then` : 'Soon'} churpie deletes the reel, every message and this email address, as promised.`,
+        ...(memorial ? [] : [`Is there someone you'd make one for? It's free, and starting takes a minute: ${env.APP_URL}/new`]),
+      ],
+      why: "You're getting this one email because you asked to hear when the reel was opened.",
+    })
+    await logEvent(db, r.card_id, 'told')
+    told++
+  }
+  return { told }
 }
 
 // A card made with email on stays closed to messages until the host opens the board link from their email.
@@ -411,7 +474,7 @@ app.get('/api/cards/:id/public', async (c) => {
   const { results: inRows } = await c.env.DB.prepare(`SELECT contributor_name FROM clips WHERE card_id = ? AND status = 'ready' ORDER BY created_at DESC LIMIT 5`).bind(card.id).all()
   const names = inRows.map((r) => String(r.contributor_name || '').trim().slice(0, 24)).filter(Boolean)
   // full is checked up front, so nobody records a message that can't go in
-  return c.json({ ...publicCard(card, count), names, full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50), notYet: await needsVerify(c.env.DB, card.id) })
+  return c.json({ ...publicCard(card, count), names, full: count >= Number(c.env.MAX_CLIPS_PER_CARD || 50), notYet: await needsVerify(c.env.DB, card.id), canNotify: emailOn(c.env) })
 })
 
 app.get('/api/cards/:id/intro', async (c) => {
@@ -545,6 +608,22 @@ app.get('/api/clips/:clipId', async (c) => {
   return c.json({ clip: { id: clip.id, name: clip.contributor_name, kind: clip.kind, text: clip.text, status: clip.status, locked: card.status !== 'open' } })
 })
 
+// "Tell me when it's opened": the contributor's own choice, made with their private edit link. An empty email takes it back.
+app.post('/api/clips/:clipId/notify', async (c) => {
+  if (!emailOn(c.env)) return bad(c, "Email isn't switched on here, so we can't tell you.", 409)
+  const clip = await c.env.DB.prepare(`SELECT * FROM clips WHERE id = ?`).bind(c.req.param('clipId')).first()
+  if (!clip || clip.edit_token !== c.req.query('edit') || clip.status === 'removed') return c.notFound()
+  const b = await c.req.json().catch(() => ({}))
+  const email = sanitize(b.email, 120).toLowerCase()
+  const db = await notifyDb(c.env.DB)
+  if (!email) { await db.prepare(`DELETE FROM notify WHERE clip_id = ?`).bind(clip.id).run(); return c.json({ ok: true, on: false }) }
+  if (!looksLikeEmail(email)) return bad(c, "That email doesn't look right. Check it for a typo.")
+  const had = await db.prepare(`SELECT 1 AS x FROM notify WHERE clip_id = ?`).bind(clip.id).first()
+  await db.prepare(`INSERT INTO notify (clip_id, card_id, email) VALUES (?, ?, ?) ON CONFLICT(clip_id) DO UPDATE SET email = excluded.email`).bind(clip.id, clip.card_id, email).run()
+  if (!had) await logEvent(db, clip.card_id, 'optin')
+  return c.json({ ok: true, on: true })
+})
+
 app.delete('/api/clips/:clipId', async (c) => {
   const clip = await c.env.DB.prepare(`SELECT * FROM clips WHERE id = ?`).bind(c.req.param('clipId')).first()
   if (!clip || clip.edit_token !== c.req.query('edit')) return c.notFound()
@@ -552,6 +631,8 @@ app.delete('/api/clips/:clipId', async (c) => {
   if (card.status !== 'open') return bad(c, 'The reel is already made, so your message is in it now.', 409)
   if (clip.storage_key) await c.env.CLIPS.delete(clip.storage_key)
   await c.env.DB.prepare(`UPDATE clips SET status = 'removed' WHERE id = ?`).bind(clip.id).run()
+  // their message is out, so the email they left to hear back goes too
+  await (await notifyDb(c.env.DB)).prepare(`DELETE FROM notify WHERE clip_id = ?`).bind(clip.id).run()
   return c.json({ ok: true })
 })
 
@@ -584,6 +665,7 @@ app.get('/api/host/:token', async (c) => {
   const base = c.env.APP_URL
   const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
   const opened = card.status === 'sent' ? await c.env.DB.prepare(`SELECT MIN(at) AS at FROM events WHERE card_id = ? AND type = 'opened'`).bind(card.id).first() : null
+  const asked = emailOn(c.env) ? await (await notifyDb(c.env.DB)).prepare(`SELECT COUNT(*) AS n FROM notify n JOIN clips k ON k.id = n.clip_id WHERE n.card_id = ? AND k.status = 'ready'`).bind(card.id).first() : null
   let reelSeconds = null
   try { const m = card.manifest ? JSON.parse(card.manifest) : null; if (m?.length) reelSeconds = Math.round(m[m.length - 1].end) } catch {}
   return c.json({
@@ -591,6 +673,7 @@ app.get('/api/host/:token', async (c) => {
       ...publicCard(card, clips.filter((x) => x.status === 'ready').length),
       hostEmail: card.host_email,
       peek: !!peek,
+      notifyCount: asked?.n || 0,
       maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
       hasReel: !!card.final_key,
       keepDays: LIFETIME(c.env),
@@ -771,7 +854,9 @@ app.get('/api/watch/:token', async (c) => {
   // an admin preview is not the recipient: it never marks the reel as sent, clears the originals, or counts as opened
   const peek = await peekState(c, card.watch_token)
   if (peek === 'expired') return bad(c, PEEK_EXPIRED, 403)
-  if (!peek) {
+  // someone who added a message, watching from the email they asked for: not the recipient either
+  const guest = !peek && c.req.query('guest') === '1'
+  if (!peek && !guest) {
     if (ready && card.status === 'ready') {
       await c.env.DB.prepare(`UPDATE cards SET status = 'sent' WHERE id = ?`).bind(card.id).run()
       c.executionCtx.waitUntil(deleteOriginals(c.env, card.id))
@@ -783,6 +868,7 @@ app.get('/api/watch/:token', async (c) => {
     card: { ...publicCard(card, clips.length), expiresAt: card.expires_at, hasIntro: !!card.host_intro_key },
     ready,
     peek: !!peek,
+    guest,
     expired: card.status === 'expired',
     manifest,
     reelUrl: ready ? `/api/watch/${card.watch_token}/reel.mp4` : null,
@@ -979,6 +1065,8 @@ app.get('/api/admin/stats', async (c) => {
         (SELECT COUNT(*) FROM clips WHERE status = 'hidden') AS hidden,
         (SELECT COUNT(*) FROM replies) AS replies,
         (SELECT COUNT(DISTINCT card_id) FROM events WHERE type = 'opened') AS opened,
+        (SELECT COUNT(*) FROM events WHERE type = 'optin') AS optins,
+        (SELECT COUNT(*) FROM events WHERE type = 'told') AS told,
         (SELECT COALESCE(SUM(bytes), 0) FROM clips WHERE status IN ('uploading','ready','hidden')) AS bytes`, since(7)),
     one(`SELECT COUNT(*) AS n FROM cards c WHERE EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'needs_verify')
          AND NOT EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'verified')`),
@@ -1161,8 +1249,10 @@ async function expireCard(env, id, why) {
   const finals = await env.CLIPS.list({ prefix: `finals/${id}/` })
   const keys = [...listed.objects, ...finals.objects].map((o) => o.key)
   if (keys.length) await env.CLIPS.delete(keys)
-  // names, notes, the question and the email go too; only the anonymous event log remains (counts, dates)
+  // names, notes, the question and every email go too; only the anonymous event log remains (counts, dates)
+  await notifyDb(env.DB)
   await env.DB.batch([
+    env.DB.prepare(`DELETE FROM notify WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM replies WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM clips WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM cards WHERE id = ?`).bind(id),
@@ -1247,5 +1337,9 @@ async function wakeStitcher(env, scheduledTime = Date.now()) {
 
 export default {
   fetch: app.fetch,
-  scheduled: (event, env, ctx) => ctx.waitUntil(event.cron === '* * * * *' ? wakeStitcher(env, event.scheduledTime) : sweep(env)),
+  scheduled: (event, env, ctx) => {
+    if (event.cron !== '* * * * *') return ctx.waitUntil(sweep(env))
+    ctx.waitUntil(wakeStitcher(env, event.scheduledTime))
+    ctx.waitUntil(tellContributors(env).catch((e) => console.error('tell contributors failed', e)))
+  },
 }

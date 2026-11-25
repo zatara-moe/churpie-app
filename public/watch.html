@@ -93,10 +93,18 @@ import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion
 const token = location.pathname.split('/')[2]
 // opened from the admin page (?peek=<pass>): a preview that is never counted as the recipient opening it
 const peekPass = new URLSearchParams(location.search).get('peek')
-const data = await api(`/api/watch/${token}${peekPass ? `?peek=${encodeURIComponent(peekPass)}` : ''}`).catch((e) => { $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden'); $('#notReadyBody').innerHTML = `<h2>${escapeHtml(e.message)}</h2>`; throw e })
+const guestPass = !peekPass && new URLSearchParams(location.search).get('guest') === '1'
+const data = await api(`/api/watch/${token}${peekPass ? `?peek=${encodeURIComponent(peekPass)}` : guestPass ? '?guest=1' : ''}`).catch((e) => { $('#envelope').classList.add('hidden'); $('#notReady').classList.remove('hidden'); $('#notReadyBody').innerHTML = `<h2>${escapeHtml(e.message)}</h2>`; throw e })
 const { card, people, manifest } = data
-const peek = !!data.peek
-if (peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status" style="position: fixed; left: 0; right: 0; top: 0; z-index: 99; background: #1A1410; color: #fff; text-align: center; font: 600 13px \'DM Sans\', sans-serif; padding: 8px 12px">Admin preview · not counted as opened. Loves, saves and replies are off.</div>')
+// peek: an admin preview, or (guest) someone who added a message watching from their email. Neither is the person
+// the reel is for, so nothing they do is counted, and the love and thank-you buttons aren't theirs to press.
+const guest = !!data.guest
+const peek = !!data.peek || guest
+if (guest) {
+  document.body.insertAdjacentHTML('afterbegin', '<div role="status" style="position: fixed; left: 0; right: 0; top: 0; z-index: 99; background: #1A1410; color: #fff; text-align: center; font: 600 13px \'DM Sans\', sans-serif; padding: 8px 12px">You helped make this. Here is the whole reel.</div>')
+  for (const id of ['loveBtn', 'replyBtn']) document.getElementById(id)?.classList.add('hidden')
+}
+if (data.peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status" style="position: fixed; left: 0; right: 0; top: 0; z-index: 99; background: #1A1410; color: #fff; text-align: center; font: 600 13px \'DM Sans\', sans-serif; padding: 8px 12px">Admin preview · not counted as opened. Loves, saves and replies are off.</div>')
 const first = firstName(card.recipientName)
 const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds

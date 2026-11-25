@@ -496,7 +496,7 @@ function readyView() {
       <div class="left"><div class="hreel"><i class="t1"></i><i class="t2"></i><video src="/api/host/${token}/reel.mp4#t=0.1" controls playsinline preload="metadata"></video></div></div>
       <div class="stack" style="gap: 14px">
         <h1 class="hero">${F}'s reel is ready.</h1>
-        <p class="sub">${plural(ready.length, 'person', 'people')}${len}. Only you can see it until you send it.</p>
+        <p class="sub">${plural(ready.length, 'person', 'people')}${len}. Only you can see it until you send it.${card.notifyCount ? ` ${plural(card.notifyCount, 'person', 'people')} who added a message asked to see it, so we'll email them the reel once ${memorial ? 'it has been watched' : `${F} opens it`}.` : ''}</p>
         ${stackFaces(ready)}
         <div id="dockSlot"></div>
       </div>
