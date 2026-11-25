@@ -79,10 +79,14 @@ The stitcher is the only piece that isn't a Cloudflare page. It needs FFmpeg, so
 ## Optional, later
 
 - **Email backups of links:** `npx wrangler secret put RESEND_API_KEY` after creating a free Resend account; wire-up is a small change in `src/index.js` (search for `RESEND`).
-- **Bot check on making cards and sending messages:** Cloudflare Turnstile, free. Double-click `BOTCHECK-MAC.command`: it opens the Turnstile page, asks for the widget's two keys, checks them, saves them and ships.
+- **Bot check on making cards and sending messages:** Cloudflare Turnstile, free. The site key lives in `wrangler.toml`. Double-click `BOTCHECK-MAC.command`: it asks for the name of the Worker that serves churpie.me and the widget's secret key, checks both, and stores the secret on that Worker.
 - **Nunito in the reel text:** download the font (see `stitcher/fonts/README.md`) and rebuild the container. Until then the reel uses DejaVu, which is fine.
 
 ## Test, then ship
 
-- `TEST-LOCAL-MAC.command` starts a private local copy with an empty database, walks one whole card through it (make, message, admin preview, reel, open, love, thank-you) and prints what passed. Nothing live is touched.
-- `SHIP-MAC.command` deploys this folder to churpie.me and checks the live pages. It asks nothing.
+churpie.me is built by Cloudflare from GitHub: it updates when you **push** in GitHub Desktop. (`npm run deploy` only updates the Worker named in `wrangler.toml`, at its workers.dev address. That is a different Worker from the one that has churpie.me, and both use the same database.)
+
+- `TEST-LOCAL-MAC.command`, before you push: starts a private local copy with an empty database, walks one whole card through it (make, message, admin preview, reel, open, love, thank-you) and prints what passed. Nothing live is touched.
+- Commit and push in GitHub Desktop.
+- `SHIP-MAC.command`, after you push: waits until churpie.me matches this folder, then checks the live pages. It changes nothing.
+- `CHECK-LIVE-MAC.command`, any time: compares this folder, the workers.dev address and churpie.me page by page.
