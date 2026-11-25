@@ -260,10 +260,24 @@ if (card.clipCount && card.names?.length && !editToken) {
   const others = n - shown.length
   const who = others > 0 ? `${shown.join(', ')} and ${others} ${others === 1 ? 'other' : 'others'}` : shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown.at(-1)}` : shown[0]
   const row = document.createElement('p')
-  row.className = 'muted'
+  row.className = 'muted crowd'
   row.setAttribute('style', 'text-align:center; margin: 2px 0 -4px')
   row.innerHTML = `<b style="color:var(--ink)">${escapeHtml(who)}</b> ${n === 1 ? 'is' : 'are'} already in`
   $('#record')?.prepend(row)
+}
+// how long is left, when the host set a last day: said up front, not only after it has passed
+if (card.deadlineAt && !card.deadlinePassed && !editToken) {
+  const ms = new Date(card.deadlineAt) - Date.now()
+  if (ms > 0) {
+    const days = Math.ceil(ms / 86400000)
+    const day = new Date(card.deadlineAt).toLocaleDateString(undefined, { weekday: 'long' })
+    const row = document.createElement('p')
+    row.className = 'muted'
+    row.setAttribute('style', 'text-align:center; margin: 2px 0 -4px')
+    row.innerHTML = days <= 1 ? `<b style="color:var(--pink-deep)">Last day</b> to add yours` : `<b style="color:var(--ink)">${days} days left</b> to add yours · closes ${escapeHtml(day)}`
+    const crowd = document.querySelector('#record > .crowd')
+    if (crowd) crowd.after(row); else $('#record')?.prepend(row)
+  }
 }
 if (myBoard?.host) $$('input[name="name"]').forEach((i) => { if (!i.value) i.value = myBoard.host })
 // opened over the board (a sheet) or on its own: either way the host always has a way back

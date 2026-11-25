@@ -374,9 +374,18 @@ $('#step1').addEventListener('submit', (e) => {
   // fill in the occasion's question, unless they've written their own
   if (!ta.value || ta.value === autoPrompt) { ta.value = ask(m, name); autoPrompt = ta.value }
   if (!state.tone) { state.tone = m.tone; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === m.tone)) }
-  $('#promptIdeas').innerHTML = [m.prompt, ...(m.ideas || [])].map((q) => ask({ prompt: q }, name)).filter((q) => q !== ta.value).map((q) => `<button type="button" class="idea" data-p="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('')
+  renderIdeas()
   paint(); go(2)
 })
+// the other questions on offer: the one that suits the feeling they picked comes first
+function renderIdeas() {
+  const m = moments.find((x) => x.id === state.moment); if (!m) return
+  const ta = $('#step2 textarea'), name = firstName(new FormData($('#step1')).get('recipientName'))
+  const forTone = m.byTone?.[state.tone]
+  const all = [...new Set([...(forTone ? [forTone] : []), m.prompt, ...(m.ideas || [])])]
+  $('#promptIdeas').innerHTML = all.map((q) => ask({ prompt: q }, name)).filter((q) => q !== ta.value).map((q) => `<button type="button" class="idea" data-p="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('')
+}
+$('#tones').addEventListener('click', renderIdeas)
 $('#promptIdeas').addEventListener('click', (e) => {
   const b = e.target.closest('[data-p]'); if (!b) return
   const ta = $('#step2 textarea'), was = ta.value

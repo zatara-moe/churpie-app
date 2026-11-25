@@ -47,6 +47,14 @@ for (const [p, must] of [['/', 'churpie'], ['/new', 'churpie'], ['/privacy', 'he
 }
 ok((await call('/')).text.includes('href="/terms"'), 'home page footer links to the terms')
 ok((await call('/api/admin/stats')).status === 403, 'admin data is refused without an admin sign-in')
+const cat = (await call('/api/catalog')).json
+const hol = cat?.moments?.find((m) => m.id === 'holiday')
+ok(!!hol && !!cat.moments.find((m) => m.id === 'newyear') && !!cat.moments.find((m) => m.id === 'baby'), 'the holiday, New Year and new baby moments are on offer')
+ok(!!hol?.byTone?.funny && cat.moments.filter((m) => m.byTone).length >= 12, 'every moment has a question for each feeling')
+ok(cat?.vibes?.some((v) => v.id === hol?.vibe && v.moments.includes('holiday')), "the holiday moment's card suits it")
+const hc = await call('/api/cards', { method: 'POST', body: { recipientName: 'Nana', hostName: 'Sam', hostEmail: 'sam@example.com', prompt: 'A holiday question', moment: 'holiday', vibe: 'kraft', deadlineAt: new Date(Date.now() + 3 * 86400000).toISOString() } })
+const hpub = hc.json?.id ? (await call(`/api/cards/${hc.json.id}/public`)).json : null
+ok(hpub?.moment === 'holiday' && hpub?.vibe === 'kraft' && !!hpub?.deadlineAt && hpub?.deadlinePassed === false, 'a holiday card is made with its card and its last day')
 
 console.log('\n2 · make a card: the link goes to the host by email, and opening it opens the card')
 const made = await call('/api/cards', { method: 'POST', body: { recipientName: 'Rosa Test', hostName: 'Maria Test', hostEmail: 'maria@example.com', prompt: 'What is your favorite memory with Rosa?', moment: 'birthday' } })
@@ -121,19 +129,34 @@ ok(b.json.clips.find((c) => c.id === clipA)?.loved === 1 && b.json.clips.find((c
 await call(`/api/watch/${Wt}/reply`, { method: 'POST', body: { text: 'You all made my day.' } })
 ok((await call(`/api/host/${H}/replies`)).json?.replies?.length === 1, 'the thank-you note reaches the host')
 
-console.log('\n8 · the person who asked hears back, once')
+console.log('\n8 · the recipient sends a video back')
+const vhead = { 'content-type': 'video/mp4' }
+ok((await call(`/api/watch/${Wt}/reaction`, { method: 'PUT', raw: new Uint8Array(4096), headers: { 'content-type': 'text/plain' } })).status === 400, 'a file that is not a video is refused')
+ok((await call(`/api/watch/${Wt}/reaction`)).status === 404, 'there is no video back yet')
+ok((await call(`/api/watch/${Wt}/reaction`, { method: 'PUT', raw: new Uint8Array(4096), headers: vhead })).status === 200, 'the video back is sent')
+const withR = await call(`/api/watch/${Wt}?guest=1`)
+ok(!!withR.json?.reactionUrl && (await call(withR.json.reactionUrl)).status === 200, 'a guest can watch it next to the reel')
+b = await host(H)
+ok(!!b.json.card.reactionUrl && (await call(b.json.card.reactionUrl)).status === 200, 'the host sees it on the card page')
+ok((await call(`/api/watch/${Wt}/reaction`, { method: 'PUT', raw: new Uint8Array(8192), headers: vhead })).status === 200 && (await call(`/api/watch/${Wt}/reaction`)).text.length === 8192, 'recording a new one replaces the old one')
+const wpg = await call(`/w/${Wt}`); ok(wpg.text.includes('Want to show them your face?') && wpg.text.includes('reactDlg'), 'the reel page carries the "show them your face" step')
+
+console.log('\n9 · the person who asked hears back, once')
 const tick = await everyMinute()
 ok(tick.status === 200, 'the every-minute job runs', `status ${tick.status} ${tick.text.slice(0, 120)}`)
 const told = (await waitMail('grandma@example.com'))[0]
 ok(!!told, 'Grandma J gets her email')
 ok(/Rosa opened the reel/.test(told?.subject || ''), 'its subject says Rosa opened the reel', told?.subject)
 ok((told?.text || '').includes('Love it') && (told?.text || '').includes('You all made my day.'), 'it carries the love and the thank-you note')
+ok((told?.text || '').includes('recorded a video back'), 'it says a video came back')
 ok((told?.text || '').includes(`/w/${Wt}?guest=1`), 'its button opens the reel as a guest')
 ok((told?.html || '').includes('you asked to hear when the reel was opened') && !(told?.html || '').includes('because you made a card'), 'its footer says why she got it')
 await everyMinute(); await sleep(1500)
 ok(mailTo('grandma@example.com').length === 1 && mailTo('dev@example.com').length === 0, 'no second email, and nothing to Dev, who opted out')
 
-console.log('\n9 · the host deletes the card: everything goes')
+console.log('\n10 · taking the video back, then the host deletes the card: everything goes')
+ok((await call(`/api/watch/${Wt}/reaction`, { method: 'DELETE' })).status === 200 && (await call(`/api/watch/${Wt}/reaction`)).status === 404 && (await call(`/api/watch/${Wt}?guest=1`)).json?.reactionUrl === null, 'the recipient takes the video back and it is gone')
+await call(`/api/watch/${Wt}/reaction`, { method: 'PUT', raw: new Uint8Array(4096), headers: vhead })
 ok((await call(`/api/host/${H}/delete`, { method: 'POST' })).status === 200, 'the card is deleted')
-ok((await host(H)).status === 404 && (await call(`/api/watch/${Wt}?guest=1`)).status === 404, 'the card page and the reel are gone')
+ok((await host(H)).status === 404 && (await call(`/api/watch/${Wt}?guest=1`)).status === 404 && (await call(`/api/watch/${Wt}/reaction`)).status === 404, 'the card page, the reel and the video back are gone')
 done()

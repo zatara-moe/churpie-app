@@ -80,15 +80,19 @@
       <button class="btn" style="width: 58px; padding: 0; flex-direction: column; gap: 2px; font-size: 9px" id="peopleBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M14 19a4 4 0 0 1 7 0"/></svg>Everyone</button>
     </div>
     <p class="ghost" style="text-align: center; margin-top: 10px" id="expiryLine"></p>
+    <button class="btn hidden" id="reactView" type="button" style="margin-top: 10px"></button>
     <a class="btn quiet hidden" id="otherSize" href="#" download></a>
   </div>
   <div class="people sheet hidden" id="people"><div class="handle"></div><div class="row between"><h3>Everyone in this reel</h3><button class="btn quiet" style="width:auto" id="peopleClose">Close</button></div><div class="stack" id="peopleList" style="margin-top: 10px"></div></div>
 </div></div>
 
-<dialog id="dlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><form class="stack" style="padding: 16px" id="replyForm"><h3>Say thanks to everyone</h3><p class="muted" id="replyNote">Your note goes to everyone who made this.</p><textarea name="text" required maxlength="500" placeholder="You all…"></textarea><button class="btn primary" type="submit">Send</button><button class="btn quiet" type="button" id="dlgClose">Not now</button></form></dialog>
+<dialog id="dlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><form class="stack" style="padding: 16px" id="replyForm"><h3>Say thanks to everyone</h3><p class="muted" id="replyNote">Your note goes to everyone who made this.</p><textarea name="text" required maxlength="500" placeholder="You all…"></textarea><button class="btn primary" type="submit">Send</button><button class="btn hidden" type="button" id="replyVideo">Record a video back instead</button><button class="btn quiet" type="button" id="dlgClose">Not now</button></form></dialog>
+
+<dialog id="reactDlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><div class="stack" style="padding: 16px" id="reactBody"></div></dialog>
+<input type="file" id="reactFile" accept="video/*" capture="user" class="hidden">
 
 <script type="module">
-import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion } from '/app.js'
+import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion, upload, recorderMime } from '/app.js'
 
 const token = location.pathname.split('/')[2]
 // opened from the admin page (?peek=<pass>): a preview that is never counted as the recipient opening it
@@ -108,7 +112,7 @@ if (data.peek) document.body.insertAdjacentHTML('afterbegin', '<div role="status
 const first = firstName(card.recipientName)
 const n = people.length
 const totalSec = manifest ? Math.round(manifest[manifest.length - 1]?.end || 0) : n * card.clipSeconds
-const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '' }
+const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulations', thankyou: 'to say thank you', getwell: 'to say get well soon', missyou: 'because we miss you', memory: 'in memory', team: 'from the team', brand: '', welcome: 'to welcome you home', retirement: 'for your retirement', holiday: 'for the holidays', newyear: 'for the new year', baby: 'to welcome you' }
 
 // a memorial reel is watched by the people who loved them, so it never speaks to the person as "you"
 const memorial = card.moment === 'memory'
@@ -202,7 +206,101 @@ $('#dlgClose').onclick = () => $('#dlg').close()
 $('#replyForm').addEventListener('submit', async (e) => { e.preventDefault(); await api(`/api/watch/${token}/reply`, { method: 'POST', body: { text: new FormData(e.target).get('text') } }); $('#dlg').close(); toast("It's on its way.") })
 // tap right side of the video to skip, left to go back: a bonus, never the only way
 vid.addEventListener('click', (e) => { const r = vid.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width; if (x > 0.7) $('#nextBtn').click(); else if (x < 0.3) $('#backBtn').click(); else $('#pauseBtn').click() })
-vid.addEventListener('ended', () => { toast(`That's everyone. ${n} ${n === 1 ? 'person' : 'people'} showed up for you. Tap Keep it forever to save it.`, 6000) })
+// ── a video back to everyone ────────────────────────────────────────────────
+// After the reel, the person it's for can show the group their face. They see it first; nothing goes anywhere
+// until they press send. Never on a memorial card, and never for an admin or a guest view.
+const REACT_SECS = 20
+const canReact = !peek && !memorial
+const hostFirst = firstName(card.hostName)
+let reactionUrl = data.reactionUrl || null
+const R = $('#reactDlg'), RB = $('#reactBody')
+let rStream = null, rRec = null, rTimer = null, rBlob = null
+const VSTYLE = 'width: 100%; max-height: 56vh; border-radius: 16px; background: #000'
+function stopCam() {
+  clearInterval(rTimer)
+  if (rRec && rRec.state !== 'inactive') { rRec.onstop = null; rRec.stop() }
+  rRec = null
+  if (rStream) { rStream.getTracks().forEach((t) => t.stop()); rStream = null }
+}
+R.addEventListener('close', stopCam)
+function reactButton() {
+  $('#reactView').classList.toggle('hidden', !reactionUrl)
+  $('#reactView').textContent = canReact ? 'Your video back to everyone' : `Watch ${first}'s video back`
+}
+function viewReaction() {
+  vid.pause()
+  RB.innerHTML = `<h3>${canReact ? 'Your video back' : `${escapeHtml(first)}'s video back to everyone`}</h3><video src="${reactionUrl}" controls playsinline autoplay style="${VSTYLE}"></video>`
+    + (canReact ? `<p class="muted">${escapeHtml(hostFirst)} has it and can share it with everyone.</p><button class="btn" data-r="cam">Record a new one</button><button class="btn quiet" data-r="undo">Take it back</button>` : '')
+    + `<button class="btn quiet" data-r="close">Close</button>`
+  if (!R.open) R.showModal()
+}
+function askReact() {
+  vid.pause()
+  RB.innerHTML = `<h3>Want to show them your face?</h3><p class="muted">Record a quick video back, up to ${REACT_SECS} seconds. You'll watch it first, and nothing is sent until you say so.</p><button class="btn primary" data-r="cam">Turn on my camera</button><button class="btn quiet" data-r="close">Not now</button>`
+  if (!R.open) R.showModal()
+}
+// the phone's own camera app: used when the in-page camera can't open (older phones, or permission said no)
+function phoneCamera() {
+  stopCam()
+  RB.innerHTML = `<h3>Use your phone's camera</h3><p class="muted">The camera couldn't open on this page. Record with your phone's camera instead, and you'll still watch it here before anything is sent.</p><button class="btn primary" data-r="file">Open my camera</button><button class="btn quiet" data-r="close">Not now</button>`
+}
+async function startCam() {
+  stopCam()
+  const mime = recorderMime()
+  if (!mime || !navigator.mediaDevices?.getUserMedia) return phoneCamera()
+  try { rStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 1280 } }, audio: true }) } catch { return phoneCamera() }
+  RB.innerHTML = `<video id="rLive" autoplay muted playsinline style="${VSTYLE}; aspect-ratio: 3 / 4; object-fit: cover; transform: scaleX(-1)"></video><p class="muted" id="rClock" style="text-align: center">Ready when you are. Just say what you feel.</p><button class="btn primary" data-r="rec">Start recording</button><button class="btn quiet" data-r="close">Not now</button>`
+  $('#rLive').srcObject = rStream
+}
+function record() {
+  const mime = recorderMime(), chunks = []
+  try { rRec = new MediaRecorder(rStream, { mimeType: mime }) } catch { return phoneCamera() }
+  rRec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data) }
+  rRec.onstop = () => { const blob = new Blob(chunks, { type: mime.split(';')[0] }); stopCam(); review(blob) }
+  rRec.start()
+  let left = REACT_SECS
+  const btn = RB.querySelector('[data-r="rec"]'); btn.dataset.r = 'stop'; btn.textContent = 'Stop'
+  const clock = () => { $('#rClock').textContent = `Recording. ${left} ${left === 1 ? 'second' : 'seconds'} left.` }
+  clock()
+  rTimer = setInterval(() => { left--; if (left <= 0) { clearInterval(rTimer); if (rRec?.state === 'recording') rRec.stop() } else clock() }, 1000)
+}
+function review(blob) {
+  rBlob = blob
+  RB.innerHTML = `<h3>Here's your video.</h3><video src="${URL.createObjectURL(blob)}" controls playsinline style="${VSTYLE}"></video><p class="muted">Only you have seen this. Send it and ${escapeHtml(hostFirst)} shares it with everyone who made your reel.</p><button class="btn primary" data-r="send">Send it to everyone</button><button class="btn" data-r="cam">Try again</button><button class="btn quiet" data-r="close">Don't send</button>`
+  if (!R.open) R.showModal()
+}
+async function sendReaction(btn) {
+  btn.disabled = true; btn.textContent = 'Sending…'
+  try {
+    await upload(`/api/watch/${token}/reaction`, rBlob, (p) => { btn.textContent = `Sending… ${Math.round(p * 100)}%` })
+    reactionUrl = `/api/watch/${token}/reaction?v=${Date.now()}`; rBlob = null
+    reactButton(); R.close(); toast(`Sent. ${hostFirst} will share it with everyone.`, 5000)
+  } catch (err) { toast(err.message); btn.disabled = false; btn.textContent = 'Send it to everyone' }
+}
+RB.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-r]'); if (!b) return
+  const act = b.dataset.r
+  if (act === 'close') R.close()
+  else if (act === 'cam') startCam()
+  else if (act === 'rec') record()
+  else if (act === 'stop') { clearInterval(rTimer); if (rRec?.state === 'recording') rRec.stop() }
+  else if (act === 'file') $('#reactFile').click()
+  else if (act === 'send') sendReaction(b)
+  else if (act === 'undo') { try { await api(`/api/watch/${token}/reaction`, { method: 'DELETE' }); reactionUrl = null; reactButton(); R.close(); toast('Taken back. Nobody else can see it now.') } catch (err) { toast(err.message) } }
+})
+$('#reactFile').onchange = () => { const f = $('#reactFile').files[0]; $('#reactFile').value = ''; if (f) review(f) }
+$('#reactView').onclick = viewReaction
+if (canReact) { $('#replyVideo').classList.remove('hidden'); $('#replyVideo').onclick = () => { $('#dlg').close(); reactionUrl ? viewReaction() : askReact() } }
+reactButton()
+
+let asked = false
+try { asked = !!localStorage.getItem(`churpie:reactAsked:${token}`) } catch {}
+vid.addEventListener('ended', () => {
+  if (!canReact && reactionUrl) return toast(`${first} recorded a video back. Tap "Watch ${first}'s video back" below.`, 7000)
+  toast(`That's everyone. ${n} ${n === 1 ? 'person' : 'people'} showed up for you. Tap Keep it forever to save it.`, 6000)
+  // asked once, gently, the first time the reel finishes on this phone
+  if (canReact && !reactionUrl && !asked) { asked = true; try { localStorage.setItem(`churpie:reactAsked:${token}`, '1') } catch {} setTimeout(askReact, 2500) }
+})
 </script>
 </body>
 </html>

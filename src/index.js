@@ -183,9 +183,15 @@ async function notifyDb(db) {
   if (!notifyTable) {
     await db.prepare(`CREATE TABLE IF NOT EXISTS notify (clip_id TEXT PRIMARY KEY, card_id TEXT NOT NULL, email TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), sent_at TEXT)`).run()
     await db.prepare(`CREATE INDEX IF NOT EXISTS notify_card_idx ON notify(card_id)`).run()
+    // the recipient's video back to everyone: one per card, deleted with the card (migrations/0004_reactions.sql)
+    await db.prepare(`CREATE TABLE IF NOT EXISTS reactions (card_id TEXT PRIMARY KEY, storage_key TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))`).run()
     notifyTable = true
   }
   return db
+}
+
+async function reactionOf(db, cardId) {
+  return (await notifyDb(db)).prepare(`SELECT storage_key, created_at FROM reactions WHERE card_id = ?`).bind(cardId).first()
 }
 
 // Runs every minute with the reel-maker wake-up. Kept tiny: one query when nothing is due.
@@ -196,7 +202,8 @@ async function tellContributors(env) {
   const wait = Number(env.NOTIFY_AFTER_MINUTES ?? 30)
   const cutoff = new Date(Date.now() - wait * 60000).toISOString()
   const { results } = await db.prepare(
-    `SELECT n.clip_id, n.email, k.contributor_name, k.loved, c.id AS card_id, c.recipient_name, c.moment, c.watch_token, c.expires_at
+    `SELECT n.clip_id, n.email, k.contributor_name, k.loved, c.id AS card_id, c.recipient_name, c.moment, c.watch_token, c.expires_at,
+            EXISTS(SELECT 1 FROM reactions x WHERE x.card_id = c.id) AS reacted
        FROM notify n JOIN cards c ON c.id = n.card_id JOIN clips k ON k.id = n.clip_id
       WHERE n.sent_at IS NULL AND c.status = 'sent' AND k.status = 'ready'
         AND (SELECT MIN(e.at) FROM events e WHERE e.card_id = c.id AND e.type = 'opened') <= ?
@@ -221,6 +228,7 @@ async function tellContributors(env) {
         memorial ? `${you}, the reel in memory of ${first} has been watched.` : `${you}, ${first} watched the reel you helped make.`,
         ...(r.loved > 0 ? [memorial ? 'Your message was marked as loved.' : `${first} tapped "Love it" on your message.`] : []),
         ...(note ? [memorial ? `A note came back for everyone: “${note}”` : `${first} wrote back to everyone: “${note}”`] : []),
+        ...(r.reacted && !memorial ? [`${first} also recorded a video back for everyone. It's waiting under the reel.`] : []),
         memorial ? 'Here it is, so you can see what everyone remembered.' : 'Here it is, so you can see what everyone said.',
       ],
       button: { label: 'Watch the reel', url: `${env.APP_URL}/w/${r.watch_token}?guest=1` },
@@ -666,6 +674,7 @@ app.get('/api/host/:token', async (c) => {
   const times = card.status === 'queued' || card.status === 'stitching' ? await queueTimes(c.env.DB, card.id) : {}
   const opened = card.status === 'sent' ? await c.env.DB.prepare(`SELECT MIN(at) AS at FROM events WHERE card_id = ? AND type = 'opened'`).bind(card.id).first() : null
   const asked = emailOn(c.env) ? await (await notifyDb(c.env.DB)).prepare(`SELECT COUNT(*) AS n FROM notify n JOIN clips k ON k.id = n.clip_id WHERE n.card_id = ? AND k.status = 'ready'`).bind(card.id).first() : null
+  const reaction = card.final_key ? await reactionOf(c.env.DB, card.id) : null
   let reelSeconds = null
   try { const m = card.manifest ? JSON.parse(card.manifest) : null; if (m?.length) reelSeconds = Math.round(m[m.length - 1].end) } catch {}
   return c.json({
@@ -674,6 +683,7 @@ app.get('/api/host/:token', async (c) => {
       hostEmail: card.host_email,
       peek: !!peek,
       notifyCount: asked?.n || 0,
+      reactionUrl: reaction ? `/api/host/${card.host_token}/reaction?v=${encodeURIComponent(reaction.created_at)}` : null,
       maxClips: Number(c.env.MAX_CLIPS_PER_CARD || 50),
       hasReel: !!card.final_key,
       keepDays: LIFETIME(c.env),
@@ -864,8 +874,10 @@ app.get('/api/watch/:token', async (c) => {
     await logEvent(c.env.DB, card.id, 'opened')
   }
   const manifest = card.manifest ? JSON.parse(card.manifest) : null
+  const reaction = ready ? await reactionOf(c.env.DB, card.id) : null
   return c.json({
     card: { ...publicCard(card, clips.length), expiresAt: card.expires_at, hasIntro: !!card.host_intro_key },
+    reactionUrl: reaction ? `/api/watch/${card.watch_token}/reaction?v=${encodeURIComponent(reaction.created_at)}` : null,
     ready,
     peek: !!peek,
     guest,
@@ -907,6 +919,54 @@ app.post('/api/watch/:token/reply', async (c) => {
   await c.env.DB.prepare(`INSERT INTO replies (id, card_id, text) VALUES (?, ?, ?)`).bind(newId(10), card.id, clean).run()
   await logEvent(c.env.DB, card.id, 'replied')
   return c.json({ ok: true })
+})
+
+// ── A video back to everyone ────────────────────────────────────────────────
+// The recipient's own choice: recorded and watched on their phone first, sent only when they say so.
+// One per card (a new one replaces the old), never on memorial cards, deleted with the card.
+const REACTION_MAX_MB = 80
+app.put('/api/watch/:token/reaction', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (card.status !== 'sent' && card.status !== 'ready') return bad(c, "This reel isn't ready yet.", 409)
+  if (card.moment === 'memory') return bad(c, "Videos back aren't part of a memorial card.", 409)
+  const type = (c.req.header('content-type') || '').split(';')[0].trim().toLowerCase()
+  if (!type.startsWith('video/')) return bad(c, "That file isn't a video.")
+  const size = Number(c.req.header('content-length') || 0)
+  if (!size) return bad(c, "That video didn't arrive. Try once more.")
+  if (size > REACTION_MAX_MB * 1048576) return bad(c, 'That video is too long to send. Keep it under half a minute.', 413)
+  const ext = type.includes('webm') ? 'webm' : type.includes('quicktime') ? 'mov' : 'mp4'
+  const old = await reactionOf(c.env.DB, card.id)
+  const key = `finals/${card.id}/reaction-${newId(6)}.${ext}`
+  await c.env.CLIPS.put(key, c.req.raw.body, { httpMetadata: { contentType: type } })
+  await c.env.DB.prepare(`INSERT INTO reactions (card_id, storage_key) VALUES (?, ?) ON CONFLICT(card_id) DO UPDATE SET storage_key = excluded.storage_key, created_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`).bind(card.id, key).run()
+  if (old?.storage_key) await c.env.CLIPS.delete(old.storage_key)
+  else await logEvent(c.env.DB, card.id, 'reacted')
+  return c.json({ ok: true })
+})
+
+// "Take it back"
+app.delete('/api/watch/:token/reaction', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  const r = await reactionOf(c.env.DB, card.id)
+  if (r?.storage_key) await c.env.CLIPS.delete(r.storage_key)
+  await c.env.DB.prepare(`DELETE FROM reactions WHERE card_id = ?`).bind(card.id).run()
+  return c.json({ ok: true })
+})
+
+app.get('/api/watch/:token/reaction', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
+  const r = card && await reactionOf(c.env.DB, card.id)
+  if (!r?.storage_key) return c.notFound()
+  return streamObject(c, r.storage_key)
+})
+
+app.get('/api/host/:token/reaction', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  const r = card && await reactionOf(c.env.DB, card.id)
+  if (!r?.storage_key) return c.notFound()
+  return streamObject(c, r.storage_key)
 })
 
 app.get('/api/host/:token/replies', async (c) => {
@@ -1067,6 +1127,7 @@ app.get('/api/admin/stats', async (c) => {
         (SELECT COUNT(DISTINCT card_id) FROM events WHERE type = 'opened') AS opened,
         (SELECT COUNT(*) FROM events WHERE type = 'optin') AS optins,
         (SELECT COUNT(*) FROM events WHERE type = 'told') AS told,
+        (SELECT COUNT(*) FROM events WHERE type = 'reacted') AS reactions,
         (SELECT COALESCE(SUM(bytes), 0) FROM clips WHERE status IN ('uploading','ready','hidden')) AS bytes`, since(7)),
     one(`SELECT COUNT(*) AS n FROM cards c WHERE EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'needs_verify')
          AND NOT EXISTS(SELECT 1 FROM events WHERE card_id = c.id AND type = 'verified')`),
@@ -1253,6 +1314,7 @@ async function expireCard(env, id, why) {
   await notifyDb(env.DB)
   await env.DB.batch([
     env.DB.prepare(`DELETE FROM notify WHERE card_id = ?`).bind(id),
+    env.DB.prepare(`DELETE FROM reactions WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM replies WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM clips WHERE card_id = ?`).bind(id),
     env.DB.prepare(`DELETE FROM cards WHERE id = ?`).bind(id),

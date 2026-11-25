@@ -516,12 +516,24 @@ function sentView() {
       ${card.openedAt ? `<p class="sub">${esc(fmtWhen(card.openedAt))}</p>` : ''}
       <div id="replyBox" style="width: 100%"></div>
       ${lovedLine()}
+      ${reactionBlock()}
       <div id="dockSlot" style="width: 100%"></div>
     </div>`
-  dock(`<button class="btn primary big" data-act="tellGroup">${memorial ? 'Tell the group it was shared' : `Tell the group ${F} watched it`}</button>
+  dock(`<button class="btn primary big" data-act="tellGroup">${card.reactionUrl ? `Share ${F}'s video with the group` : memorial ? 'Tell the group it was shared' : `Tell the group ${F} watched it`}</button>
     <a class="btn line" href="${saveHref()}" download>${ICON.save}Save video</a>
     <p class="ghost">We delete the reel in ${fmtDays(card.expiresAt)}. Save it to keep it forever. <button class="btn quiet" data-act="watchAgain" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Watch it again</button>${card.extended ? '' : `<br><button class="btn quiet" data-act="extend" style="display: inline; min-height: 0; padding: 0; font-size: 12px; text-decoration: underline">Keep it ${card.keepDays} more days</button>`}</p>`)
   showReplies()
+}
+
+// the video they recorded back for everyone, if they chose to send one
+function reactionBlock() {
+  const { card } = data
+  if (!card.reactionUrl) return ''
+  return `<div class="panel" style="text-align: left; margin-top: 14px; width: 100%">
+      <p class="ghost" style="text-transform: uppercase; letter-spacing: 1px">${F} sent a video back</p>
+      <video src="${card.reactionUrl}" controls playsinline preload="metadata" style="width: 100%; max-height: 60vh; border-radius: 14px; background: #000; margin-top: 8px"></video>
+      <p class="ghost" style="margin-top: 8px">Share it with the group below. Their link opens the reel with ${F}'s video under it.</p>
+    </div>`
 }
 
 // the messages they tapped "Love it" on while watching: only the host sees this, so the host can pass it on
@@ -545,7 +557,7 @@ async function showReplies() {
     </div>${replies.length > 1 ? `<p class="ghost" style="margin-top: 8px">${replies.length - 1} more ${replies.length === 2 ? 'note' : 'notes'} below.</p>` : ''}`
   if (replies.length > 1) $('#extras').insertAdjacentHTML('afterbegin', `<div class="stack">${replies.slice(0, -1).reverse().map((x) => `<p class="panel hand" style="font-size: 24px">“${esc(x.text)}”</p>`).join('')}</div>`)
   const btn = $('[data-act="tellGroup"]')
-  if (btn && !memorial) btn.textContent = `Post ${first}'s note to your group chat`
+  if (btn && !memorial && !data.card.reactionUrl) btn.textContent = `Post ${first}'s note to your group chat`
 }
 
 // 5 · finished
@@ -618,7 +630,8 @@ document.addEventListener('click', async (e) => {
   else if (act === 'watchAgain') { $('#dlgBody').innerHTML = `<div class="hreel" style="box-shadow: none; padding: 0"><video src="/api/host/${token}/reel.mp4" controls playsinline autoplay></video></div><button class="btn outline" data-close>Close</button>`; $('#dlg').showModal() }
   else if (act === 'tellGroup') {
     const r = replies?.[replies.length - 1]
-    share({ title: `${first} watched it`, text: r && !memorial ? `${first} watched our video and wrote back: “${r.text}”` : memorial ? `The video for ${first} has been shared. Thank you for being part of it.` : `${first} watched the video we all made. Thank you for being part of it!` })
+    if (data.card.reactionUrl) share({ title: `${first} sent a video back`, text: r ? `${first} watched our video, wrote “${r.text}” and recorded one back for us. Watch both:` : `${first} watched our video and recorded one back for us. Watch both:`, url: `${data.card.links.watch}?guest=1` })
+    else share({ title: `${first} watched it`, text: r && !memorial ? `${first} watched our video and wrote back: “${r.text}”` : memorial ? `The video for ${first} has been shared. Thank you for being part of it.` : `${first} watched the video we all made. Thank you for being part of it!` })
   }
   else if (act === 'delete') confirmDelete()
   else if (act === 'introUpload') $('#introFile').click()
