@@ -27,14 +27,14 @@ export const MOMENTS = [
 // Each theme lists the moments it suits, so an "in memory" frame can never sit on a birthday (and confetti never on a memorial).
 // A card theme sets the frame around the reel (both the story and the wide file), the stickers and the music. One choice, not three.
 export const VIBES = [
-  { id: 'postcard', label: 'Postcard', for: 'birthdays and everyday', music: 'uplifting', moments: ['birthday', 'congrats', 'welcome', 'retirement', 'thankyou', 'getwell', 'missyou', 'team', 'brand', 'holiday', 'newyear', 'baby', 'anniversary', 'wedding'] },
-  { id: 'milestonegold', label: 'Milestone gold', for: 'big birthdays and anniversaries', music: 'warm-acoustic', moments: ['birthday', 'congrats', 'retirement', 'thankyou', 'team', 'brand', 'holiday', 'newyear', 'baby', 'anniversary', 'wedding'] },
-  { id: 'airmail', label: 'Airmail', for: 'welcome home, far away', music: 'warm-acoustic', moments: ['birthday', 'welcome', 'retirement', 'thankyou', 'getwell', 'missyou', 'team', 'holiday', 'baby', 'anniversary', 'wedding'] },
-  { id: 'quietnote', label: 'Quiet note', for: 'get well, hard moments', music: 'gentle-piano', moments: ['welcome', 'thankyou', 'getwell', 'missyou', 'memory', 'holiday', 'baby'] },
-  { id: 'kraft', label: 'Kraft parcel', for: 'holidays and big groups', music: 'warm-acoustic', moments: ['birthday', 'congrats', 'welcome', 'retirement', 'thankyou', 'missyou', 'team', 'brand', 'holiday', 'newyear', 'wedding'] },
-  { id: 'pressedflower', label: 'Pressed flower', for: 'in memory', music: 'gentle-piano', moments: ['memory'] },
-  { id: 'confettipop', label: 'Confetti pop', for: "kids' birthdays", music: 'uplifting', moments: ['birthday', 'congrats', 'newyear'] },
-  { id: 'lockernote', label: 'Locker note', for: 'teens and friend shout-outs', music: 'uplifting', moments: ['birthday', 'congrats', 'welcome', 'thankyou', 'getwell', 'missyou', 'newyear'] },
+  { id: 'postcard', label: 'Postcard', for: 'birthdays and everyday', music: 'celebration', moments: ['birthday', 'congrats', 'welcome', 'retirement', 'thankyou', 'getwell', 'missyou', 'team', 'brand', 'holiday', 'newyear', 'baby', 'anniversary', 'wedding'] },
+  { id: 'milestonegold', label: 'Milestone gold', for: 'big birthdays and anniversaries', music: 'everyday', moments: ['birthday', 'congrats', 'retirement', 'thankyou', 'team', 'brand', 'holiday', 'newyear', 'baby', 'anniversary', 'wedding'] },
+  { id: 'airmail', label: 'Airmail', for: 'welcome home, far away', music: 'everyday', moments: ['birthday', 'welcome', 'retirement', 'thankyou', 'getwell', 'missyou', 'team', 'holiday', 'baby', 'anniversary', 'wedding'] },
+  { id: 'quietnote', label: 'Quiet note', for: 'get well, hard moments', music: 'reflective', moments: ['welcome', 'thankyou', 'getwell', 'missyou', 'memory', 'holiday', 'baby'] },
+  { id: 'kraft', label: 'Kraft parcel', for: 'holidays and big groups', music: 'everyday', moments: ['birthday', 'congrats', 'welcome', 'retirement', 'thankyou', 'missyou', 'team', 'brand', 'holiday', 'newyear', 'wedding'] },
+  { id: 'pressedflower', label: 'Pressed flower', for: 'in memory', music: 'reflective', moments: ['memory'] },
+  { id: 'confettipop', label: 'Confetti pop', for: "kids' birthdays", music: 'celebration', moments: ['birthday', 'congrats', 'newyear'] },
+  { id: 'lockernote', label: 'Locker note', for: 'teens and friend shout-outs', music: 'beat', moments: ['birthday', 'congrats', 'welcome', 'thankyou', 'getwell', 'missyou', 'newyear'] },
 ]
 
 export const TONES = [
@@ -45,6 +45,34 @@ export const TONES = [
 ]
 
 export const RULE_SUGGESTIONS = ['Say your name first', "Don't mention the party", 'Hold your phone upright', 'Wear something red', 'Kids welcome']
+
+// Songs people can pick for the reel. The file is stitcher/music/<id>.mp3; an 18-second preview is public/music/<id>.mp3.
+// Leaving the song on "we'll pick" lets the reel maker choose from the mood (stitcher/stitch.js pickMusic).
+export const MOODS = [
+  { id: 'celebration', label: 'Party' }, { id: 'beat', label: 'Chill beat' }, { id: 'everyday', label: 'Warm' },
+  { id: 'slowdance', label: 'Slow dance' }, { id: 'holiday', label: 'Holiday' }, { id: 'lullaby', label: 'Lullaby' }, { id: 'reflective', label: 'Quiet' },
+]
+export const SONGS = [
+  { id: 'celebration-1', mood: 'celebration', label: 'Happy ukulele' }, { id: 'celebration-2', mood: 'celebration', label: 'Stratosphere' }, { id: 'celebration-churpie', mood: 'celebration', label: 'Confetti' },
+  { id: 'beat-1', mood: 'beat', label: 'Serendipity' }, { id: 'beat-2', mood: 'beat', label: 'Long day' }, { id: 'beat-3', mood: 'beat', label: 'Embrace' },
+  { id: 'everyday-1', mood: 'everyday', label: 'Espresso brown' }, { id: 'everyday-2', mood: 'everyday', label: 'Comfy cozy' }, { id: 'everyday-3', mood: 'everyday', label: 'Dreamy jazz' }, { id: 'everyday-churpie', mood: 'everyday', label: 'Front porch' },
+  { id: 'slowdance-1', mood: 'slowdance', label: 'Canon in D' }, { id: 'slowdance-2', mood: 'slowdance', label: 'Ballad in D' }, { id: 'slowdance-3', mood: 'slowdance', label: 'Romantic piano' }, { id: 'slowdance-4', mood: 'slowdance', label: 'Chopin waltz' },
+  { id: 'holiday-1', mood: 'holiday', label: 'Angels we have heard' }, { id: 'holiday-2', mood: 'holiday', label: 'Winter glow' },
+  { id: 'lullaby-1', mood: 'lullaby', label: 'Music box' }, { id: 'lullaby-2', mood: 'lullaby', label: 'Brahms lullaby' },
+  { id: 'reflective-1', mood: 'reflective', label: 'Gymnopédie' }, { id: 'reflective-2', mood: 'reflective', label: 'A big full heart' }, { id: 'reflective-3', mood: 'reflective', label: 'Amazing grace' }, { id: 'reflective-churpie', mood: 'reflective', label: 'Still water' },
+]
+// a memorial only offers gentle songs; every other card can use any of them
+const MEMORY_MOODS = ['reflective', 'everyday', 'slowdance']
+export function songsFor(momentId) { return momentId === 'memory' ? SONGS.filter((s) => MEMORY_MOODS.includes(s.mood)) : SONGS }
+export const HEADLINE_MAX = 40
+
+// Every look a card can wear: the ones made for this moment first, then the rest, so people can dress any occasion
+// how they like. Two limits stay: a memorial only gets the quiet looks, and the memorial look stays on memorials.
+export function looksFor(momentId) {
+  if (momentId === 'memory') return vibesFor('memory')
+  const suited = vibesFor(momentId)
+  return [...suited, ...VIBES.filter((v) => v.id !== 'pressedflower' && !suited.includes(v))]
+}
 
 // The themes that suit a moment, the moment's own default first.
 export function vibesFor(momentId) {

@@ -4,6 +4,7 @@
 // and the reel maker's wake-up address.
 import { createHmac } from 'node:crypto'
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 
 const BASE = process.argv[2] || 'http://localhost:8799'
 const STITCH = process.argv[3] || 'dev-token'
@@ -98,11 +99,40 @@ ok((await host(H, '?peek=1')).status === 403, 'the old ?peek=1 link is refused')
 ok((await host(H, `?peek=${sig(H, 3)}`)).status === 403, 'a link from three hours ago is refused')
 const hp = await call(`/h/${H}?peek=${sig(H)}`); ok(hp.status === 200 && hp.text.includes('READ_ONLY'), 'card page carries the read-only guard')
 
+console.log('\n4b · the cover: look, song, first line, photo')
+const cat2 = (await call('/api/catalog')).json
+ok(cat2?.songs?.length >= 20 && cat2?.moods?.length >= 6, 'songs and kinds of song are on offer')
+let missing = 0
+for (const sg of cat2?.songs || []) { const r = await fetch(`${BASE}/music/${sg.id}.mp3`, { method: 'HEAD' }); if (r.status !== 200) missing++ }
+ok(missing === 0, 'every song has a preview to play', `${missing} missing`)
+const coverJs = await call('/cover.js')
+ok(coverJs.status === 200 && coverJs.text === readFileSync(new URL('../stitcher/cover.js', import.meta.url), 'utf8'), 'the cover the board previews is the same code the reel maker films')
+ok((await call('/designer.js')).status === 200, 'the cover designer loads')
+const look = (body) => call(`/api/host/${H}/look`, { method: 'POST', body })
+ok((await look({ vibe: 'lockernote', song: 'slowdance-1', headline: 'A very long first line that keeps going and going past forty' })).status === 200, 'host picks a look from another occasion, a song and a first line')
+b = await host(H)
+ok(b.json.card.vibe === 'lockernote' && b.json.card.song === 'slowdance-1' && b.json.card.headline?.length <= 40, 'the card page shows them (first line kept short)')
+ok((await look({ vibe: 'pressedflower' })).status === 400, 'the memorial look stays on memorials')
+ok((await look({ song: 'not-a-song' })).status === 400, 'a made-up song is refused')
+ok((await look({ song: null, headline: '' })).status === 200 && (await host(H)).json.card.song === null, 'going back to "we\'ll pick" works')
+await look({ song: 'everyday-2', headline: 'Happy 60th,' })
+const jpg = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, ...new Array(200).fill(7), 0xFF, 0xD9])
+ok((await call(`/api/host/${H}/photo`, { method: 'PUT', raw: jpg, headers: { 'content-type': 'text/plain' } })).status === 415, 'something that is not a photo is refused')
+ok((await call(`/api/host/${H}/photo`, { method: 'PUT', raw: jpg, headers: { 'content-type': 'image/jpeg' } })).status === 200, 'host adds a photo')
+ok((await host(H)).json.card.hasPhoto === true && (await fetch(`${BASE}/api/host/${H}/photo`)).status === 200, 'the photo is there for the preview')
+ok((await call(`/api/host/${H}/photo`, { method: 'DELETE' })).status === 200 && (await host(H)).json.card.hasPhoto === false, 'and can be taken off again')
+await call(`/api/host/${H}/photo`, { method: 'PUT', raw: jpg, headers: { 'content-type': 'image/jpeg' } })
+const mc = await call('/api/cards', { method: 'POST', body: { recipientName: 'Ana and Luis', hostName: 'Sam', hostEmail: 'sam2@example.com', prompt: 'Your best wish?', moment: 'wedding', vibe: 'confettipop', song: 'slowdance-3', headline: 'Finally,' } })
+ok(mc.status === 200 && (await call(`/api/cards/${mc.json?.id}/public`)).json?.vibe === 'confettipop', 'a new card can start with any look, its song and first line')
+
 console.log('\n5 · make the reel (standing in for the reel maker)')
 ok((await call(`/api/host/${H}/send`, { method: 'POST' })).json?.status === 'queued', 'host presses make the reel: queued')
 const auth = { authorization: `Bearer ${STITCH}` }
 const job = await call('/api/stitch/next', { method: 'POST', headers: auth })
 ok(job.json?.job?.cardId === id, 'reel maker picks the job up', `status ${job.status} ${job.text.slice(0, 120)}`)
+ok(job.json?.job?.song === 'everyday-2' && job.json?.job?.headline === 'Happy 60th,' && /^clips\/.+\/cover\.jpg$/.test(job.json?.job?.photoKey || ''), 'the reel maker gets the song, the first line and the photo')
+ok((await call(`/api/stitch/object?key=${encodeURIComponent(job.json?.job?.photoKey || '')}`, { headers: auth })).status === 200, 'and can fetch the photo')
+ok((await look({ vibe: 'postcard' })).status === 409, 'the cover is locked while the reel is being made')
 const clipA = c1.json.clipId, clipB = c2.json.clipId
 const manifest = [{ clipId: null, name: 'title', start: 0, end: 3, kind: 'title' }, { clipId: clipA, name: 'Grandma J', start: 3, end: 8, kind: 'text' }, { clipId: clipB, name: 'Dev', start: 8, end: 13, kind: 'text' }]
 const fin = await call(`/api/stitch/final/${id}`, { method: 'PUT', raw: new Uint8Array(2048), headers: { ...auth, 'content-type': 'video/mp4', 'x-churpie-manifest': encodeURIComponent(JSON.stringify(manifest)) } })

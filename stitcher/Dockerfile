@@ -4,7 +4,7 @@ FROM mcr.microsoft.com/playwright:v1.63.0-noble
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json stitch.js render.js serve.js ./
+COPY package.json stitch.js render.js serve.js cover.js ./
 COPY cards ./cards
 COPY music ./music
 COPY assets ./assets

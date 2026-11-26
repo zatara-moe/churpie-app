@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono'
 import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml, firstName } from './lib.js'
-import { MOMENTS, VIBES, vibesFor } from './catalog.js'
+import { MOMENTS, VIBES, vibesFor, looksFor, MOODS, SONGS, songsFor, HEADLINE_MAX } from './catalog.js'
 
 const app = new Hono()
 
@@ -72,6 +72,9 @@ function publicCard(card, clipCount) {
     deadlineAt: card.deadline_at,
     deadlinePassed: pastDeadline(card),
     hasIntro: !!card.host_intro_key,
+    song: card.song || null,
+    headline: card.cover_headline || null,
+    hasPhoto: !!card.cover_photo_key,
     clipCount,
   }
 }
@@ -145,7 +148,7 @@ async function streamObject(c, key, contentTypeFallback = 'video/mp4', extra = {
 // Catalog (moments, vibes, ready-made prompts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, turnstile: (c.env.TURNSTILE_SECRET && c.env.TURNSTILE_SITE_KEY) || null, email: emailOn(c.env), google: c.env.GOOGLE_CLIENT_ID || null, keepDays: LIFETIME(c.env) }))
+app.get('/api/catalog', (c) => c.json({ moments: MOMENTS, vibes: VIBES, moods: MOODS, songs: SONGS, headlineMax: HEADLINE_MAX, turnstile: (c.env.TURNSTILE_SECRET && c.env.TURNSTILE_SITE_KEY) || null, email: emailOn(c.env), google: c.env.GOOGLE_CLIENT_ID || null, keepDays: LIFETIME(c.env) }))
 
 // ── email: the host's board link, the finished reel, and a reminder before it's deleted ─────────────
 // Sent through Resend. Off until RESEND_API_KEY (secret) is set; then hosts give a verified email.
@@ -188,6 +191,31 @@ async function notifyDb(db) {
     notifyTable = true
   }
   return db
+}
+
+// The cover choices (song, headline, photo) live on the card. The columns are added on first use, the same way the
+// notify tables are, so an existing database needs no manual step (migrations/0005_cover.sql records them).
+let coverCols = false
+async function coverDb(db) {
+  if (!coverCols) {
+    for (const col of ['song TEXT', 'cover_headline TEXT', 'cover_photo_key TEXT']) {
+      try { await db.prepare(`ALTER TABLE cards ADD COLUMN ${col}`).run() } catch {} // already there
+    }
+    coverCols = true
+  }
+  return db
+}
+// the look, song and headline a host asked for, checked against what suits the card; undefined means "leave it"
+function coverChoices(b, moment) {
+  const out = {}
+  if (b.vibe !== undefined) { if (!looksFor(moment).some((v) => v.id === b.vibe)) return { error: "That look doesn't suit this card." }; out.vibe = b.vibe }
+  if (b.song !== undefined) {
+    if (!b.song) out.song = null
+    else if (songsFor(moment).some((x) => x.id === b.song)) out.song = b.song
+    else return { error: "That song isn't one we have." }
+  }
+  if (b.headline !== undefined) out.cover_headline = sanitize(b.headline, HEADLINE_MAX) || null
+  return out
 }
 
 async function reactionOf(db, cardId) {
@@ -413,8 +441,9 @@ app.post('/api/cards', async (c) => {
   const prompt = sanitize(b.prompt, 240)
   const moment = MOMENTS.find((m) => m.id === b.moment) ? b.moment : 'birthday'
   // only a theme that suits the moment; anything else falls back to the moment's own
-  const fits = vibesFor(moment)
+  const fits = looksFor(moment)
   const vibe = fits.find((v) => v.id === b.vibe) ? b.vibe : (fits[0]?.id || 'postcard')
+  const cover = coverChoices({ song: b.song || null, headline: b.headline || '' }, moment)
   let tone = ['funny', 'heartfelt', 'hype', 'quiet'].includes(b.tone) ? b.tone : null
   if (moment === 'memory' && tone === 'hype') tone = 'quiet' // big energy never fits a memorial
   const rules = Array.isArray(b.rules) ? b.rules.map((r) => sanitize(r, 80)).filter(Boolean).slice(0, 5) : []
@@ -444,6 +473,9 @@ app.post('/api/cards', async (c) => {
   )
     .bind(id, hostToken, watchToken, recipientName, moment, vibe, prompt, tone, JSON.stringify(rules), hostName, hostEmail, accountType, clipSeconds, deadlineAt)
     .run()
+  if (!cover.error && (cover.song || cover.cover_headline)) {
+    await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET song = ?, cover_headline = ? WHERE id = ?`).bind(cover.song || null, cover.cover_headline || null, id).run()
+  }
   await logEvent(c.env.DB, id, 'created')
 
   const base = c.env.APP_URL
@@ -736,6 +768,52 @@ app.post('/api/host/:token/order', async (c) => {
   return c.json({ ok: true })
 })
 
+// the card's look: cover look, song and headline. Only while the card is still open (or its reel failed).
+const LOOK_LOCKED = 'The reel is already made. Open the card again to change how it looks.'
+const canDress = (card) => card.status === 'open' || card.status === 'failed'
+app.post('/api/host/:token/look', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (!canDress(card)) return bad(c, LOOK_LOCKED, 409)
+  const pick = coverChoices(await c.req.json().catch(() => ({})), card.moment)
+  if (pick.error) return bad(c, pick.error)
+  const cols = Object.keys(pick)
+  if (cols.length) await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`).bind(...cols.map((k) => pick[k]), card.id).run()
+  return c.json({ ok: true, ...pick })
+})
+// a photo of the person, for the cover. The board shrinks it to about 900 px before sending.
+const PHOTO_MAX = 4 * 1024 * 1024
+app.put('/api/host/:token/photo', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (!canDress(card)) return bad(c, LOOK_LOCKED, 409)
+  const type = (c.req.header('content-type') || '').split(';')[0].trim()
+  const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[type]
+  if (!ext) return bad(c, 'Use a photo: JPG, PNG or WebP.', 415)
+  if (Number(c.req.header('content-length') || 0) > PHOTO_MAX) return bad(c, 'That photo is too big. Try a smaller one.', 413)
+  const body = await c.req.arrayBuffer()
+  if (!body.byteLength) return bad(c, 'That photo came through empty. Try again.')
+  if (body.byteLength > PHOTO_MAX) return bad(c, 'That photo is too big. Try a smaller one.', 413)
+  const key = `clips/${card.id}/cover.${ext}`
+  if (card.cover_photo_key && card.cover_photo_key !== key) await c.env.CLIPS.delete(card.cover_photo_key)
+  await c.env.CLIPS.put(key, body, { httpMetadata: { contentType: type } })
+  await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET cover_photo_key = ? WHERE id = ?`).bind(key, card.id).run()
+  return c.json({ ok: true })
+})
+app.delete('/api/host/:token/photo', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card) return c.notFound()
+  if (!canDress(card)) return bad(c, LOOK_LOCKED, 409)
+  if (card.cover_photo_key) await c.env.CLIPS.delete(card.cover_photo_key)
+  await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET cover_photo_key = NULL WHERE id = ?`).bind(card.id).run()
+  return c.json({ ok: true })
+})
+app.get('/api/host/:token/photo', async (c) => {
+  const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
+  if (!card?.cover_photo_key) return c.notFound()
+  return streamObject(c, card.cover_photo_key, 'image/jpeg')
+})
+
 // optional "hear Maria" clip
 app.put('/api/host/:token/intro', async (c) => {
   const card = await getCard(c.env.DB, 'host_token', c.req.param('token'))
@@ -1023,6 +1101,9 @@ app.post('/api/stitch/next', async (c) => {
       theme: card.vibe,
       clipSeconds: card.clip_seconds,
       introKey: card.host_intro_key,
+      song: card.song || null,
+      headline: card.cover_headline || null,
+      photoKey: card.cover_photo_key || null,
       clips: clips.map((x) => ({ id: x.id, name: x.contributor_name, location: x.location, kind: x.kind, text: x.text, key: x.storage_key, contentType: x.content_type })),
     },
   })

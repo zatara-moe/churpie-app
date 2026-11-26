@@ -27,4 +27,4 @@ Drop an `.mp4` into `demo/clips/` with the next number (`clip-14.mp4`). Any size
 
 ## The "Watch a sample reel" video
 
-`public/demo/sample.mp4` is the demo reel with a title card, an end card and churpie's own music (`stitcher/music/uplifting.mp3`). After changing the demo reel, run `./demo/sample.sh` to rebuild it.
+`public/demo/sample.mp4` is the demo reel with a title card, an end card and churpie's own music (`stitcher/music/celebration-churpie.mp3`). After changing the demo reel, run `./demo/sample.sh` to rebuild it.

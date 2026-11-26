@@ -13,6 +13,7 @@ import os from 'node:os'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
+import { COVER_SECONDS } from './cover.js'
 import { renderFrames, openPainter, WINDOWS } from './render.js'
 
 const run = promisify(execFile)
@@ -47,8 +48,26 @@ const W = 720, H = 1280, FPS = 30
 const PAPER = '0xF5F0E8', INK = '0x1A1410', PINK = '0xD4266A'
 
 const THEME_BG = { postcard: '0xF5F0E8', airmail: '0xF7F3EA', quietnote: '0xF3EFE6', kraft: '0xC9A678', confettipop: '0xFFF8EE', lockernote: '0xFBFBF9', milestonegold: '0x15120F', pressedflower: '0xF6F2EA' }
-const THEME_MUSIC = { postcard: 'uplifting', airmail: 'warm-acoustic', quietnote: 'gentle-piano', kraft: 'warm-acoustic', confettipop: 'uplifting', lockernote: 'uplifting', milestonegold: 'warm-acoustic', pressedflower: 'gentle-piano' }
-const VIBE_MUSIC = { confetti: 'uplifting', golden: 'warm-acoustic', hype: 'uplifting', softlight: 'gentle-piano', candle: 'gentle-piano' }
+// Music is picked by mood, and each mood has a few tracks (stitcher/music/<mood>-<n>.mp3). The occasion decides
+// first (a wedding gets a slow dance, a new baby a lullaby), then the card theme, then the vibe. Within a mood the
+// card's id picks the track, so different cards get different tracks but one card always sounds the same if remade.
+// Drop a new <mood>-<n>.mp3 in the folder (made with prepare.sh) and it joins the rotation; no code change needed.
+const MOMENT_MOOD = { holiday: 'holiday', newyear: 'celebration', baby: 'lullaby', wedding: 'slowdance', anniversary: 'slowdance', memory: 'reflective', getwell: 'everyday', missyou: 'everyday' }
+const THEME_MOOD = { postcard: 'celebration', confettipop: 'celebration', lockernote: 'beat', airmail: 'everyday', kraft: 'everyday', milestonegold: 'everyday', quietnote: 'reflective', pressedflower: 'reflective' }
+const VIBE_MOOD = { confetti: 'celebration', golden: 'everyday', hype: 'beat', softlight: 'reflective', candle: 'reflective' }
+function pickMusic(job, theme) {
+  if (job.song && /^[a-z]+-[a-z0-9]+$/.test(job.song) && fs.existsSync(path.join(HERE, 'music', `${job.song}.mp3`))) return job.song
+  const mood = (job.moment === 'memory' || theme === 'pressedflower') ? 'reflective'
+    : MOMENT_MOOD[job.moment] || THEME_MOOD[theme] || VIBE_MOOD[job.vibe] || 'everyday'
+  const dir = path.join(HERE, 'music')
+  const all = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => /^[a-z]+-[a-z0-9]+\.mp3$/.test(f)).sort() : []
+  const pool = all.filter((f) => f.startsWith(`${mood}-`))
+  const list = pool.length ? pool : all.filter((f) => f.startsWith('everyday-'))
+  if (!list.length) return null
+  let h = 0
+  for (const ch of String(job.cardId || job.token || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return list[h % list.length].replace(/\.mp3$/, '')
+}
 const VIBE_PAPER = { confetti: '0xF5F0E8', golden: '0xFAEEDA', hype: '0x1A1410', softlight: '0xE8F4F6', candle: '0x1A1410' }
 const VIBE_INK = { confetti: INK, golden: INK, hype: '0xF5F0E8', softlight: INK, candle: '0xF5F0E8' }
 
@@ -160,6 +179,20 @@ async function makeCard(dst, png, seconds) {
   ])
 }
 
+// The cover: filmed frames (render.js) into a clip, silent; the music starts under it.
+async function makeCover(dst, pattern) {
+  await ffmpeg([
+    '-framerate', String(FPS), '-i', pattern, '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
+    '-vf', `scale=${W}:${H},format=yuv420p`, '-t', String(COVER_SECONDS),
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
+  ])
+}
+const dataUrl = (file) => {
+  const b = fs.readFileSync(file)
+  const type = b[0] === 0x89 ? 'image/png' : b[0] === 0x52 && b[8] === 0x57 ? 'image/webp' : 'image/jpeg'
+  return `data:${type};base64,${b.toString('base64')}`
+}
+
 // A note is never a frozen frame: it drifts in very slowly (about 4% over its time on screen).
 async function makeDrift(dst, png, seconds) {
   const frames = Math.round(seconds * FPS)
@@ -188,12 +221,14 @@ async function finalize(parts, dst, { music, withMusic }) {
   let fc = '', mapA = '0:a', mapV = '0:v'
   if (musicFile) {
     inputs.push('-stream_loop', '-1', '-i', musicFile)
-    // Voices are the point; the music only holds things together. Measured against voices at -16 LUFS:
-    //   nobody talking (title, end card, between people): music ~8 dB under the voices, there but never competing
-    //   someone talking: it ducks to ~25 dB under, felt rather than heard, and stays down between sentences
-    //   (0.9 s release) so it doesn't pump up in every pause. It fades in over the first second.
-    // (Before Nov 2026 it sat only ~4 dB under with nobody talking, which pulled focus from the people.)
-    fc += `[1:a]volume=0.5,afade=t=in:st=0:d=1,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.015:ratio=5:attack=20:release=900:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
+    // Voices are the point; the music only holds things together. Every voice clip is first evened out to -16 LUFS
+    // (see glue above), so quiet and loud people come out alike. Every music file is prepared to -18 LUFS
+    // (stitcher/music/prepare.sh), held steady start to finish so a build-up never climbs over anyone. Against that:
+    //   nobody talking (title, end card, between people): music ~11 dB under the voices, a soft bed, not a track
+    //   someone talking: it ducks to ~28 dB under (accessibility guidance asks for at least 20), felt rather than
+    //   heard, and stays down between sentences (0.9 s release) so it doesn't pump up in every pause.
+    // (Nov 2026 history: ~4 dB under, then ~8 dB under; lowered again so it never reads as a music video.)
+    fc += `[1:a]volume=0.35,afade=t=in:st=0:d=1,aresample=48000[m];[0:a]asplit=2[voice][key];[m][key]sidechaincompress=threshold=0.015:ratio=5:attack=20:release=900:makeup=1[duck];[voice][duck]amix=inputs=2:duration=first:dropout_transition=2:normalize=0[a]`
     mapA = '[a]'
   }
   if (wm) {
@@ -232,10 +267,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
     let t = 0
     const push = async (file, meta) => { const { duration } = await probe(file); parts.push(file); manifest.push({ ...meta, start: round(t), end: round(t + duration) }); t += duration }
 
-    // 1. title card: the prompt everyone answered
-    const title = path.join(tmp, 'title.mp4')
-    await makeCard(title, await painter.card('title', { first, host: job.hostName, n: job.clips.length, prompt: job.prompt }, theme, png('title')), 4)
-    await push(title, { kind: 'title', name: 'churpie', clipId: null })
+    // 1. the cover is made last (step 5), once the first face is known: it lifts away to reveal them
 
     // 2. the host's own voice, if they recorded one
     if (job.introKey) {
@@ -297,11 +329,33 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
     await makeCard(end, await painter.card('end', { n: job.clips.length, first, memory: job.moment === 'memory' }, theme, png('end')), 5)
     await push(end, { kind: 'end', name: 'churpie', clipId: null })
 
-    // 5. weave
+    // 5. the cover, put in front: the card's front, full screen, with their name, then the question, then it lifts
+    //    away onto the first face. If anything about it goes wrong, the plain title card from before stands in.
+    {
+      const cover = path.join(tmp, 'cover.mp4')
+      try {
+        const frames = path.join(tmp, 'cover-frames'); fs.mkdirSync(frames)
+        let photo = null
+        if (job.photoKey) { const f = path.join(tmp, 'cover-photo'); await fetchClip(job.photoKey, f); photo = dataUrl(f) }
+        const still = parts[0] ? await grabFrame(parts[0], path.join(tmp, 'cover-next.jpg'), false) : null
+        log(`[${job.cardId}] cover (${theme})`)
+        await makeCover(cover, await painter.cover({ theme, moment: job.moment, first, headline: job.headline, host: job.hostName, n: job.clips.length, prompt: job.prompt, photo, next: still ? dataUrl(still) : null }, frames))
+      } catch (err) {
+        log(`[${job.cardId}] cover failed, using the title card: ${err.message}`)
+        await makeCard(cover, await painter.card('title', { first, host: job.hostName, n: job.clips.length, prompt: job.prompt }, theme, png('title')), 4)
+      }
+      const { duration: cd } = await probe(cover)
+      for (const m of manifest) { m.start = round(m.start + cd); m.end = round(m.end + cd) }
+      parts.unshift(cover); manifest.unshift({ kind: 'title', name: 'churpie', clipId: null, start: 0, end: round(cd) }); t += cd
+    }
+
+    // 6. weave
     log(`[${job.cardId}] weaving ${parts.length} parts, ${Math.round(t)}s`)
     const inner = path.join(tmp, 'inner.mp4')
-    await finalize(parts, inner, { music: THEME_MUSIC[theme] || VIBE_MUSIC[job.vibe] || 'gentle-piano', withMusic: true })
-    // 6. the card: render the frames, then tape the reel inside each
+    const music = pickMusic(job, theme)
+    log(`[${job.cardId}] music: ${music || 'none'}`)
+    await finalize(parts, inner, { music, withMusic: !!music })
+    // 7. the card: render the frames, then tape the reel inside each
     log(`[${job.cardId}] card frames (${theme})`)
     const frames = await renderFrames({ ...job, theme, totalSeconds: t }, tmp)
     await frameReel(inner, frames.story, outFile, 'story', theme)

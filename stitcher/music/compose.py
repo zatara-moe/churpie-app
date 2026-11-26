@@ -3,13 +3,14 @@
 Churpie's own music: three original background pieces, composed and rendered in code so they are owned outright
 (no licences, no credits, nothing anyone can claim later). Each loops seamlessly under a reel of any length.
 
-  uplifting      Postcard, Confetti pop, Locker note   104 bpm, C major, ukulele strum + glockenspiel + soft bass
-  warm-acoustic  Milestone gold, Airmail, Kraft        84 bpm, D major, fingerpicked guitar + piano + warm pad
+  celebration-churpie  Postcard, Confetti pop, Locker note   104 bpm, C major, ukulele strum + glockenspiel + soft bass
+  everyday-churpie     Milestone gold, Airmail, Kraft        84 bpm, D major, fingerpicked guitar + piano + warm pad
                  (melody quotes Pachelbel's Canon, 1680s, public domain)
-  gentle-piano   Quiet note, Pressed flower            72 bpm in 3/4, C major, solo piano with room
+  reflective-churpie   Quiet note, Pressed flower            72 bpm in 3/4, C major, solo piano with room
 
 The signature: a rising four-note "chirp" (sol-la-do-mi) closes phrases in every piece, so every reel sounds like churpie.
 Re-render with:  python3 stitcher/music/compose.py   (needs numpy, scipy, ffmpeg)
+then level each one, e.g.  ./stitcher/music/prepare.sh stitcher/music/celebration-churpie.mp3 celebration-churpie
 """
 import os, subprocess, numpy as np
 from scipy.signal import fftconvolve, butter, sosfilt
@@ -144,7 +145,7 @@ def uplifting():
                 if i == 7: chirp(tr, glock, bar, 2, 67, .55)
             bar += 1
         if sec in ('A', 'A2'): phrase += 1
-    tr.render('uplifting', room=1.3, wet=.22)
+    tr.render('celebration-churpie', room=1.3, wet=.22)
 
 # ── 2. warm acoustic ─────────────────────────────────────────────────────────
 def warm():
@@ -167,7 +168,7 @@ def warm():
             a, b = tops[ch]
             tr.add(piano(b, 1.8 * tr.spb), tr.t(bar, 0), .5, .2); tr.add(piano(a, 1.8 * tr.spb), tr.t(bar, 2), .45, .2)
         if bar % 8 == 7 and sec in (1, 2, 4): chirp(tr, piano, bar, 2, 69, .45)
-    tr.render('warm-acoustic', room=1.8, wet=.26)
+    tr.render('everyday-churpie', room=1.8, wet=.26)
 
 # ── 3. gentle piano ──────────────────────────────────────────────────────────
 def gentle():
@@ -183,7 +184,7 @@ def gentle():
         if sec == 0 or sec == 1 or (sec == 2 and i < 8):
             for b, m, d in mel[i]: tr.add(piano(m + (12 if sec == 1 and i < 8 else 0), d * tr.spb), tr.t(bar, b), .5, .15)
         if i == 15 and sec != 2: chirp(tr, piano, bar, 0, 67, .38)
-    tr.render('gentle-piano', room=2.6, wet=.34)
+    tr.render('reflective-churpie', room=2.6, wet=.34)
 
 if __name__ == '__main__':
     uplifting(); warm(); gentle()

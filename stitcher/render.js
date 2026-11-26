@@ -5,6 +5,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { coverHtml, COVER_SECONDS } from './cover.js'
+
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
 async function loadPlaywright() {
@@ -168,7 +170,21 @@ export async function openPainter() {
     await page.screenshot({ path: file, omitBackground: transparent, type: 'png' })
     return file
   }
+  // The cover moves, so it is filmed: every animation on the page is paused, then stepped to each frame's moment and
+  // photographed. Same result on a fast or a slow machine, and the confetti lands the same way every time.
+  const film = async (html, dir, fps) => {
+    await page.setContent(html, { waitUntil: 'load' })
+    await page.evaluate(() => document.fonts.ready).catch(() => {})
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
+    const n = Math.round(COVER_SECONDS * fps)
+    for (let i = 0; i < n; i++) {
+      await page.evaluate((ms) => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = ms }), (i * 1000) / fps)
+      await page.screenshot({ path: path.join(dir, `f${String(i).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 88 })
+    }
+    return path.join(dir, 'f%04d.jpg')
+  }
   return {
+    cover: (data, dir, fps = 30) => film(coverHtml(data), dir, fps),
     card: (kind, data, theme, file) => paint(cardHtml(theme, CARDS[kind](data)), file, false),
     sticker: (name, location, file) => paint(stickerHtml(name, location), file, true),
     note: (kind, data, opts, file) => paint(noteHtml(NOTES[kind](data), opts), file, false),

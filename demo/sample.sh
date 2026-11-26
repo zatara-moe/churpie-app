@@ -16,6 +16,6 @@ printf "What's your favorite\nmemory with Rosa?" > $W/q.txt; printf "38 people\n
 "$FF" -v error -y -i $W/title.mp4 -i $W/mid.mp4 -i $W/end.mp4 -filter_complex "[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]" -map "[v]" -c:v libx264 -preset veryfast -crf 20 $W/all.mp4
 D=$("${FF%ffmpeg}ffprobe" -v error -show_entries format=duration -of csv=p=0 $W/all.mp4 2>/dev/null || echo 20.2)
 OUT=$(awk "BEGIN{print $D-1.8}")
-"$FF" -v error -y -i $W/all.mp4 -i stitcher/music/uplifting.mp3 -filter_complex "[1:a]atrim=0:$D,asetpts=N/SR/TB,afade=t=in:st=0:d=0.5,afade=t=out:st=$OUT:d=1.8,volume=0.85[a]" -map 0:v -map "[a]" -c:v libx264 -preset slow -crf 26 -c:a aac -b:a 96k -movflags +faststart -shortest public/demo/sample.mp4
+"$FF" -v error -y -i $W/all.mp4 -i stitcher/music/celebration-churpie.mp3 -filter_complex "[1:a]atrim=0:$D,asetpts=N/SR/TB,afade=t=in:st=0:d=0.5,afade=t=out:st=$OUT:d=1.8,volume=0.85[a]" -map 0:v -map "[a]" -c:v libx264 -preset slow -crf 26 -c:a aac -b:a 96k -movflags +faststart -shortest public/demo/sample.mp4
 rm -rf $W
 echo "made public/demo/sample.mp4"
