@@ -12,6 +12,9 @@ Moods: `holiday`, `celebration`, `beat`, `slowdance`, `lullaby`, `reflective`, `
 | --- | --- | --- | --- | --- | --- |
 | holiday-1 | Angels We Have Heard on High (grand piano) | JuliusH | [Pixabay](https://pixabay.com/music/christmas-angels-we-have-heard-on-high-grand-piano-french-christmas-carol-1881/) | Pixabay Content License | 2026-11-25 |
 | holiday-2 | Ambient Background Music for Winter and Christmas | JuliusH | [Pixabay](https://pixabay.com/music/christmas-ambient-background-music-for-winter-and-christmas-432410/) | Pixabay Content License | 2026-11-25 |
+| holiday-3 | Jingle Bells (Christmas Hymn) | BombinSound | [Pixabay](https://pixabay.com/music/christmas-jingle-bells-christmas-hymn-638783/) | Pixabay Content License | 2026-11-25 |
+| holiday-4 | Deck the Halls (Interpretation) | Chrispixer | [Pixabay](https://pixabay.com/music/christmas-deck-the-halls-interpretation-440842/) | Pixabay Content License | 2026-11-25 |
+| holiday-5 | We Wish You a Merry Christmas (music box) | Abydos_Music | [Pixabay](https://pixabay.com/music/christmas-we-wish-you-a-merry-christmas-196020/) | Pixabay Content License | 2026-11-25 |
 | celebration-1 | Happy Ukulele | ElectroAnimals | [Pixabay](https://pixabay.com/music/happy-childrens-tunes-happy-ukulele-600364/) | Pixabay Content License | 2026-11-25 |
 | celebration-2 | Joyous Piano "Stratosphere" | Matthew_C_Wright | [Pixabay](https://pixabay.com/music/classical-piano-joyous-copyright-free-piano-quotstratospherequot-586797/) | Pixabay Content License | 2026-11-25 |
 | beat-1 | Serendipity | PurrpleCat | [Pixabay](https://pixabay.com/music/beats-serendipity-635081/) | Pixabay Content License | 2026-11-25 |

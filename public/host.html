@@ -200,7 +200,7 @@
 <input type="file" id="introFile" accept="video/*" class="hidden">
 
 <script type="module">
-import { LOOK_SWATCH } from '/cover.js'
+import { LOOK_SWATCH, designVars } from '/cover.js'
 import { api as liveApi, $, $$, toast, share, escapeHtml, firstName, verb, fmtDays, fmtWhen, upload as liveUpload, recorderMime, rememberBoard, forgetBoard } from '/app.js'
 
 const token = location.pathname.split('/')[2]
@@ -627,8 +627,9 @@ const LOOK_NAME = { postcard: 'Postcard', confettipop: 'Confetti pop', lockernot
 const photoUrl = () => data.card.hasPhoto ? `/api/host/${token}/photo?v=${data.card.photoV || 0}` : null
 function coverBar() {
   const c = data.card
-  const { bg, accent, ink } = LOOK_SWATCH[c.vibe] || LOOK_SWATCH.postcard
-  const bits = [LOOK_NAME[c.vibe] || 'Postcard', c.song ? 'your song' : 'we pick the song']
+  const dv = c.design ? designVars(c.design) : null
+  const { bg, accent, ink } = dv ? { bg: dv.page, accent: dv.accent, ink: dv.ink } : LOOK_SWATCH[c.vibe] || LOOK_SWATCH.postcard
+  const bits = [dv ? 'your own design' : LOOK_NAME[c.vibe] || 'Postcard', c.song ? 'your song' : 'we pick the song']
   if (c.hasPhoto) bits.push('photo')
   if (c.headline) bits.push(`“${c.headline}”`)
   return `<button class="coverbar" data-act="design"><span class="sw" style="background:${bg}"><b style="color:${ink}">Aa</b><i style="background:${accent}"></i></span><span class="tx"><strong>${memorial ? 'The cover' : `The cover ${esc(first)} sees first`}</strong><small>${esc(bits.join(' · '))}</small></span><span class="go">Change</span></button>`
@@ -637,7 +638,7 @@ let designer = null, designValue = null
 async function openDesign() {
   try { catalog = catalog || await api('/api/catalog') } catch (err) { toast(err.message); return }
   const { mountDesigner, shrinkPhoto } = await import('/designer.js')
-  designValue = { vibe: data.card.vibe, song: data.card.song, headline: data.card.headline || '' }
+  designValue = { vibe: data.card.vibe, design: data.card.design || null, song: data.card.song, headline: data.card.headline || '' }
   const readyN = readyClips().length
   designer = mountDesigner($('#designBody'), {
     catalog, value: designValue,
@@ -665,7 +666,7 @@ $('#designSave').addEventListener('click', async () => {
   const btn = $('#designSave'); btn.disabled = true
   try {
     await api(`/api/host/${token}/look`, { method: 'POST', body: designValue })
-    Object.assign(data.card, { vibe: designValue.vibe, song: designValue.song, headline: designValue.headline.trim() || null })
+    Object.assign(data.card, { vibe: designValue.vibe, design: designValue.design, song: designValue.song, headline: designValue.headline.trim() || null })
     $('#design').close(); toast('Saved. The reel will open with it.'); render()
   } catch (err) { toast(err.message) } finally { btn.disabled = false }
 })

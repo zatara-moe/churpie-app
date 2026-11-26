@@ -5,6 +5,7 @@
 import { Hono } from 'hono'
 import { isBusinessEmail, newId, newToken, plusDays, nowIso, sanitize, escapeHtml, firstName } from './lib.js'
 import { MOMENTS, VIBES, vibesFor, looksFor, MOODS, SONGS, songsFor, HEADLINE_MAX } from './catalog.js'
+import { cleanDesign } from '../public/cover.js'
 
 const app = new Hono()
 
@@ -57,6 +58,8 @@ function pastDeadline(card) {
 const IDLE_DAYS = 30
 const GRACE_DAYS = 14
 
+const parseDesign = (t) => { try { return t ? cleanDesign(JSON.parse(t)) : null } catch { return null } }
+
 function publicCard(card, clipCount) {
   return {
     id: card.id,
@@ -75,6 +78,7 @@ function publicCard(card, clipCount) {
     song: card.song || null,
     headline: card.cover_headline || null,
     hasPhoto: !!card.cover_photo_key,
+    design: parseDesign(card.cover_design),
     clipCount,
   }
 }
@@ -198,7 +202,7 @@ async function notifyDb(db) {
 let coverCols = false
 async function coverDb(db) {
   if (!coverCols) {
-    for (const col of ['song TEXT', 'cover_headline TEXT', 'cover_photo_key TEXT']) {
+    for (const col of ['song TEXT', 'cover_headline TEXT', 'cover_photo_key TEXT', 'cover_design TEXT']) {
       try { await db.prepare(`ALTER TABLE cards ADD COLUMN ${col}`).run() } catch {} // already there
     }
     coverCols = true
@@ -215,6 +219,17 @@ function coverChoices(b, moment) {
     else return { error: "That song isn't one we have." }
   }
   if (b.headline !== undefined) out.cover_headline = sanitize(b.headline, HEADLINE_MAX) || null
+  // a design the host built layer by layer (public/cover.js). A memorial keeps only the quiet choices.
+  if (b.design !== undefined) {
+    const d = b.design ? cleanDesign(b.design) : null
+    if (d && moment === 'memory') {
+      if (d.paper === 'party') d.paper = 'ivory'
+      if (d.type === 'marker' || d.type === 'round') d.type = 'gentle'
+      d.decor = d.decor.filter((k) => k !== 'doodles')
+      d.fall = 'none'
+    }
+    out.cover_design = d ? JSON.stringify(d) : null
+  }
   return out
 }
 
@@ -443,7 +458,7 @@ app.post('/api/cards', async (c) => {
   // only a theme that suits the moment; anything else falls back to the moment's own
   const fits = looksFor(moment)
   const vibe = fits.find((v) => v.id === b.vibe) ? b.vibe : (fits[0]?.id || 'postcard')
-  const cover = coverChoices({ song: b.song || null, headline: b.headline || '' }, moment)
+  const cover = coverChoices({ song: b.song || null, headline: b.headline || '', design: b.design || null }, moment)
   let tone = ['funny', 'heartfelt', 'hype', 'quiet'].includes(b.tone) ? b.tone : null
   if (moment === 'memory' && tone === 'hype') tone = 'quiet' // big energy never fits a memorial
   const rules = Array.isArray(b.rules) ? b.rules.map((r) => sanitize(r, 80)).filter(Boolean).slice(0, 5) : []
@@ -473,9 +488,10 @@ app.post('/api/cards', async (c) => {
   )
     .bind(id, hostToken, watchToken, recipientName, moment, vibe, prompt, tone, JSON.stringify(rules), hostName, hostEmail, accountType, clipSeconds, deadlineAt)
     .run()
-  if (!cover.error && (cover.song || cover.cover_headline)) {
-    await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET song = ?, cover_headline = ? WHERE id = ?`).bind(cover.song || null, cover.cover_headline || null, id).run()
+  if (!cover.error && (cover.song || cover.cover_headline || cover.cover_design)) {
+    await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET song = ?, cover_headline = ?, cover_design = ? WHERE id = ?`).bind(cover.song || null, cover.cover_headline || null, cover.cover_design || null, id).run()
   }
+  c.executionCtx.waitUntil(refreshOg(c.env, id, ['invite']))
   await logEvent(c.env.DB, id, 'created')
 
   const base = c.env.APP_URL
@@ -779,6 +795,7 @@ app.post('/api/host/:token/look', async (c) => {
   if (pick.error) return bad(c, pick.error)
   const cols = Object.keys(pick)
   if (cols.length) await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET ${cols.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`).bind(...cols.map((k) => pick[k]), card.id).run()
+  if (cols.some((k) => k !== 'song')) c.executionCtx.waitUntil(refreshOg(c.env, card.id, ['invite']))
   return c.json({ ok: true, ...pick })
 })
 // a photo of the person, for the cover. The board shrinks it to about 900 px before sending.
@@ -798,6 +815,7 @@ app.put('/api/host/:token/photo', async (c) => {
   if (card.cover_photo_key && card.cover_photo_key !== key) await c.env.CLIPS.delete(card.cover_photo_key)
   await c.env.CLIPS.put(key, body, { httpMetadata: { contentType: type } })
   await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET cover_photo_key = ? WHERE id = ?`).bind(key, card.id).run()
+  c.executionCtx.waitUntil(refreshOg(c.env, card.id, ['invite']))
   return c.json({ ok: true })
 })
 app.delete('/api/host/:token/photo', async (c) => {
@@ -806,6 +824,7 @@ app.delete('/api/host/:token/photo', async (c) => {
   if (!canDress(card)) return bad(c, LOOK_LOCKED, 409)
   if (card.cover_photo_key) await c.env.CLIPS.delete(card.cover_photo_key)
   await (await coverDb(c.env.DB)).prepare(`UPDATE cards SET cover_photo_key = NULL WHERE id = ?`).bind(card.id).run()
+  c.executionCtx.waitUntil(refreshOg(c.env, card.id, ['invite']))
   return c.json({ ok: true })
 })
 app.get('/api/host/:token/photo', async (c) => {
@@ -963,14 +982,27 @@ app.get('/api/watch/:token', async (c) => {
     manifest,
     reelUrl: ready ? `/api/watch/${card.watch_token}/reel.mp4` : null,
     reelWideUrl: ready && card.final_wide_key ? `/api/watch/${card.watch_token}/reel-wide.mp4` : null,
+    reelShortUrl: ready && (await c.env.CLIPS.head(`finals/${card.id}/reel-short.mp4`)) ? `/api/watch/${card.watch_token}/reel-short.mp4` : null,
     people: clips.map((x) => ({ id: x.id, name: x.contributor_name, location: x.location, kind: x.kind })),
   })
+})
+
+app.get('/api/watch/:token/photo', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
+  if (!card?.cover_photo_key) return c.notFound()
+  return streamObject(c, card.cover_photo_key, 'image/jpeg')
 })
 
 app.get('/api/watch/:token/reel.mp4', async (c) => {
   const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
   if (!card?.final_key) return c.notFound()
   return streamObject(c, card.final_key)
+})
+
+app.get('/api/watch/:token/reel-short.mp4', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('token'))
+  if (!card?.final_key) return c.notFound()
+  return streamObject(c, `finals/${card.id}/reel-short.mp4`)
 })
 
 app.get('/api/watch/:token/reel-wide.mp4', async (c) => {
@@ -984,6 +1016,7 @@ app.post('/api/watch/:token/event', async (c) => {
   if (!card) return c.notFound()
   const { type, clipId } = await c.req.json().catch(() => ({}))
   if (type === 'saved') await logEvent(c.env.DB, card.id, 'saved')
+  if (type === 'posted') await logEvent(c.env.DB, card.id, 'posted') // shared the short cut: the growth loop
   if (type === 'loved' && clipId) await c.env.DB.prepare(`UPDATE clips SET loved = loved + 1 WHERE id = ? AND card_id = ?`).bind(clipId, card.id).run()
   return c.json({ ok: true })
 })
@@ -1104,6 +1137,7 @@ app.post('/api/stitch/next', async (c) => {
       song: card.song || null,
       headline: card.cover_headline || null,
       photoKey: card.cover_photo_key || null,
+      design: parseDesign(card.cover_design),
       clips: clips.map((x) => ({ id: x.id, name: x.contributor_name, location: x.location, kind: x.kind, text: x.text, key: x.storage_key, contentType: x.content_type })),
     },
   })
@@ -1125,7 +1159,13 @@ app.put('/api/stitch/final/:cardId', async (c) => {
   const cardId = c.req.param('cardId')
   const card = await getCard(c.env.DB, 'id', cardId)
   if (!card) return c.notFound()
-  const wide = c.req.query('variant') === 'wide'
+  const variant = c.req.query('variant')
+  const wide = variant === 'wide'
+  // the ~45 s share cut lives beside the reel under a fixed name; the watch page checks for it
+  if (variant === 'short') {
+    await c.env.CLIPS.put(`finals/${cardId}/reel-short.mp4`, c.req.raw.body, { httpMetadata: { contentType: 'video/mp4' } })
+    return c.json({ ok: true })
+  }
   const key = wide ? `finals/${cardId}/reel-wide.mp4` : `finals/${cardId}/reel.mp4`
   await c.env.CLIPS.put(key, c.req.raw.body, { httpMetadata: { contentType: 'video/mp4' } })
   if (wide) {
@@ -1137,6 +1177,7 @@ app.put('/api/stitch/final/:cardId', async (c) => {
     .bind(key, manifest ? decodeURIComponent(manifest) : null, nowIso(), cardId)
     .run()
   // originals stay until the reel is sent (or 3 days), so the host can still fix something after watching it first
+  c.executionCtx.waitUntil(refreshOg(c.env, cardId, ['watch']))
   const first = firstName(card.recipient_name)
   c.executionCtx.waitUntil(sendEmail(c.env, {
     to: card.host_email,
@@ -1343,6 +1384,21 @@ async function page(c, file, meta, status = 200) {
   return c.html(body, status)
 }
 
+// the card's own link pictures (refreshOg), or the look's standard one until it exists
+app.get('/og/c/:file', async (c) => {
+  const id = c.req.param('file').replace(/\.png$/, '')
+  const o = await c.env.CLIPS.get(`og/${id}/invite.png`)
+  if (o) return new Response(o.body, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=300' } })
+  const card = await getCard(c.env.DB, 'id', id)
+  return c.redirect(`/og/${card?.vibe || 'site'}.png`, 302)
+})
+app.get('/og/w/:file', async (c) => {
+  const card = await getCard(c.env.DB, 'watch_token', c.req.param('file').replace(/\.png$/, ''))
+  const o = card ? await c.env.CLIPS.get(`og/${card.id}/watch.png`) : null
+  if (o) return new Response(o.body, { headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=300' } })
+  return c.redirect(`/og/reel-${card?.vibe || 'postcard'}.png`, 302)
+})
+
 app.get('/', (c) => page(c, 'index.html', {}))
 app.get('/new', (c) => page(c, 'new.html', { title: 'Start a card · churpie.' }))
 app.get('/lost', (c) => page(c, 'lost.html', { title: 'Find your card · churpie.' }))
@@ -1356,7 +1412,7 @@ app.get('/c/:id', async (c) => {
   return page(c, 'contribute.html', {
     title: `${card.host_name} is making a surprise video for ${first}`,
     description: `Add your ${card.clip_seconds} seconds. No sign-in needed. ${card.prompt}`,
-    image: `${c.env.APP_URL}/og/${card.vibe}.png`,
+    image: `${c.env.APP_URL}/og/c/${card.id}.png?v=${ogV(card)}`,
   })
 })
 
@@ -1374,7 +1430,7 @@ app.get('/w/:token', async (c) => {
   return page(c, 'watch.html', {
     title: memorial ? `In memory of ${card.recipient_name}` : `${card.recipient_name}, ${count} ${count === 1 ? 'person' : 'people'} made you something`,
     description: memorial ? `${count} ${count === 1 ? 'person' : 'people'} shared what they remember. Gathered by ${card.host_name}. Find a quiet moment.` : `From ${card.host_name} and everyone who loves you. Find a quiet moment.`,
-    image: `${c.env.APP_URL}/og/reel-${card.vibe}.png`,
+    image: `${c.env.APP_URL}/og/w/${card.watch_token}.png?v=${ogV(card)}`,
   })
 })
 
@@ -1389,7 +1445,8 @@ app.notFound((c) => page(c, 'gone.html', { title: "This page isn't here anymore"
 async function expireCard(env, id, why) {
   const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
   const finals = await env.CLIPS.list({ prefix: `finals/${id}/` })
-  const keys = [...listed.objects, ...finals.objects].map((o) => o.key)
+  const og = await env.CLIPS.list({ prefix: `og/${id}/` })
+  const keys = [...listed.objects, ...finals.objects, ...og.objects].map((o) => o.key)
   if (keys.length) await env.CLIPS.delete(keys)
   // names, notes, the question and every email go too; only the anonymous event log remains (counts, dates)
   await notifyDb(env.DB)
@@ -1410,7 +1467,8 @@ function canRemake(card, clips) {
 
 async function deleteOriginals(env, id) {
   const listed = await env.CLIPS.list({ prefix: `clips/${id}/` })
-  const keys = listed.objects.map((o) => o.key)
+  // the cover photo stays until the card itself is deleted: the watch page's cover still shows it
+  const keys = listed.objects.map((o) => o.key).filter((k) => !/\/cover\.(jpg|png|webp)$/.test(k))
   if (keys.length) await env.CLIPS.delete(keys)
   await env.DB.prepare(`UPDATE clips SET storage_key = NULL WHERE card_id = ?`).bind(id).run()
 }
@@ -1467,6 +1525,27 @@ app.post('/api/stitch/sweep', async (c) => c.json(await sweep(c.env)))
 // Every minute: if a reel is waiting, wake the reel maker in the cloud (Google Cloud Run) and wait while it
 // makes it. Nothing waiting = no call at all, so the reel maker stays asleep and free. Waiting on the call
 // isn't Worker CPU time, and a cron run may wait up to 15 minutes.
+// Link previews: the reel maker draws the card's own cover as the picture a text message shows (stitcher/render.js),
+// for friends (invite) and for the person it's for (watch). Kept in R2 beside the card, deleted with it. If the reel
+// maker isn't set up or is slow, the page falls back to the look's standard picture, so nothing waits on this.
+async function refreshOg(env, cardId, modes = ['invite']) {
+  if (!env.STITCHER_URL || !env.STITCH_TOKEN) return
+  try {
+    const card = await getCard(env.DB, 'id', cardId); if (!card) return
+    const { n } = await env.DB.prepare(`SELECT COUNT(*) AS n FROM clips WHERE card_id = ? AND status = 'ready'`).bind(cardId).first()
+    let photo = null
+    if (card.cover_photo_key) { const o = await env.CLIPS.get(card.cover_photo_key); if (o) photo = `data:${o.httpMetadata?.contentType || 'image/jpeg'};base64,${b64(await o.arrayBuffer())}` }
+    const body = { theme: card.vibe, design: parseDesign(card.cover_design), moment: card.moment, first: firstName(card.recipient_name), headline: card.cover_headline, host: firstName(card.host_name), n, prompt: card.prompt, photo, clipSeconds: card.clip_seconds }
+    for (const mode of modes) {
+      const r = await fetch(`${env.STITCHER_URL.replace(/\/$/, '')}/og`, { method: 'POST', headers: { authorization: `Bearer ${env.STITCH_TOKEN}`, 'content-type': 'application/json' }, body: JSON.stringify({ mode, card: body }) })
+      if (r.ok) await env.CLIPS.put(`og/${cardId}/${mode}.png`, await r.arrayBuffer(), { httpMetadata: { contentType: 'image/png' } })
+    }
+  } catch (e) { console.log('og', cardId, e.message) }
+}
+const b64 = (buf) => { const u = new Uint8Array(buf); let out = ''; for (let i = 0; i < u.length; i += 0x8000) out += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(out) }
+// changes whenever what the preview shows changes, so apps that cache link pictures fetch the new one
+const ogV = (card) => { let h = 7; for (const ch of `${card.vibe}|${card.cover_design || ''}|${card.cover_headline || ''}|${card.cover_photo_key || ''}|${card.status}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h.toString(36) }
+
 async function wakeStitcher(env, scheduledTime = Date.now()) {
   if (!env.STITCHER_URL || !env.STITCH_TOKEN) return { skipped: 'no reel maker set' }
   // kept as small as possible: on the free plan each run gets 10 ms of CPU. One tiny query most minutes;

@@ -7,6 +7,7 @@
 
 import http from 'node:http'
 import { processOne } from './stitch.js'
+import { renderOg } from './render.js'
 
 const PORT = Number(process.env.PORT || 8080)
 const TOKEN = process.env.STITCH_TOKEN
@@ -16,6 +17,16 @@ let busy = false
 http.createServer(async (req, res) => {
   const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
   if (req.method === 'GET' && req.url === '/') return send(200, { ok: true, busy })
+  // a link preview for a card (render.js renderOg); quick, and never blocked by a reel being made
+  if (req.method === 'POST' && req.url === '/og') {
+    if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { error: 'unauthorized' })
+    let body = ''
+    for await (const chunk of req) { body += chunk; if (body.length > 4e6) return send(413, { error: 'too big' }) }
+    try {
+      const png = await renderOg(JSON.parse(body || '{}'))
+      res.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length }); return res.end(png)
+    } catch (e) { console.error('og error', e); return send(500, { error: String(e.message || e) }) }
+  }
   if (req.method !== 'POST' || req.url !== '/run') return send(404, { error: 'not here' })
   // the same shared secret the reel maker already uses to talk to churpie
   if (req.headers.authorization !== `Bearer ${TOKEN}`) return send(401, { error: 'unauthorized' })

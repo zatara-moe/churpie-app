@@ -27,27 +27,81 @@
   .lines { margin-top: 26px; display: flex; flex-direction: column; gap: 8px; } .lines span { height: 2px; background: var(--paper-dark); display: block; }
   @media (prefers-reduced-motion: reduce) { .postcard { transform: none; } }
   .people { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; background: var(--paper); max-height: 70vh; overflow: auto; }
-  @media (min-width: 960px) { #envelope { max-width: 560px; } .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; } }
+
+  /* the envelope: the moving cover of the card on its table, and the one button that opens it */
+  .env { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--surface, var(--paper)); overflow: hidden; }
+  .env::before { content: ''; position: absolute; inset: 0; background: var(--surface-art, none); pointer-events: none; }
+  .env-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 18px 18px 8px; }
+  .env-card { position: relative; border-radius: 22px; overflow: hidden; box-shadow: 0 2px 0 rgba(0,0,0,0.06), 0 24px 50px rgba(26,20,16,0.3); background: #fff; }
+  .env-card iframe { position: absolute; left: 0; top: 0; width: 720px; height: 1280px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .env-cta { position: relative; width: 100%; max-width: 560px; margin: 0 auto; background: var(--paper); border-radius: 26px 26px 0 0; padding: 16px 20px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 10px; text-align: center; box-shadow: 0 -2px 0 rgba(0,0,0,0.05); }
+  .env-cta #quietLine { font-size: 16px; }
+  @media (min-width: 1000px) and (min-aspect-ratio: 5/4) {
+    .env { flex-direction: row; align-items: center; justify-content: center; gap: 56px; }
+    .env-stage { flex: none; padding: 0; }
+    .env-cta { width: 380px; margin: 0; border-radius: 26px; padding: 28px 26px; box-shadow: 0 24px 50px rgba(26,20,16,0.22); }
+  }
+  /* phones: the player's buttons tuck away while the reel plays; a tap on the edge brings them back */
+  .reel .stage > .sheet:not(.people) { transition: transform .35s ease; }
+  /* a phone taller than the reel: dark bands above and below, the way Stories show it, not cream ones */
+  .reel:not(.spread) .stage:not(.wide), .reel:not(.spread) .stage:not(.wide) video { background: #0E0C0A; }
+  .reel .stage.tuck > .sheet:not(.people) { transform: translateY(calc(100% - 30px)); }
+  /* ── computers: the card opened flat. Left page: the reel. Right page: everyone's signatures. ── */
+  .sigpage { display: none; }
+  .reel.spread { --sw: calc((100vh - 48px) * 9 / 16); --pw: clamp(380px, calc(var(--sw) * 1.08), 600px); --gap: 104px; --x0: calc(50vw - (var(--sw) + var(--pw) + var(--gap)) / 2); background: var(--surface, #E9DDC8); overflow: hidden; }
+  .reel.spread::before { content: ''; position: absolute; inset: 0; background: var(--surface-art, none); pointer-events: none; }
+  .reel.spread .stage { left: var(--x0); transform: none; top: 24px; bottom: 24px; width: var(--sw); border-radius: 18px; box-shadow: 0 2px 0 rgba(0,0,0,0.06), 0 24px 50px rgba(26,20,16,0.28); }
+  .reel.spread .sigpage { display: flex; flex-direction: column; position: absolute; top: 24px; bottom: 24px; left: calc(var(--x0) + var(--sw) + var(--gap)); width: var(--pw); background: var(--page, #FFFDF8); color: var(--page-ink, #1A1410); border-radius: 6px 18px 18px 6px; box-shadow: 0 2px 0 rgba(0,0,0,0.06), 0 24px 50px rgba(26,20,16,0.24); overflow: hidden; z-index: 1; }
+  .sigpage .sp-art { position: absolute; inset: 0; pointer-events: none; }
+  .gutter { display: none; }
+  .reel.spread .gutter { display: flex; position: absolute; top: 0; bottom: 0; left: calc(var(--x0) + var(--sw)); width: var(--gap); align-items: center; justify-content: center; z-index: 2; }
+  .reel.spread .gutter .rail { position: static; }
+  .reel.spread .sigpage .sheet { position: static; background: transparent; box-shadow: none; padding: 16px 0 8px; border-radius: 0; }
+  .reel.spread .sigpage .sheet .handle { display: none; }
+  .sigpage .sp-in { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 48px 48px 20px; }
+  .sigpage .sp-eye { font: 700 13px 'DM Sans', sans-serif; letter-spacing: 3px; text-transform: uppercase; color: var(--page-faded, #6B6158); }
+  .sigpage .sp-dear { font-family: 'Homemade Apple', 'Caveat', cursive; font-weight: 400; font-size: 44px; line-height: 1.25; margin: 10px 0 6px; color: var(--page-ink, #1A1410); }
+  .sigpage .sp-q { font: 500 16px/1.45 'DM Sans', sans-serif; color: var(--page-faded, #6B6158); max-width: 440px; }
+  .sigpage .sp-q b { display: block; font-family: 'DM Serif Display', serif; font-weight: 400; font-style: italic; font-size: 22px; line-height: 1.25; color: var(--page-ink, #1A1410); margin-top: 4px; }
+  .sigpage .sp-sigs { flex: 1; min-height: 0; overflow: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px 18px; margin: 26px -8px 0; padding: 4px 8px 12px; scrollbar-width: thin; }
+  .sig { border: 0; background: transparent; padding: 2px 6px; cursor: pointer; line-height: 1.15; color: var(--c, #1A1410); transform: rotate(var(--r, 0deg)); border-radius: 8px; transition: transform .25s, background-color .25s; text-align: left; }
+  .sig:hover { background: rgba(0,0,0,0.05); }
+  .sig.now { background: var(--now-bg, rgba(212,38,106,0.12)); box-shadow: inset 0 -3px 0 var(--c, #D4266A); transform: rotate(var(--r, 0deg)) scale(1.12); }
+  .sig small { display: block; font: 600 11px 'DM Sans', sans-serif; color: var(--page-faded, #6B6158); letter-spacing: .3px; }
+  .sigpage .sp-count { font: 600 13px 'DM Sans', sans-serif; color: var(--page-faded, #6B6158); padding-top: 10px; border-top: 1.5px dashed var(--rule, rgba(26,20,16,0.15)); }
+  .sigpage .sp-bird { position: absolute; right: 26px; top: -6px; z-index: 2; transform: rotate(-4deg); filter: drop-shadow(0 6px 8px rgba(26,20,16,0.18)); }
+  /* looks: the table the card lies on, and the paper of the right-hand page. Drawn in code until illustrated art arrives. */
+  .look-postcard { --surface: #E7D8BE; --surface-art: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,0.35), transparent 60%), repeating-linear-gradient(90deg, rgba(120,80,30,0.05) 0 3px, transparent 3px 11px); --page: #FBF3E4; --page-ink: #1A1410; --now-bg: rgba(212,38,106,0.13); }
+  .look-postcard .sigpage { border: 14px solid transparent; border-image: repeating-linear-gradient(45deg, #D4266A 0 20px, #FBF3E4 20px 40px, #0B9DAA 40px 60px, #FBF3E4 60px 80px) 14; border-radius: 0; }
+  .look-confettipop { --surface: #E8246F; --surface-art: radial-gradient(circle, rgba(255,255,255,0.18) 5px, transparent 6px) 0 0 / 54px 54px; --page: #FFFDF6; --page-ink: #1A1410; --now-bg: rgba(255,225,77,0.55); }
+  .look-confettipop .sigpage { border-radius: 26px; box-shadow: 0 0 0 10px #FFE14D, 0 24px 50px rgba(0,0,0,0.3); }
+  .look-lockernote { --surface: #8E9AA4; --surface-art: repeating-linear-gradient(90deg, transparent 0 calc(50% - 300px), rgba(0,0,0,0.12) calc(50% - 300px) calc(50% - 297px), transparent calc(50% - 297px)), repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 6px); --page: #FBFBF9; --page-ink: #1A1410; --now-bg: rgba(247,217,108,0.7); }
+  .look-lockernote .sigpage { background: repeating-linear-gradient(180deg, transparent 0 37px, #CFE0F2 37px 39px) 0 120px / 100% 100% no-repeat, #FBFBF9; border-radius: 4px; transform: rotate(1deg); }
+  .look-lockernote .sigpage::after { content: ''; position: absolute; left: 34px; top: 0; bottom: 0; width: 2px; background: #F2B8C6; }
+  .look-milestonegold { --surface: #0B0A08; --surface-art: radial-gradient(ellipse at 50% 40%, rgba(227,184,90,0.14), transparent 60%); --page: #15120F; --page-ink: #F3E3BF; --page-faded: #BFA87A; --rule: rgba(227,184,90,0.35); --now-bg: rgba(227,184,90,0.18); }
+  .look-milestonegold .sigpage { box-shadow: inset 0 0 0 14px #15120F, inset 0 0 0 16px #E3B85A, inset 0 0 0 22px #15120F, inset 0 0 0 23px rgba(227,184,90,0.5), 0 24px 60px rgba(0,0,0,0.6); }
+  .look-airmail { --surface: #D6DEE6; --surface-art: radial-gradient(ellipse at 70% 80%, rgba(255,255,255,0.5), transparent 60%); --page: #F7F1E3; --page-ink: #1F2D5C; --page-faded: #5A6688; --now-bg: rgba(178,34,34,0.12); }
+  .look-airmail .sigpage { border: 16px solid transparent; border-image: repeating-linear-gradient(45deg, #B22222 0 24px, #F7F1E3 24px 48px, #1F3A93 48px 72px, #F7F1E3 72px 96px) 16; border-radius: 0; }
+  .look-kraft { --surface: #B8925F; --surface-art: repeating-linear-gradient(92deg, rgba(90,60,20,0.07) 0 2px, transparent 2px 7px), repeating-linear-gradient(3deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 9px); --page: #FBF7EE; --page-ink: #2B2116; --now-bg: rgba(200,16,46,0.12); }
+  .look-kraft .sigpage::before { content: ''; position: absolute; left: 16px; top: 0; bottom: 0; width: 10px; background: repeating-linear-gradient(45deg, #C8102E 0 7px, #FBF7EE 7px 14px); opacity: .9; }
+  .look-quietnote { --surface: #DCE7E2; --surface-art: radial-gradient(circle at 15% 20%, rgba(191,227,224,0.9), transparent 35%), radial-gradient(circle at 85% 75%, rgba(246,217,201,0.8), transparent 35%); --page: #FFFDF8; --page-ink: #22343A; --page-faded: #5E7177; --now-bg: rgba(11,157,170,0.12); }
+  .look-pressedflower { --surface: #E9E1D2; --surface-art: radial-gradient(ellipse at 50% 50%, rgba(255,253,247,0.6), transparent 70%); --page: #F6F1E7; --page-ink: #2E2A24; --page-faded: #6E655A; --now-bg: rgba(168,98,122,0.12); }
+  .look-pressedflower .sigpage { box-shadow: inset 0 0 0 22px #F6F1E7, inset 0 0 0 23px rgba(46,42,36,0.3), 0 24px 50px rgba(26,20,16,0.2); }
+  .look-custom .sp-dear { color: var(--page-ink); }
+  .look-milestonegold .sp-dear { background: linear-gradient(100deg, #B98A2E, #F9E7A9 40%, #E3B85A 60%, #FFF3C4); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  @media (prefers-reduced-motion: reduce) { .sig { transition: none; } }
+  @media (min-width: 960px) { .toast { left: 50%; right: auto; transform: translateX(-50%); width: 420px; } }
 </style>
 </head>
 <body>
 <div class="stripe"></div>
 
-<!-- ENVELOPE -->
-<main class="wrap stack" id="envelope" style="min-height: calc(100vh - 6px); padding-bottom: 24px">
-  <div class="topbar"><span></span><a class="logo" href="/">churpie<b>.</b></a></div>
-  <div class="postcard">
-    <div class="edge"></div>
-    <div class="stamp"><b id="stampN">…</b><small id="stampWord">people<br>showed up</small></div>
-    <div class="addr"><span class="muted">Made for</span><span class="serif name" id="recName">…</span><span class="muted" id="momentLine"></span></div>
-    <div class="lines" aria-hidden="true"><span style="width:100%"></span><span style="width:80%"></span><span style="width:60%"></span></div>
-    <p style="margin-top: 22px; font-size: 13px" id="fromLine"></p>
-  </div>
-  <div class="stack" style="margin-top: 36px; text-align: center; align-items: center">
-    <p style="font-size: 17px" id="quietLine">Find a quiet moment.</p>
+<!-- ENVELOPE: the front of the card, in the look the host picked, moving -->
+<main class="env" id="envelope">
+  <div class="env-stage" id="envStage"><div class="env-card" id="envCard"><iframe id="envCover" title="The front of your card" tabindex="-1" sandbox="allow-scripts allow-same-origin"></iframe></div></div>
+  <div class="env-cta">
+    <p id="quietLine">Find a quiet moment.</p>
     <div class="row" style="flex-wrap: wrap; justify-content: center; gap: 8px" id="whatChips"></div>
-  </div>
-  <div class="stack" style="margin-top: auto; padding-top: 24px">
     <button class="btn primary" id="openBtn">Open it</button>
     <button class="btn outline" id="laterBtn">Save for later</button>
     <p class="ghost" style="text-align: center" id="footLine">You can pause, skip, or come back any time.</p>
@@ -62,7 +116,7 @@
   <video id="vid" playsinline preload="auto"></video>
   <div class="top">
     <div class="segs" id="segs" aria-hidden="true"></div>
-    <div class="row between"><span class="pill" id="counter">…</span><span class="logo" style="color:#fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3)">churpie<b>.</b></span></div>
+    <div class="row between"><span class="pill" id="counter">…</span></div>
   </div>
   <div class="rail">
     <button class="btn" id="loveBtn"><svg width="22" height="22" viewBox="0 0 24 24" fill="#D4266A" aria-hidden="true"><path d="M12 21s-7-4.6-9.3-9A5.3 5.3 0 0 1 12 6.6 5.3 5.3 0 0 1 21.3 12C19 16.4 12 21 12 21z"/></svg>Love it</button>
@@ -79,12 +133,17 @@
       <button class="btn" style="width: 58px; padding: 0; flex-direction: column; gap: 2px; font-size: 9px; background: var(--pink-pale)" id="replyBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/></svg>Reply</button>
       <button class="btn" style="width: 58px; padding: 0; flex-direction: column; gap: 2px; font-size: 9px" id="peopleBtn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19a6 6 0 0 1 12 0"/><path d="M14 19a4 4 0 0 1 7 0"/></svg>Everyone</button>
     </div>
+    <button class="btn soft hidden" id="postCut" type="button" style="margin-top: 10px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>Post a short version</button>
     <p class="ghost" style="text-align: center; margin-top: 10px" id="expiryLine"></p>
     <button class="btn hidden" id="reactView" type="button" style="margin-top: 10px"></button>
     <a class="btn quiet hidden" id="otherSize" href="#" download></a>
   </div>
   <div class="people sheet hidden" id="people"><div class="handle"></div><div class="row between"><h3>Everyone in this reel</h3><button class="btn quiet" style="width:auto" id="peopleClose">Close</button></div><div class="stack" id="peopleList" style="margin-top: 10px"></div></div>
-</div></div>
+</div>
+<div class="gutter" id="gutter"></div>
+<aside class="sigpage" id="sigPage" aria-label="Everyone who signed this card"><div class="sp-art" aria-hidden="true"></div><span class="sp-bird" id="spBird" aria-hidden="true"></span>
+  <div class="sp-in"><p class="sp-eye" id="spEye"></p><h2 class="sp-dear" id="spDear"></h2><p class="sp-q" id="spQ"></p><div class="sp-sigs" id="sigs"></div><p class="sp-count" id="spCount"></p></div>
+</aside></div>
 
 <dialog id="dlg" style="border: 0; border-radius: 24px; padding: 0; width: min(92vw, 420px)"><form class="stack" style="padding: 16px" id="replyForm"><h3>Say thanks to everyone</h3><p class="muted" id="replyNote">Your note goes to everyone who made this.</p><textarea name="text" required maxlength="500" placeholder="You all…"></textarea><button class="btn primary" type="submit">Send</button><button class="btn hidden" type="button" id="replyVideo">Record a video back instead</button><button class="btn quiet" type="button" id="dlgClose">Not now</button></form></dialog>
 
@@ -93,6 +152,8 @@
 
 <script type="module">
 import { api, $, $$, toast, share, escapeHtml, firstName, fmtDays, reducedMotion, upload, recorderMime } from '/app.js'
+import { bird } from '/brand.js'
+import { coverHtml, designVars } from '/cover.js'
 
 const token = location.pathname.split('/')[2]
 // opened from the admin page (?peek=<pass>): a preview that is never counted as the recipient opening it
@@ -116,13 +177,25 @@ const MOMENT = { birthday: 'for your birthday', congrats: 'to say congratulation
 
 // a memorial reel is watched by the people who loved them, so it never speaks to the person as "you"
 const memorial = card.moment === 'memory'
-$('#stampN').textContent = n
-$('#stampWord').innerHTML = memorial ? (n === 1 ? 'voice' : 'voices') : `${n === 1 ? 'person' : 'people'}<br>showed up`
-if (memorial) $('#envelope .addr .muted').textContent = 'In memory of'
 $('#replyNote').textContent = `${firstName(card.hostName)} gets this and can pass it on to everyone.`
-$('#recName').textContent = first
-$('#momentLine').textContent = memorial ? '' : (MOMENT[card.moment] || '')
-$('#fromLine').textContent = `From ${card.hostName}${n > 1 ? ` and ${n - 1} more` : ''}`
+// the envelope is the card's own cover (public/cover.js, the same one the reel opens with), held on its first beat
+// a design the host built themselves dresses the table and the signed page in its own paper and ink
+const dv = card.design ? designVars(card.design) : null
+function dress(el) {
+  el.classList.add(dv ? 'look-custom' : `look-${card.vibe || 'postcard'}`)
+  if (dv) for (const [k, v] of Object.entries({ '--surface': dv.surface, '--page': dv.page, '--page-ink': dv.ink, '--page-faded': dv.faded, '--now-bg': `${dv.accent}33`, '--rule': `${dv.ink}33` })) el.style.setProperty(k, v)
+}
+dress($('#envelope'))
+$('#envCover').srcdoc = coverHtml({ theme: card.vibe || 'postcard', design: card.design || null, moment: card.moment, first, headline: card.headline, host: card.hostName, n, prompt: card.prompt, photo: card.hasPhoto ? `/api/watch/${token}/photo` : null, preview: true })
+function fitEnv() {
+  const desk = matchMedia('(min-width: 1000px) and (min-aspect-ratio: 5/4)').matches
+  const st = $('#envStage')
+  const s = desk ? (innerHeight - 64) / 1280 : Math.min((st.clientWidth - 36) / 720, (st.clientHeight - 26) / 1280)
+  $('#envCard').style.width = `${Math.round(720 * s)}px`; $('#envCard').style.height = `${Math.round(1280 * s)}px`
+  $('#envCover').style.transform = `scale(${s})`
+}
+fitEnv(); addEventListener('resize', fitEnv)
+if ('ResizeObserver' in window) new ResizeObserver(() => fitEnv()).observe($('#envStage'))
 const mins = Math.max(1, Math.round(totalSec / 60))
 const length = mins === 1 ? 'a minute' : `${mins} minutes`
 // the opening line follows the card: loud for a kid's party, quiet for everything tender
@@ -153,9 +226,47 @@ $('#peopleList').innerHTML = people.map((p, i) => `<button class="btn" style="ju
 
 // wide screens get the wide export (reel in the middle, postcard panels either side); phones get the vertical one
 const useWide = () => !!data.reelWideUrl && window.innerWidth > window.innerHeight && window.innerWidth >= 700
+// computers without the wide export: the card opens flat, reel on the left page, signatures on the right
+const useSpread = () => !useWide() && window.innerWidth >= 1000 && window.innerWidth > window.innerHeight * 1.2
+let spreadBuilt = false
+function buildSpread() {
+  if (spreadBuilt) return
+  spreadBuilt = true
+  document.head.insertAdjacentHTML('beforeend', '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Homemade+Apple&family=Kalam:wght@400&family=Nothing+You+Could+Do&family=Reenie+Beanie&family=Shadows+Into+Light&display=swap">')
+  dress($('#reel'))
+  $('#spEye').textContent = memorial ? 'In memory of' : 'A card for'
+  $('#spDear').textContent = memorial ? first : `Dear ${first},`
+  $('#spQ').innerHTML = card.prompt ? `${escapeHtml(firstName(card.hostName))} asked everyone<b>“${escapeHtml(card.prompt)}”</b>` : ''
+  $('#spCount').textContent = memorial ? `${n} ${n === 1 ? 'person' : 'people'} remembered ${first}. Tap a name to hear them.` : `Signed by ${n} ${n === 1 ? 'person' : 'people'}. Tap a name to hear theirs.`
+  if (!memorial) $('#spBird').innerHTML = bird({ size: 92, card: true, legs: true })
+  // each person signs in their own hand: a handwriting, an ink and a tilt picked from their name, so it never reshuffles
+  const HANDS = [["'Caveat', cursive", 1.0], ["'Homemade Apple', cursive", 0.62], ["'Kalam', cursive", 0.82], ["'Nothing You Could Do', cursive", 0.68], ["'Reenie Beanie', cursive", 1.12], ["'Shadows Into Light', cursive", 0.92]]
+  const INKS = { milestonegold: ['#F3E3BF', '#E3B85A', '#F7E3A6'], confettipop: ['#1A1410', '#E8246F', '#0B7F8A', '#7A3FC0'], lockernote: ['#1A1410', '#1F3A93', '#D4266A'], airmail: ['#1F2D5C', '#B22222', '#1F3A93'], kraft: ['#2B2116', '#C8102E', '#2D5A3A'], quietnote: ['#22343A', '#0B7F8A', '#8A5A6A'], pressedflower: ['#2E2A24', '#8A5A6A', '#5E6B4E'] }
+  const inks = dv ? [dv.ink, dv.accent, dv.ink] : INKS[card.vibe] || ['#1A1410', '#D4266A', '#0B7F8A', '#1F3A93']
+  const hash = (t) => { let h = 7; for (const ch of t) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h }
+  const size = n > 36 ? 26 : n > 20 ? 31 : n > 10 ? 36 : 42
+  $('#sigs').innerHTML = people.map((p, i) => {
+    const h = hash(`${p.name}|${i}`), [font, k] = HANDS[h % HANDS.length]
+    return `<button type="button" class="sig" data-i="${i}" title="${escapeHtml(p.location ? `${p.name} · ${p.location}` : p.name)}" style="font-family:${font};font-size:${Math.round(size * k)}px;--c:${inks[(h >> 3) % inks.length]};--r:${((h >> 6) % 9) - 4}deg">${escapeHtml(p.name)}${p.kind === 'text' ? '<small>wrote a note</small>' : ''}</button>`
+  }).join('')
+  $('#sigs').onclick = (e) => { const b = e.target.closest('.sig'); if (!b || !manifest) return; const m = manifest.find((x) => x.clipId === people[b.dataset.i].id); if (m) { vid.currentTime = m.start + 0.05; vid.play().catch(() => {}) } }
+}
+function markSigner(i) {
+  if (!spreadBuilt) return
+  const id = manifest?.[i]?.clipId
+  $$('#sigs .sig').forEach((b) => b.classList.toggle('now', !!id && people[b.dataset.i]?.id === id))
+  const now = $('#sigs .sig.now'); if (now) now.scrollIntoView({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' })
+}
 function pickSource() {
   const wide = useWide()
   $('.stage').classList.toggle('wide', wide)
+  const spread = useSpread()
+  if (spread) buildSpread()
+  $('#reel').classList.toggle('spread', spread)
+  // on the open card the buttons sit beside the reel, not on it: the rail in the fold, the rest under the signatures
+  const rail = $('.rail'), sheet = $('.stage > .sheet:not(.people)') || $('#sigPage .sheet')
+  if (spread) { $('#gutter').appendChild(rail); $('#sigPage .sp-in').insertBefore(sheet, $('#spCount')) }
+  else if (rail.parentElement !== $('.stage')) { $('.stage').insertBefore(rail, $('#people')); $('.stage').insertBefore(sheet, $('#people')) }
   const src = wide ? data.reelWideUrl : data.reelUrl
   if (vid.getAttribute('src') !== src) { const t = vid.currentTime, playing = !vid.paused; vid.src = src; vid.currentTime = t; if (playing) vid.play().catch(() => {}) }
   $('#saveBtn').href = src
@@ -166,9 +277,14 @@ function pickSource() {
   $('#otherSize').href = wide ? data.reelUrl : data.reelWideUrl
 }
 window.addEventListener('resize', () => { if (!$('#reel').classList.contains('hidden')) pickSource() })
+// the envelope already showed the name: the reel picks up as the question appears (new covers only: 6.2 s or longer, the question's time follows its length)
+const coverStart = manifest?.[0]?.kind === 'title' && manifest[0].end >= 6.1 ? 2.9 : 0
+let openedOnce = false
 function open() {
   $('#envelope').classList.add('hidden'); $('#reel').classList.remove('hidden')
   pickSource()
+  if (!openedOnce && coverStart) { const go = () => { vid.currentTime = coverStart }; if (vid.readyState >= 1) go(); else vid.addEventListener('loadedmetadata', go, { once: true }) }
+  openedOnce = true
   vid.muted = false
   vid.play().catch(() => {})
 }
@@ -187,6 +303,7 @@ vid.addEventListener('timeupdate', () => {
     $('#counter').dataset.set = '1'
     idx = i
     $('#counter').textContent = `Message ${i + 1} of ${manifest.length}`
+    markSigner(i)
     $$('#segs span').forEach((s, k) => { const seg = Math.floor(k * manifest.length / segsCap); s.className = seg < i ? 'done' : seg === i ? 'now' : '' })
   }
   const p = Math.round(((vid.currentTime - m.start) / Math.max(0.1, m.end - m.start)) * 100)
@@ -197,7 +314,43 @@ $('#nextBtn').onclick = () => { if (manifest) vid.currentTime = manifest[Math.mi
 $('#backBtn').onclick = () => { if (manifest) vid.currentTime = manifest[Math.max(0, idx - 1)].start + 0.05 }
 $('#muteBtn').onclick = () => { vid.muted = !vid.muted; $('#muteBtn').lastChild.textContent = vid.muted ? 'Sound on' : 'Sound off' }
 $('#loveBtn').onclick = () => { const m = manifest?.[idx]; if (peek) return toast('Admin preview: loves are off.'); if (m) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'loved', clipId: m.clipId } }); toast(`Loved. ${firstName(card.hostName)} will see it and can tell ${m?.name || 'them'}.`) }
-$('#saveBtn').onclick = () => { if (!peek) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'saved' } }); toast('Saving to your phone.') }
+// Keeping and posting go through the phone's share sheet with the video itself: that's the only way a video reaches
+// Photos on an iPhone (a plain download lands in Files), and Photos is where Instagram and TikTok look for it.
+// A big file takes a moment to fetch, and phones only open the share sheet straight after a tap, so a first tap gets the
+// video ready and, if the phone allows, opens the sheet; otherwise the button says "Save or share it" for a second tap.
+const canShareFiles = (() => { try { return !!navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'])], 'x.mp4', { type: 'video/mp4' })] }) } catch { return false } })()
+async function grabVideo(url, onp) {
+  const r = await fetch(url); if (!r.ok) throw new Error('fetch')
+  const total = Number(r.headers.get('content-length')) || 0, reader = r.body.getReader(), parts = []
+  let got = 0
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; if (total) onp(got / total) }
+  return new Blob(parts, { type: 'video/mp4' })
+}
+function viaShareSheet(btn, { url, name, ready, onSaved = () => {} }) {
+  let file = null, busy = false
+  const label = (t) => { btn.lastChild.textContent = t }
+  btn.addEventListener('click', async (e) => {
+    if (!canShareFiles) { onSaved(); if (btn.tagName !== 'A') location.href = url(); else toast('Saving to your phone.'); return }
+    e.preventDefault()
+    if (busy) return
+    if (file) { try { await navigator.share({ files: [file] }); onSaved() } catch {} return }
+    busy = true; const was = btn.lastChild.textContent
+    try {
+      file = new File([await grabVideo(url(), (p) => label(`Getting it ready… ${Math.round(p * 100)}%`))], name(), { type: 'video/mp4' })
+      label(ready)
+      try { await navigator.share({ files: [file] }); onSaved() } catch {} // some phones allow it straight away
+    } catch { label(was); toast("Couldn't get the video just now. Try again.") } finally { busy = false }
+  })
+}
+const fileBase = () => `churpie-${first.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'reel'}`
+viaShareSheet($('#saveBtn'), { url: () => $('#saveBtn').href, name: () => `${fileBase()}.mp4`, ready: 'Save or share it', onSaved: () => { if (!peek) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'saved' } }) } })
+// the short cut for posting: the ~45 s version when the reel is long, or the reel itself when it's already short
+const cutUrl = data.reelShortUrl || (totalSec <= 60 ? data.reelUrl : null)
+if (cutUrl && !memorial) {
+  $('#postCut').classList.remove('hidden')
+  if (!data.reelShortUrl) $('#postCut').lastChild.textContent = 'Post it to your story'
+  viaShareSheet($('#postCut'), { url: () => cutUrl, name: () => `${fileBase()}-short.mp4`, ready: 'Post it now', onSaved: () => { if (!peek) api(`/api/watch/${token}/event`, { method: 'POST', body: { type: 'posted' } }) } })
+}
 $('#shareBtn').onclick = () => share({ title: `${first}'s reel`, text: `${n} people made this for ${first}.`, url: location.href })
 $('#peopleBtn').onclick = () => $('#people').classList.remove('hidden')
 $('#peopleClose').onclick = () => $('#people').classList.add('hidden')
@@ -205,6 +358,17 @@ $('#peopleList').onclick = (e) => { const b = e.target.closest('[data-i]'); if (
 $('#replyBtn').onclick = () => (peek ? toast('Admin preview: replies are off.') : $('#dlg').showModal())
 $('#dlgClose').onclick = () => $('#dlg').close()
 $('#replyForm').addEventListener('submit', async (e) => { e.preventDefault(); await api(`/api/watch/${token}/reply`, { method: 'POST', body: { text: new FormData(e.target).get('text') } }); $('#dlg').close(); toast("It's on its way.") })
+// phones: the buttons tuck down while the reel plays, so the faces get the whole screen
+let tuckTimer = null
+const tuck = (on) => { clearTimeout(tuckTimer); $('.stage').classList.toggle('tuck', on) }
+vid.addEventListener('play', () => { clearTimeout(tuckTimer); tuckTimer = setTimeout(() => { if (!vid.paused) tuck(true) }, 2500) })
+vid.addEventListener('pause', () => tuck(false))
+vid.addEventListener('ended', () => tuck(false))
+$('.stage > .sheet:not(.people)').addEventListener('click', (e) => {
+  if (!$('.stage').classList.contains('tuck') || e.currentTarget.closest('#sigPage')) return
+  e.preventDefault(); e.stopPropagation(); tuck(false)
+  tuckTimer = setTimeout(() => { if (!vid.paused) tuck(true) }, 6000)
+}, true)
 // tap right side of the video to skip, left to go back: a bonus, never the only way
 vid.addEventListener('click', (e) => { const r = vid.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width; if (x > 0.7) $('#nextBtn').click(); else if (x < 0.3) $('#backBtn').click(); else $('#pauseBtn').click() })
 // ── a video back to everyone ────────────────────────────────────────────────

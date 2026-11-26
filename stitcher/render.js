@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { coverHtml, COVER_SECONDS } from './cover.js'
+import { coverHtml, endHtml, coverSeconds, COVER_SECONDS, END_SECONDS, LOOK_SWATCH, designVars, BIRD_SVG } from './cover.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
@@ -63,6 +63,8 @@ export async function renderFrames(job, outDir) {
   }
 }
 
+// Name tags and note headings start ~15% down: when a reel is posted, Instagram and TikTok lay the poster's name
+// over the top strip, and the tags must stay readable there.
 // ── Painter: every piece of text in the reel (title card, written messages, end card, name stickers) is HTML painted to a PNG
 // in churpie's real fonts. FFmpeg only composites video, so the stitcher never depends on FFmpeg's text features
 // (the bundled ffmpeg-static builds don't include them).
@@ -100,7 +102,7 @@ export const CARDS = {
 function stickerHtml(name, location) {
   return `<!doctype html><html><head>${FONTS}<style>
     * { margin: 0; } body { width: 720px; height: 1280px; background: transparent; font-family: 'DM Sans', sans-serif; }
-    .s { position: absolute; left: 40px; top: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+    .s { position: absolute; left: 40px; top: 196px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
     .n { background: #fff; color: #1A1410; font-weight: 700; font-size: 40px; padding: 8px 20px; border-radius: 14px; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
     .l { background: #7ECDD5; color: #1A1410; font-weight: 700; font-size: 24px; padding: 5px 16px; border-radius: 999px; }
   </style></head><body><div class="s"><span class="n">${e(name)}</span>${location ? `<span class="l">${e(location)}</span>` : ''}</div></body></html>`
@@ -123,7 +125,7 @@ function noteHtml(inner, { bg, theme }) {
     .bg { position: absolute; inset: -60px; ${bgCss(bg, theme)} }
     .wash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(245,240,232,0.18), rgba(26,20,16,${bg ? 0.32 : 0.06})); }
     .stripe { position: absolute; top: 0; left: 0; right: 0; height: 10px; background: #D4266A; z-index: 5; }
-    .s { position: absolute; left: 40px; top: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; z-index: 4; }
+    .s { position: absolute; left: 40px; top: 196px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; z-index: 4; }
     .n { background: #fff; color: #1A1410; font-weight: 700; font-size: 40px; padding: 8px 20px; border-radius: 14px; box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
     .l { background: #7ECDD5; color: #1A1410; font-weight: 700; font-size: 24px; padding: 5px 16px; border-radius: 999px; }
     .note { position: absolute; left: 70px; right: 70px; border-radius: 6px; box-shadow: 0 26px 56px rgba(0,0,0,0.32); background-image: repeating-linear-gradient(0deg, transparent 0 63px, rgba(201,186,150,0.45) 63px 65px); }
@@ -134,11 +136,11 @@ function noteHtml(inner, { bg, theme }) {
     .one .sig { font-size: 48px; margin-top: 22px; }
     .heart { position: absolute; left: -26px; bottom: -40px; width: 82px; height: 94px; background: #D4266A; border: 6px solid #fff; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 40px; transform: rotate(-8deg); box-shadow: 0 6px 14px rgba(0,0,0,0.2); }
     .hint { position: absolute; left: 0; right: 0; bottom: 120px; text-align: center; color: #fff; font-weight: 700; font-size: 26px; text-shadow: 0 2px 8px rgba(0,0,0,0.45); }
-    .top { position: absolute; top: 96px; left: 40px; right: 40px; text-align: center; font-family: 'DM Serif Display', serif; font-size: 54px; line-height: 1.05; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+    .top { position: absolute; top: 190px; left: 40px; right: 40px; text-align: center; font-family: 'DM Serif Display', serif; font-size: 54px; line-height: 1.05; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
     .wall { padding: 44px 40px 28px; }
     .wall .m { font-family: 'Caveat', cursive; font-weight: 500; font-size: 48px; line-height: 1.05; color: #1A1410; overflow-wrap: anywhere; }
     .wall .sig { font-size: 38px; margin-top: 6px; }
-  </style></head><body><div class="bg"></div><div class="wash"></div><div class="stripe"></div>${inner}</body></html>`
+  </style></head><body><div class="bg"></div><div class="wash"></div>${inner}</body></html>`
 }
 // longer notes get a smaller hand, so every note fits the paper
 const noteSize = (t) => { const n = String(t).length; return n < 60 ? 72 : n < 110 ? 64 : n < 170 ? 54 : 46 }
@@ -150,7 +152,7 @@ export const NOTES = {
     <div class="hint">${j.memory ? 'wrote this' : 'wrote this for you'}</div>`,
   // notes: the ones taped on so far (1 to 3); each new one lands below the last
   wall: (j) => {
-    const tops = j.notes.length === 1 ? [470] : j.notes.length === 2 ? [330, 700] : [250, 560, 870]
+    const tops = j.notes.length === 1 ? [500] : j.notes.length === 2 ? [380, 730] : [320, 610, 900]
     const turns = [-3, 2.5, -1.5]
     return `<div class="top">${j.memory ? 'A few words about' : 'A few words for'} ${e(j.first)}</div>` + j.notes.map((x, i) =>
       `<div class="note wall" style="top: ${tops[i]}px; background-color: ${PAPERS[i % 3]}; transform: rotate(${turns[i % 3]}deg)"><span class="tape" style="background: ${TAPES[(i + 1) % 3]}; width: 120px; height: 34px; margin-left: -60px; top: -16px"></span>
@@ -172,11 +174,11 @@ export async function openPainter() {
   }
   // The cover moves, so it is filmed: every animation on the page is paused, then stepped to each frame's moment and
   // photographed. Same result on a fast or a slow machine, and the confetti lands the same way every time.
-  const film = async (html, dir, fps) => {
+  const film = async (html, dir, fps, seconds = COVER_SECONDS) => {
     await page.setContent(html, { waitUntil: 'load' })
     await page.evaluate(() => document.fonts.ready).catch(() => {})
     await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
-    const n = Math.round(COVER_SECONDS * fps)
+    const n = Math.round(seconds * fps)
     for (let i = 0; i < n; i++) {
       await page.evaluate((ms) => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = ms }), (i * 1000) / fps)
       await page.screenshot({ path: path.join(dir, `f${String(i).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 88 })
@@ -184,7 +186,8 @@ export async function openPainter() {
     return path.join(dir, 'f%04d.jpg')
   }
   return {
-    cover: (data, dir, fps = 30) => film(coverHtml(data), dir, fps),
+    cover: (data, dir, fps = 30) => film(coverHtml(data), dir, fps, coverSeconds(data.prompt)),
+    end: (data, dir, fps = 30) => film(endHtml(data), dir, fps, END_SECONDS),
     card: (kind, data, theme, file) => paint(cardHtml(theme, CARDS[kind](data)), file, false),
     sticker: (name, location, file) => paint(stickerHtml(name, location), file, true),
     note: (kind, data, opts, file) => paint(noteHtml(NOTES[kind](data), opts), file, false),
@@ -198,4 +201,56 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   fs.mkdirSync(outDir, { recursive: true })
   const files = await renderFrames({ theme, recipientName: 'Rosa Martinez', hostName: 'Maria', clips: new Array(31), prompt: 'Tell Rosa your favorite memory with her, then wish her happy 60th.', moment: 'birthday', age: 60, totalSeconds: 480 }, outDir)
   console.log(files)
+}
+
+
+// ── Link previews: what a text message or WhatsApp shows before anyone taps ─────────────────────────────────────
+// The card's own cover (its look, the name, the photo) beside one line: the friends' version invites them in, the
+// recipient's version says how many people made it. 1200x630. The Worker asks for one (serve.js POST /og) whenever
+// the card or its look changes, and again when the reel is made, and keeps it with the card.
+// o: { mode: 'invite' | 'watch', card: { theme, design, moment, first, headline, host, n, prompt, photo, clipSeconds } }
+function ogHtml(o, coverB64) {
+  const c = o.card || {}
+  const dv = c.design ? designVars(c.design) : null
+  const sw = LOOK_SWATCH[c.theme] || LOOK_SWATCH.postcard
+  const table = dv ? dv.surface : sw.bg, accent = dv ? dv.accent : sw.accent
+  const memory = c.moment === 'memory'
+  const n = Number(c.n) || 0
+  const first = e(c.first || 'them'), host = e(c.host || 'Someone')
+  const t = o.mode === 'watch'
+    ? memory ? { eye: 'In memory', big: first, line: `${n} ${n === 1 ? 'person' : 'people'} shared what they remember.`, cta: 'Watch it' }
+      : { eye: 'A video card for you', big: `${first},`, line: `${n} ${n === 1 ? 'person' : 'people'} made you something.`, cta: 'Open it' }
+    : memory ? { eye: 'Remembering', big: first, line: `${host} is gathering memories of ${first}.`, cta: `Add yours · ${Number(c.clipSeconds) || 15} seconds` }
+      : { eye: 'A surprise video card', big: `For ${first}`, line: `${host} is gathering everyone who loves ${first}. Shh, it's a surprise.`, cta: `Add your ${Number(c.clipSeconds) || 15} seconds` }
+  const size = t.big.length <= 10 ? 92 : t.big.length <= 16 ? 74 : 58
+  return `<!doctype html><html><head><meta charset="utf-8">${FONTS}<style>
+    *{box-sizing:border-box;margin:0} body{width:1200px;height:630px;overflow:hidden;background:${table};font-family:'DM Sans',sans-serif;position:relative}
+    body::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(255,255,255,.18),transparent 60%)}
+    .card{position:absolute;left:84px;top:34px;width:316px;height:562px;border-radius:22px;overflow:hidden;transform:rotate(-3deg);box-shadow:0 26px 50px rgba(0,0,0,.35);background:#fff url(data:image/jpeg;base64,${coverB64}) center/cover}
+    .note{position:absolute;left:470px;top:70px;width:660px;height:490px;background:#FFFDF8;border-radius:28px;padding:48px 52px;box-shadow:0 20px 44px rgba(0,0,0,.22);display:flex;flex-direction:column}
+    .eye{font:700 18px 'Courier Prime',monospace;letter-spacing:4px;text-transform:uppercase;color:#6B6158}
+    .big{font-family:'DM Serif Display',serif;font-size:${size}px;line-height:1;color:#1A1410;margin-top:16px}
+    .line{font-size:28px;line-height:1.35;color:#3A322B;margin-top:18px;max-width:540px}
+    .cta{margin-top:auto;align-self:flex-start;background:${accent};color:${lumOk(accent) ? '#1A1410' : '#fff'};font:700 26px 'DM Sans',sans-serif;padding:16px 30px;border-radius:999px}
+    .brand{position:absolute;right:52px;bottom:44px;display:flex;align-items:center;gap:4px;font-family:'DM Serif Display',serif;font-style:italic;font-size:34px;color:#1A1410}
+    .brand svg{width:64px;height:48px}
+  </style></head><body><div class="card"></div><div class="note"><div class="eye">${t.eye}</div><div class="big">${t.big}</div><div class="line">${t.line}</div><div class="cta">${t.cta}</div><div class="brand">churpie${BIRD_SVG}</div></div></body></html>`
+}
+const lumOk = (hex) => { const v = parseInt(hex.slice(1), 16); const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 160 }
+export async function renderOg(o) {
+  const { chromium } = await loadPlaywright()
+  const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-gpu'] })
+  try {
+    const page = await browser.newPage({ viewport: { width: 720, height: 1280 }, deviceScaleFactor: 1 })
+    if (process.env.FONT_ROUTE) { const { routeFonts } = await import(process.env.FONT_ROUTE); await routeFonts(page.context()) }
+    const c = o.card || {}
+    await page.setContent(coverHtml({ theme: c.theme, design: c.design || null, moment: c.moment, first: c.first, headline: c.headline, host: c.host, n: o.mode === 'watch' ? c.n : null, prompt: c.prompt, photo: c.photo || null, preview: true }), { waitUntil: 'load' })
+    await page.evaluate(() => document.fonts.ready).catch(() => {})
+    await page.evaluate(() => document.getAnimations().forEach((a) => { a.pause(); a.currentTime = 2600 }))
+    const cover = await page.screenshot({ type: 'jpeg', quality: 86 })
+    await page.setViewportSize({ width: 1200, height: 630 })
+    await page.setContent(ogHtml(o, cover.toString('base64')), { waitUntil: 'load' })
+    await page.evaluate(() => document.fonts.ready).catch(() => {})
+    return await page.screenshot({ type: 'png' })
+  } finally { await browser.close() }
 }

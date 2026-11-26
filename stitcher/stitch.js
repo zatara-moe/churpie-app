@@ -13,7 +13,7 @@ import os from 'node:os'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
-import { COVER_SECONDS } from './cover.js'
+import { COVER_SECONDS, END_SECONDS, coverSeconds } from './cover.js'
 import { renderFrames, openPainter, WINDOWS } from './render.js'
 
 const run = promisify(execFile)
@@ -134,7 +134,31 @@ async function analyze(file, info) {
   } catch {}
   if (!info.hasAudio || (meanVol !== null && meanVol < -38)) flags.push('quiet')
   if (info.duration > 0 && blackSec / info.duration > 0.6) flags.push('dark')
-  return { flags, meanVol }
+  const speech = info.hasAudio ? await speechSpan(file, info.duration, meanVol).catch(() => null) : null
+  return { flags, meanVol, speech }
+}
+
+// Dead air: most phone videos start with a second or three of the person getting ready, and end with them reaching
+// for the stop button. Find where talking starts and stops and keep just that, with a little room either side.
+// The silence threshold follows each clip's own loudness, so a quiet speaker isn't mistaken for silence.
+// Nothing is cut when the result would look wrong: no clear speech, or under a third of the clip left.
+const LEAD_ROOM = 0.25, TAIL_ROOM = 0.5
+async function speechSpan(file, duration, meanVol) {
+  if (!duration || duration < 2.5 || meanVol === null || meanVol < -50) return null
+  const floor = Math.max(-55, Math.min(-28, meanVol - 14))
+  const { stderr } = await run(FFMPEG, ['-hide_banner', '-i', file, '-vn', '-af', `silencedetect=n=${floor}dB:d=0.5`, '-f', 'null', '-'], { maxBuffer: 16 * 1024 * 1024 })
+  const quiet = []
+  for (const line of String(stderr).split('\n')) {
+    const a = /silence_start:\s*(-?[\d.]+)/.exec(line); if (a) quiet.push({ from: Math.max(0, Number(a[1])), to: duration })
+    const b = /silence_end:\s*([\d.]+)/.exec(line); if (b && quiet.length) quiet[quiet.length - 1].to = Number(b[1])
+  }
+  const lead = quiet.find((q) => q.from <= 0.05)
+  const tail = [...quiet].reverse().find((q) => q.to >= duration - 0.05 && q !== lead)
+  const start = lead ? Math.max(0, lead.to - LEAD_ROOM) : 0
+  const end = tail ? Math.min(duration, tail.from + TAIL_ROOM) : duration
+  if (end - start < Math.max(1.2, duration * 0.3)) return null
+  if (start < 0.3 && duration - end < 0.3) return null
+  return { start: Math.round(start * 100) / 100, end: Math.round(end * 100) / 100 }
 }
 
 const esc = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\u2019").replace(/:/g, '\\:').replace(/%/g, '%%').replace(/\[/g, '\\[').replace(/\]/g, '\\]')
@@ -145,24 +169,24 @@ function wrap(text, max = 26) {
 }
 const stripe = `drawbox=x=0:y=0:w=iw:h=10:color=${PINK}:t=fill`
 
-// Normalize one clip: 720x1280, blurred fill (no black bars), 30fps, trimmed, EBU R128 loudness, name sticker, silent track if the phone gave none.
+// Normalize one clip: 720x1280 filled edge to edge (sideways videos trimmed at the sides), 30fps, trimmed, EBU R128 loudness, name sticker, silent track if the phone gave none.
 // Audio glue: every room sounds different, so each clip gets the same gentle treatment before it meets the others:
 //   rumble and hiss filtered out, light noise reduction (hum, fridge, traffic), one loudness, and soft 0.12 s / 0.18 s edges
 //   so room sound never snaps on or off between people. The music bed underneath covers what's left.
-async function normalizeClip(src, dst, { seconds, hasAudio, duration, sticker }) {
-  const out = Math.max(0.5, Math.min(duration || seconds + 1, seconds + 1))
+async function normalizeClip(src, dst, { seconds, hasAudio, duration, sticker, speech = null }) {
+  const span = speech ? speech.end - speech.start : duration
+  const out = Math.max(0.5, Math.min(span || seconds + 1, seconds + 1))
   const glue = `highpass=f=80,lowpass=f=12000,afftdn=nr=10:nf=-40:tn=1,loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000,afade=t=in:st=0:d=0.12,afade=t=out:st=${(out - 0.18).toFixed(2)}:d=0.18`
+  // every message fills the vertical card edge to edge, like a story: a sideways video is trimmed at the sides
+  // (centred) rather than shown small between bands, so a reel never mixes wide and tall people
   const vf = [
-    'split=2[fg][bg]',
-    `[bg]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},gblur=sigma=24[bgd]`,
-    `[fg]scale=${W}:${H}:force_original_aspect_ratio=decrease[fgd]`,
-    `[bgd][fgd]overlay=(W-w)/2:(H-h)/2[base]`,
-    `[base][1:v]overlay=0:0,${stripe},fps=${FPS},format=yuv420p[v]`,
+    `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}[base]`,
+    `[base][1:v]overlay=0:0,fps=${FPS},format=yuv420p[v]`,
   ].join(';')
   const audioIn = hasAudio ? '[0:a]' : '[2:a]'
   const extra = hasAudio ? [] : ['-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo']
   await ffmpeg([
-    '-i', src, '-i', sticker, ...extra,
+    ...(speech?.start ? ['-ss', String(speech.start)] : []), '-i', src, '-i', sticker, ...extra,
     '-filter_complex', `${vf};${audioIn}${glue}[a]`,
     '-map', '[v]', '-map', '[a]', '-t', out.toFixed(2),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
@@ -180,10 +204,10 @@ async function makeCard(dst, png, seconds) {
 }
 
 // The cover: filmed frames (render.js) into a clip, silent; the music starts under it.
-async function makeCover(dst, pattern) {
+async function makeCover(dst, pattern, seconds = COVER_SECONDS) {
   await ffmpeg([
     '-framerate', String(FPS), '-i', pattern, '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
-    '-vf', `scale=${W}:${H},format=yuv420p`, '-t', String(COVER_SECONDS),
+    '-vf', `scale=${W}:${H},format=yuv420p`, '-t', String(seconds),
     '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst,
   ])
 }
@@ -212,7 +236,7 @@ async function grabFrame(src, dst, atEnd) {
 const readSeconds = (text) => Math.min(9, Math.max(4, 3 + String(text || '').trim().split(/\s+/).length * 0.3))
 
 // Concat, loop the music under it with ducking so voices always win, stamp the watermark. One encode.
-async function finalize(parts, dst, { music, withMusic }) {
+async function finalize(parts, dst, { music, withMusic, markFrom = null, markTo = null }) {
   const list = path.join(path.dirname(dst), 'concat.txt')
   fs.writeFileSync(list, parts.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'))
   const wm = firstExisting([path.join(HERE, 'assets/watermark.png')])
@@ -234,7 +258,9 @@ async function finalize(parts, dst, { music, withMusic }) {
   if (wm) {
     inputs.push('-i', wm)
     const wmIdx = musicFile ? 2 : 1
-    fc += (fc ? ';' : '') + `[${wmIdx}:v]colorchannelmixer=aa=0.18[wm];[0:v][wm]overlay=W-w-16:H-h-16[v]`
+    // the faint corner mark only shows between the cover and the end, which carry the name themselves
+    const when = markFrom !== null && markTo > markFrom ? `:enable='between(t,${markFrom},${markTo})'` : ''
+    fc += (fc ? ';' : '') + `[${wmIdx}:v]colorchannelmixer=aa=0.18[wm];[0:v][wm]overlay=W-w-16:H-h-16${when}[v]`
     mapV = '[v]'
   }
   await ffmpeg([...inputs, ...(fc ? ['-filter_complex', fc] : []), '-map', mapV, '-map', mapA, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-shortest', dst], 15 * 60 * 1000)
@@ -256,7 +282,7 @@ async function frameReel(inner, framePng, dst, size, theme) {
 // ─────────────────────────────────────────────────────────────────────────────
 // One job
 // ─────────────────────────────────────────────────────────────────────────────
-export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags = async () => {} }) {
+export async function stitch(job, { fetchClip, outFile, wideFile = null, shortFile = null, onFlags = async () => {} }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `churpie-${job.cardId}-`))
   const painter = await openPainter()
   const theme = job.theme || 'postcard'
@@ -274,7 +300,8 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       const raw = path.join(tmp, 'intro-raw'), norm = path.join(tmp, 'intro.mp4')
       await fetchClip(job.introKey, raw)
       const info = await probe(raw)
-      await normalizeClip(raw, norm, { seconds: 20, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(job.hostName, null, png('intro-sticker')) })
+      const { speech } = await analyze(raw, info)
+      await normalizeClip(raw, norm, { speech, seconds: 20, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(job.hostName, null, png('intro-sticker')) })
       await push(norm, { kind: 'intro', name: job.hostName, clipId: null })
     }
 
@@ -288,9 +315,10 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       log(`[${job.cardId}] clip ${i}/${job.clips.length} ${clip.name}`)
       await fetchClip(clip.key, raw)
       const info = await probe(raw)
-      const { flags } = await analyze(raw, info)
+      const { flags, speech } = await analyze(raw, info)
       await onFlags(clip.id, flags, info.duration)
-      await normalizeClip(raw, norm, { seconds: job.clipSeconds, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(clip.name, clip.location, png(`sticker-${i}`)) })
+      if (speech) log(`[${job.cardId}]   trimmed to ${speech.start}s-${speech.end}s of ${info.duration.toFixed(1)}s`)
+      await normalizeClip(raw, norm, { speech, seconds: job.clipSeconds, hasAudio: info.hasAudio, duration: info.duration, sticker: await painter.sticker(clip.name, clip.location, png(`sticker-${i}`)) })
       items.push({ clip, norm, flags })
       fs.rmSync(raw, { force: true })
     }
@@ -324,9 +352,26 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
       }
     }
 
-    // 4. end card: the growth loop
+    // 4. the end: everyone's faces fill in, in the card's look. A face is a still from the middle of their video;
+    //    someone who wrote a note gets their initial. If it goes wrong, the plain end card from before stands in.
     const end = path.join(tmp, 'end.mp4')
-    await makeCard(end, await painter.card('end', { n: job.clips.length, first, memory: job.moment === 'memory' }, theme, png('end')), 5)
+    try {
+      const faces = []
+      for (const [k, it] of items.entries()) {
+        let img = null
+        if (it.norm) {
+          const f = path.join(tmp, `face-${k}.jpg`)
+          await ffmpeg(['-ss', '1.2', '-i', it.norm, '-frames:v', '1', '-vf', 'crop=iw:iw:0:(ih-iw)/2,scale=240:240', '-q:v', '5', f]).catch(() => {})
+          if (fs.existsSync(f)) img = dataUrl(f)
+        }
+        faces.push({ name: it.clip.name, img })
+      }
+      const dir = path.join(tmp, 'end-frames'); fs.mkdirSync(dir)
+      await makeCover(end, await painter.end({ theme, design: job.design || null, moment: job.moment, first, n: job.clips.length, faces }, dir), END_SECONDS)
+    } catch (err) {
+      log(`[${job.cardId}] end failed, using the plain end card: ${err.message}`)
+      await makeCard(end, await painter.card('end', { n: job.clips.length, first, memory: job.moment === 'memory' }, theme, png('end')), 5)
+    }
     await push(end, { kind: 'end', name: 'churpie', clipId: null })
 
     // 5. the cover, put in front: the card's front, full screen, with their name, then the question, then it lifts
@@ -339,7 +384,7 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
         if (job.photoKey) { const f = path.join(tmp, 'cover-photo'); await fetchClip(job.photoKey, f); photo = dataUrl(f) }
         const still = parts[0] ? await grabFrame(parts[0], path.join(tmp, 'cover-next.jpg'), false) : null
         log(`[${job.cardId}] cover (${theme})`)
-        await makeCover(cover, await painter.cover({ theme, moment: job.moment, first, headline: job.headline, host: job.hostName, n: job.clips.length, prompt: job.prompt, photo, next: still ? dataUrl(still) : null }, frames))
+        await makeCover(cover, await painter.cover({ theme, design: job.design || null, moment: job.moment, first, headline: job.headline, host: job.hostName, n: job.clips.length, prompt: job.prompt, photo, next: still ? dataUrl(still) : null }, frames), coverSeconds(job.prompt))
       } catch (err) {
         log(`[${job.cardId}] cover failed, using the title card: ${err.message}`)
         await makeCard(cover, await painter.card('title', { first, host: job.hostName, n: job.clips.length, prompt: job.prompt }, theme, png('title')), 4)
@@ -354,11 +399,37 @@ export async function stitch(job, { fetchClip, outFile, wideFile = null, onFlags
     const inner = path.join(tmp, 'inner.mp4')
     const music = pickMusic(job, theme)
     log(`[${job.cardId}] music: ${music || 'none'}`)
-    await finalize(parts, inner, { music, withMusic: !!music })
-    // 7. the card: render the frames, then tape the reel inside each
-    log(`[${job.cardId}] card frames (${theme})`)
-    const frames = await renderFrames({ ...job, theme, totalSeconds: t }, tmp)
-    await frameReel(inner, frames.story, outFile, 'story', theme)
+    const last = manifest[manifest.length - 1]
+    await finalize(parts, inner, { music, withMusic: !!music, markFrom: manifest[0]?.end ?? null, markTo: last?.kind === 'end' ? last.start : null })
+    // 6b. the share cut: a reel past a minute is too long for a Story or most Reels, so a ~45 s version goes with it:
+    //     the cover, a few seconds of up to 14 people (spread across the reel, starting as they start talking), the end.
+    //     It's the one people post, so it's the one that brings the next card in.
+    if (shortFile && t > 60 && last?.kind === 'end') {
+      try {
+        const vids = items.filter((it) => it.norm)
+        const coverDur = manifest[0].end, endDur = last.end - last.start
+        const k = Math.min(vids.length, 14)
+        const each = Math.max(1.6, Math.min(3.4, (45 - coverDur - endDur) / Math.max(1, k)))
+        const picks = Array.from({ length: k }, (_, i) => vids[Math.floor((i * vids.length) / k)])
+        const cuts = []
+        for (const [i, it] of picks.entries()) {
+          const dst = path.join(tmp, `cut-${i}.mp4`)
+          await ffmpeg(['-ss', '0.2', '-i', it.norm, '-t', each.toFixed(2),
+            '-af', `afade=t=in:d=0.08,afade=t=out:st=${(each - 0.25).toFixed(2)}:d=0.25`,
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '22', '-pix_fmt', 'yuv420p', '-r', String(FPS), '-c:a', 'aac', '-b:a', '128k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', dst])
+          cuts.push(dst)
+        }
+        const shortTotal = coverDur + cuts.length * each + endDur
+        log(`[${job.cardId}] share cut: ${cuts.length} people, ${Math.round(shortTotal)}s`)
+        await finalize([parts[0], ...cuts, parts.at(-1)], shortFile, { music, withMusic: !!music, markFrom: coverDur, markTo: shortTotal - endDur })
+      } catch (err) { log(`[${job.cardId}] share cut skipped: ${err.message}`); fs.rmSync(shortFile, { force: true }) }
+    }
+    // 7. the phone reel is the reel itself, edge to edge, the way Stories and Reels play: the cover and the end carry
+    //    the card's look. (STORY_FRAME=1 brings back the old card border around it.) The wide export still gets its frame.
+    const framed = process.env.STORY_FRAME === '1'
+    const frames = framed || wideFile ? (log(`[${job.cardId}] card frames (${theme})`), await renderFrames({ ...job, theme, totalSeconds: t }, tmp)) : null
+    if (framed) await frameReel(inner, frames.story, outFile, 'story', theme)
+    else fs.copyFileSync(inner, outFile)
     if (wideFile) { log(`[${job.cardId}] wide card`); await frameReel(inner, frames.wide, wideFile, 'wide', theme) }
     return manifest
   } finally {
@@ -379,16 +450,18 @@ export async function processOne() {
   // one reel per card: computers show it inside the card frame on the watch page. The wide (16:9) export
   // doubled render time and storage, so it only happens when WIDE_REEL=1 is set on the reel maker.
   const wide = process.env.WIDE_REEL === '1' ? path.join(os.tmpdir(), `churpie-${job.cardId}-reel-wide.mp4`) : null
+  const short = path.join(os.tmpdir(), `churpie-${job.cardId}-reel-short.mp4`)
   try {
-    const manifest = await stitch(job, { fetchClip: download, outFile: out, wideFile: wide, onFlags: postFlags })
-    // wide first, so the card only turns "ready" once both files exist
+    const manifest = await stitch(job, { fetchClip: download, outFile: out, wideFile: wide, shortFile: short, onFlags: postFlags })
+    // the extras first, so the card only turns "ready" once every file exists
     if (wide && fs.existsSync(wide)) await uploadFinal(job.cardId, wide, manifest, 'wide')
+    if (fs.existsSync(short)) await uploadFinal(job.cardId, short, manifest, 'short')
     const r = await uploadFinal(job.cardId, out, manifest)
     log(`[${job.cardId}] done → ${r.watch}`)
   } catch (e) {
     log(`[${job.cardId}] FAILED ${e.message}`)
     await markFailed(job.cardId, e.message)
-  } finally { fs.rmSync(out, { force: true }); if (wide) fs.rmSync(wide, { force: true }) }
+  } finally { fs.rmSync(out, { force: true }); fs.rmSync(short, { force: true }); if (wide) fs.rmSync(wide, { force: true }) }
   return true
 }
 
@@ -396,7 +469,7 @@ const argv = process.argv.slice(2)
 if (argv[0] === '--local') {
   // offline: node stitch.js --local job.json out.mp4   (job.clips[].key are local file paths)
   const job = JSON.parse(fs.readFileSync(argv[1], 'utf8'))
-  const manifest = await stitch(job, { fetchClip: async (key, dest) => fs.copyFileSync(key, dest), outFile: argv[2], wideFile: argv[2].replace(/\.mp4$/, '-wide.mp4'), onFlags: async (id, flags, d) => log(`  flags ${id}: ${flags.join(',') || 'none'} (${d.toFixed(1)}s)`) })
+  const manifest = await stitch(job, { fetchClip: async (key, dest) => fs.copyFileSync(key, dest), outFile: argv[2], wideFile: argv[2].replace(/\.mp4$/, '-wide.mp4'), shortFile: argv[2].replace(/\.mp4$/, '-short.mp4'), onFlags: async (id, flags, d) => log(`  flags ${id}: ${flags.join(',') || 'none'} (${d.toFixed(1)}s)`) })
   fs.writeFileSync(argv[2] + '.manifest.json', JSON.stringify(manifest, null, 2))
   log('wrote', argv[2])
 } else if (import.meta.url === `file://${process.argv[1]}`) {

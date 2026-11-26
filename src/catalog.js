@@ -57,6 +57,7 @@ export const SONGS = [
   { id: 'beat-1', mood: 'beat', label: 'Serendipity' }, { id: 'beat-2', mood: 'beat', label: 'Long day' }, { id: 'beat-3', mood: 'beat', label: 'Embrace' },
   { id: 'everyday-1', mood: 'everyday', label: 'Espresso brown' }, { id: 'everyday-2', mood: 'everyday', label: 'Comfy cozy' }, { id: 'everyday-3', mood: 'everyday', label: 'Dreamy jazz' }, { id: 'everyday-churpie', mood: 'everyday', label: 'Front porch' },
   { id: 'slowdance-1', mood: 'slowdance', label: 'Canon in D' }, { id: 'slowdance-2', mood: 'slowdance', label: 'Ballad in D' }, { id: 'slowdance-3', mood: 'slowdance', label: 'Romantic piano' }, { id: 'slowdance-4', mood: 'slowdance', label: 'Chopin waltz' },
+  { id: 'holiday-3', mood: 'holiday', label: 'Jingle bells' }, { id: 'holiday-4', mood: 'holiday', label: 'Deck the halls' }, { id: 'holiday-5', mood: 'holiday', label: 'We wish you a merry Christmas' },
   { id: 'holiday-1', mood: 'holiday', label: 'Angels we have heard' }, { id: 'holiday-2', mood: 'holiday', label: 'Winter glow' },
   { id: 'lullaby-1', mood: 'lullaby', label: 'Music box' }, { id: 'lullaby-2', mood: 'lullaby', label: 'Brahms lullaby' },
   { id: 'reflective-1', mood: 'reflective', label: 'Gymnopédie' }, { id: 'reflective-2', mood: 'reflective', label: 'A big full heart' }, { id: 'reflective-3', mood: 'reflective', label: 'Amazing grace' }, { id: 'reflective-churpie', mood: 'reflective', label: 'Still water' },

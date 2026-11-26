@@ -24,6 +24,9 @@
   .live { position: sticky; top: 62px; z-index: 5; background: var(--paper); padding: 10px 0 12px; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   .live .cap { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .live .cap span { font-size: 12px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-ghost); }
+  .hbday { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 2px dashed #C8102E; border-radius: 16px; padding: 12px 14px; cursor: pointer; font-size: 15px; line-height: 1.35; }
+  .hbday input { width: 22px; height: 22px; margin-top: 1px; accent-color: #C8102E; flex: none; }
+  .hbday b { color: #C8102E; }
   .themes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .theme { border: 3px solid transparent; background: transparent; border-radius: 16px; padding: 4px; cursor: pointer; font: inherit; text-align: left; color: var(--ink); }
   .theme[aria-pressed=true] { border-color: var(--ink); background: #fff; }
@@ -101,6 +104,7 @@
     <h2 style="margin-top: 6px">What's the occasion?</h2>
     <div class="choices occs" id="moments" role="group" aria-label="occasion"></div>
     <button type="button" class="btn quiet hidden" id="occChange" style="align-self: flex-start; min-height: 0; padding: 0; color: var(--pink-deep); width: auto">Change the occasion</button>
+    <label class="hbday hidden" id="hbday"><input type="checkbox" id="hbdayOn"><span><b>Holiday birthday?</b> If their birthday is near Christmas, make it festive and still all about them.</span></label>
     <div class="asked" id="asked" aria-live="polite"></div>
     <button class="btn primary" type="submit">Next: the question</button>
   </form>
@@ -228,9 +232,10 @@
 import { api, $, $$, toast, share, escapeHtml, firstName, verb, rememberBoard, botCheck, googleButton } from '/app.js'
 import { cardPreview } from '/people.js'
 import { mountDesigner } from '/designer.js'
+import { HOLIDAY_BIRTHDAY } from '/cover.js'
 import { icon } from '/brand.js'
 
-const state = { moment: 'birthday', tone: null, vibe: 'postcard', song: null, headline: '' }
+const state = { moment: 'birthday', tone: null, vibe: 'postcard', song: null, headline: '', design: null, holiday: false }
 
 // catches the usual slips (gmial.com, yahoo.con) before an email bounces
 const DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com', 'aol.com', 'live.com', 'msn.com', 'comcast.net', 'me.com', 'proton.me', 'protonmail.com']
@@ -332,9 +337,30 @@ let autoPrompt = ''
 function showAsked() {
   const m = moments.find((x) => x.id === state.moment)
   const name = firstName($('#step1 [name=recipientName]').value)
-  $('#asked').innerHTML = m ? `<span class="ghost">Everyone will be asked</span><q>${escapeHtml(ask(m, name || 'them'))}</q><span class="ghost">You can change it on the next step.</span>` : ''
+  const q = state.holiday ? { prompt: "What's your favorite memory with {name}? End with a birthday wish, not a Christmas one." } : m
+  $('#asked').innerHTML = m ? `<span class="ghost">Everyone will be asked</span><q>${escapeHtml(ask(q, name || 'them'))}</q><span class="ghost">You can change it on the next step.</span>` : ''
 }
 $('#moments').addEventListener('click', showAsked)
+// a birthday near Christmas: one tap makes it festive (winter look, lights, snow and confetti, a two-in-one first line)
+// and the question keeps it about them, so the birthday isn't swallowed by the holiday
+const HB_LINE = 'Merry Christmas & happy birthday,'
+const HB_ASK = "What's your favorite memory with {name}? End with a birthday wish, not a Christmas one."
+const inSeason = (n = new Date()) => (n.getMonth() === 10 && n.getDate() >= 10) || n.getMonth() === 11 || (n.getMonth() === 0 && n.getDate() <= 6)
+function fitHoliday() {
+  const show = state.moment === 'birthday' && inSeason()
+  $('#hbday').classList.toggle('hidden', !show)
+  if (!show && state.holiday) setHoliday(false)
+}
+function setHoliday(on) {
+  state.holiday = on; $('#hbdayOn').checked = on
+  const m = moments.find((x) => x.id === state.moment)
+  if (on) { state.design = { ...HOLIDAY_BIRTHDAY }; state.vibe = 'kraft'; if (!state.headline) state.headline = HB_LINE; if (!state.song) state.song = 'holiday-3' }
+  else { state.design = null; state.vibe = m?.vibe || 'postcard'; if (state.headline === HB_LINE) state.headline = ''; if (state.song === 'holiday-3') state.song = null }
+  showAsked(); paint()
+}
+$('#hbdayOn').addEventListener('change', (e) => setHoliday(e.target.checked))
+$('#moments').addEventListener('click', fitHoliday)
+fitHoliday()
 $('#step1 [name=recipientName]').addEventListener('input', showAsked)
 showAsked()
 choiceButtons($('#tones'), TONES.map(([id, label, hint]) => ({ id, label, hint })), 'tone', (t) => `${t.label}<small>${t.hint}</small>`)
@@ -363,7 +389,7 @@ paint()
 function go(n) {
   ;[1, 2, 3].forEach((i) => { $(`#step${i}`).classList.toggle('hidden', i !== n); $(`#s${i}`).classList.toggle('on', i <= n) })
   $('#stepLabel').textContent = `Step ${n} of 3`
-  $('#pv').classList.toggle('hidden', n === 3)
+  $('#live').classList.toggle('hidden', n === 3)
   if (n === 3) renderThemes()
   else designer?.stop()
   window.scrollTo({ top: 0 })
@@ -374,7 +400,7 @@ $('#step1').addEventListener('submit', (e) => {
   const m = moments.find((x) => x.id === state.moment)
   const ta = $('#step2 textarea'); const name = firstName(new FormData(e.target).get('recipientName'))
   // fill in the occasion's question, unless they've written their own
-  if (!ta.value || ta.value === autoPrompt) { ta.value = ask(m, name); autoPrompt = ta.value }
+  if (!ta.value || ta.value === autoPrompt) { ta.value = ask(state.holiday ? { prompt: HB_ASK } : m, name); autoPrompt = ta.value }
   if (!state.tone) { state.tone = m.tone; $$('#tones .choice').forEach((x) => x.setAttribute('aria-pressed', x.dataset.id === m.tone)) }
   renderIdeas()
   paint(); go(2)
@@ -513,7 +539,7 @@ $('#step3').addEventListener('submit', async (e) => {
     const res = await api('/api/cards', { method: 'POST', body: {
       recipientName: f1.get('recipientName'), hostName: f1.get('hostName'), moment: state.moment,
       prompt: f2.get('prompt'), tone: state.tone, rules: $$('#rules input:checked').map((x) => x.value),
-      turnstile: await botCheck(), clipSeconds: secs, vibe: state.vibe, song: state.song, headline: state.headline, deadlineAt: f3.get('deadlineAt') ? new Date(f3.get('deadlineAt')).toISOString() : null, hostEmail: f3.get('hostEmail') || null, googleCredential,
+      turnstile: await botCheck(), clipSeconds: secs, vibe: state.vibe, design: state.design, song: state.song, headline: state.headline, deadlineAt: f3.get('deadlineAt') ? new Date(f3.get('deadlineAt')).toISOString() : null, hostEmail: f3.get('hostEmail') || null, googleCredential,
     } })
     const first = firstName(f1.get('recipientName')), host = firstName(f1.get('hostName'))
     if (res.checkEmail) { remember({ id: res.id, email: res.email, first, at: Date.now() }); showCheckEmail(res, first); return }
